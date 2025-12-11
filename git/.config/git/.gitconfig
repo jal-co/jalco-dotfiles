@@ -13,5 +13,5 @@
 [commit]
   template = /Users/justin/.config/git/.gitmessage
 	gpgsign = true
-[gpg]
-	program = gpg
+[tag]
+	gpgSign = true
