@@ -4,6 +4,7 @@ export TERM=xterm-256color
 export DOCKER_SOCK="$HOME/.docker/run/docker.sock"
 export HOMEBREW_NO_ENV_HINTS=1
 export GIT_CONFIG_GLOBAL="$HOME/dotfiles/git/.config/git/.gitconfig"
+export GPG_TTY=$(tty)
 
 
 # Silence Docker warnings when socket is missing
@@ -318,6 +319,7 @@ setopt HIST_VERIFY
 setopt AUTO_CD
 setopt AUTO_PUSHD
 setopt PUSHD_IGNORE_DUPS
+
 
 eval "$(starship init zsh)"
 

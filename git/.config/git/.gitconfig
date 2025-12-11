@@ -6,8 +6,12 @@
 [user]
 	name = Justin Levine
 	email = 20596508+justinlevinedotme@users.noreply.github.com
+	signingkey = 2E9C31E5276833A6
 [core]
 	excludesfile = /Users/justin/.config/git/.gitignore_global
 	editor = code
 [commit]
   template = /Users/justin/.config/git/.gitmessage
+	gpgsign = true
+[gpg]
+	program = gpg
