@@ -239,7 +239,7 @@
     "*.mdx": "markdown"
   },
   "githubLocalActions.dockerDesktopPath": "/Applications/Docker.app",
-  "claudeCode.preferredLocation": "panel",
+  "claudeCode.preferredLocation": "sidebar",
   "http.systemCertificatesNode": false,
   "window.newWindowProfile": "Default",
   "explorer.fileNesting.patterns": {
@@ -258,5 +258,14 @@
   },
   "explorer.confirmPasteNative": false,
   "github.copilot.nextEditSuggestions.enabled": true,
-  "git.confirmSync": false
+  "git.confirmSync": false,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "scminput": false
+  },
+  "claudeCode.selectedModel": "default",
+  "chat.viewSessions.orientation": "stacked"
 }
