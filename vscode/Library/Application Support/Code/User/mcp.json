@@ -1,25 +1,10 @@
 {
-  "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"],
-      "env": {
-        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
-      }
-    },
-    "shadcn": {
-      "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
-    },
-    "vercel": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://mcp.vercel.com"]
-    },
-    "github": {
+  "servers": {
+    "posthog": {
       "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
+      "url": "https://mcp.posthog.com/mcp",
       "headers": {
-        "Authorization": "Bearer ${env:GITHUB_PERSONAL_ACCESS_TOKEN}"
+        "Authorization": "Bearer phx_1Rz1fDNoR8FZjVHeod2hRPOLaE68p6XyyjeSM2ImRtmwOef"
       }
     }
   }
