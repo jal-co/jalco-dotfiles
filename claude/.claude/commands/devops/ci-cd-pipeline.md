@@ -7,6 +7,8 @@ tags: ci-cd, devops, automation
 Implement comprehensive DevOps quality gates adapted to project type:
 **Analyze project**: Detect language(s), framework, build system, and existing tooling
 **Configure pre-commit hooks** with language-specific tools:
+- Github Standards: Establish pre-commit hooks for code quality and security (husky, pre-commit, commitlint, etc.)
+  - commit format: feat, fix, docs, style, refactor, test, chore: Enforce conventional commit messages
 - Formatting: Prettier/Black/gofmt/rustfmt/etc.
 - Linting: ESLint/Ruff/golangci-lint/Clippy/etc.
 - Security: Bandit/gosec/cargo-audit/npm audit/etc.

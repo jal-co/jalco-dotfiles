@@ -36,6 +36,11 @@ fi
 # pnpm home
 export PNPM_HOME="$HOME/Library/pnpm"
 export PATH="$PNPM_HOME:$PATH"
+if ! command -v pnpm >/dev/null 2>&1; then
+  if command -v corepack >/dev/null 2>&1; then
+    alias pnpm="corepack pnpm"
+  fi
+fi
 
 # nvm setup
 export NVM_DIR="$HOME/.nvm"
@@ -329,3 +334,5 @@ if [[ -f "$HOME/.zshrc.local" ]]; then
 fi
 
 ( fastfetch )
+# Created by `pipx` on 2025-12-30 22:48:38
+export PATH="$PATH:/Users/justin/.local/bin"
