@@ -118,7 +118,6 @@ source ~/.zshrc.local
 | `find-skills` | Discover and install skills from skills.sh |
 | `git` | Git/GitHub CLI workflows and conventions |
 | `grep-app` | Search code across GitHub repositories |
-| `hermes-agent` | Nous Research Hermes Agent operations |
 | `impeccable` | Frontend design audit, critique, and polish |
 | `improve` | Read-only codebase audit and improvement plans |
 | `mcp-management` | MCP server config and troubleshooting |
@@ -132,7 +131,6 @@ source ~/.zshrc.local
 | `shadcn-ui` | shadcn/ui component library patterns |
 | `ship-or-skip` | Honest critique and vetting of product ideas |
 | `stack-up` | Tech-stack selection and architecture advice |
-| `thesvg` | Fetch brand SVG logos and cloud icons |
 
 > Skills excluded from version control (PII): `write-like-justin`, `job-search`, `real-app`
 
