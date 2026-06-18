@@ -1,9 +1,9 @@
 {
   "theme": "geist-dark",
-  "lastChangelogVersion": "0.73.1",
+  "lastChangelogVersion": "0.79.6",
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-6",
-  "defaultThinkingLevel": "off",
+  "defaultModel": "claude-opus-4-8",
+  "defaultThinkingLevel": "low",
   "quietStartup": true,
   "enabledModels": [
     "anthropic/claude-opus-4-5",
@@ -11,19 +11,29 @@
     "openai-codex/gpt-5.4",
     "zai/glm-5.1",
     "anthropic/claude-opus-4-7",
+    "anthropic/claude-opus-4-8",
     "nvidia-nim/minimaxai/minimax-m2.7",
     "openai-codex/gpt-5.5"
   ],
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
+    "npm:@howaboua/pi-codex-conversion",
+    "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
+    "npm:@howaboua/pi-markdown-workflows",
+    "npm:@benvargas/pi-claude-code-use",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:@juicesharp/rpiv-args",
+    "npm:context-mode",
     "npm:pi-annotate",
+    "npm:pi-copy-output",
+    "npm:pi-goal-x",
     "npm:pi-markdown-preview",
     "npm:pi-mcp-adapter",
     "npm:pi-notify",
-    "npm:pi-updater",
-    "npm:@howaboua/pi-codex-conversion",
-    "npm:pi-copy-output",
     "npm:pi-skills-sh",
-    "npm:@benvargas/pi-claude-code-use"
-  ]
+    "npm:pi-subagents",
+    "npm:pi-updater"
+  ],
+  "enableSkillCommands": false
 }
