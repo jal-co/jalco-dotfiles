@@ -26,14 +26,15 @@
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp",
-      "auth": "oauth"
+      "auth": "oauth",
+      "directTools": true
     },
     "typefully": {
       "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
     },
     "paper": {
       "url": "http://127.0.0.1:29979/mcp",
-      "directTools": true
+      "directTools": false
     },
     "figma-desktop": {
       "url": "http://127.0.0.1:3845/mcp",
