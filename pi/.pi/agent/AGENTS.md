@@ -320,6 +320,11 @@ Cross-agent and cross-repo task state lives in the "Agent Todos" page in Notion 
 - Purely in-session micro-steps (e.g. "run tests", "read file") stay in the `todo` tool only; Notion holds user-named, durable tasks
 - If the notion server is unreachable, MUST say so and fall back to the session todo list; MUST NOT silently skip the sync
 
+**Cross-repo initiatives:**
+- Work spanning repos (e.g. an app plus the component library it drives) SHOULD live on ONE subpage, owned by the driving repo, with the member repos named in its intro line
+- Agents MUST also fetch any Agent Todos subpage whose intro names the current repo, not just the repo's own subpage
+- An item MUST live on exactly one page; the other repo's subpage links to it rather than copying it
+
 </rules>
 
 ---
