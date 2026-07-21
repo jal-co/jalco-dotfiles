@@ -317,8 +317,15 @@ Cross-agent and cross-repo task state lives in the "Agent Todos" page in Notion 
 - When adding a task to the session `todo` tool that will outlive the session, MUST also add a `- [ ]` item to the repo's subpage
 - When completing such a task, MUST check off the Notion item in the same turn as marking the `todo` tool task completed, not batched at the end
 - MUST NOT duplicate an existing open item; update or check off the existing one instead
+- When checking off an item completed by a commit, SHOULD append the short hash as a link to the item, e.g. `- [x] task ([a095ef0](https://github.com/jal-co/jalco-pi-mono/commit/a095ef0))`; use the pushed remote URL, or the bare hash if the commit is local only
 - Purely in-session micro-steps (e.g. "run tests", "read file") stay in the `todo` tool only; Notion holds user-named, durable tasks
 - If the notion server is unreachable, MUST say so and fall back to the session todo list; MUST NOT silently skip the sync
+
+**Long plans / task context:**
+- A todo item stays one line; anything longer (plan, constraints, decisions, verification notes) goes in a child page under the repo subpage, titled after the task
+- The todo item MUST link to its child page; the child page links back to relevant commits/PRs
+- Agents resuming a linked task MUST fetch the child page before planning
+- SHOULD append a short outcome line to the child page when checking the item off
 
 **Cross-repo initiatives:**
 - Work spanning repos (e.g. an app plus the component library it drives) SHOULD live on ONE subpage, owned by the driving repo, with the member repos named in its intro line
