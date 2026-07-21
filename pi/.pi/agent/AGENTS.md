@@ -307,15 +307,17 @@ If most answers are no, treat as legacy and surface the alternative.
 ## 7a. Shared Todos (Notion)
 
 <context>
-Cross-agent and cross-repo task state lives in the "Agent Todos" database in Notion, reached via the `notion` MCP server. Repo-local TODO.md files are scratch only; the Notion database is the source of truth.
+Cross-agent and cross-repo task state lives in the "Agent Todos" page in Notion (page id `3a4fa3bb-92be-813e-9513-e5cd3644ffa4`), reached via the `notion` server through the pi mcp gateway tool (pi-mcp-adapter). It holds one subpage per repo/project, each with a checkbox todo list. Repo-local TODO.md files are scratch only; the Notion subpage is the source of truth. The session `todo` tool remains the in-session working list; Notion is its persistent mirror.
 </context>
 
 <rules>
 
-- At the start of any multi-step or multi-session task, MUST query the Agent Todos database for open items matching the current repo before planning new work
-- MUST add a row for any new task the user names that will outlive the current session (fields: task, status, repo, date)
-- MUST mark the row done immediately after completing the work, in the same turn, not batched at the end
-- MUST NOT duplicate an existing open row; update it instead
+- At the start of any multi-step or multi-session task, MUST fetch the current repo's subpage under Agent Todos and fold its open items into planning before creating new work
+- If no subpage exists for the current repo, MUST create one under the Agent Todos page (title = repo name) before adding tasks
+- When adding a task to the session `todo` tool that will outlive the session, MUST also add a `- [ ]` item to the repo's subpage
+- When completing such a task, MUST check off the Notion item in the same turn as marking the `todo` tool task completed, not batched at the end
+- MUST NOT duplicate an existing open item; update or check off the existing one instead
+- Purely in-session micro-steps (e.g. "run tests", "read file") stay in the `todo` tool only; Notion holds user-named, durable tasks
 - If the notion server is unreachable, MUST say so and fall back to the session todo list; MUST NOT silently skip the sync
 
 </rules>
