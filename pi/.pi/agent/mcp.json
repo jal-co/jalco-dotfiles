@@ -24,6 +24,10 @@
         "EXA_API_KEY": "${EXA_API_KEY}"
       }
     },
+    "notion": {
+      "url": "https://mcp.notion.com/mcp",
+      "auth": "oauth"
+    },
     "typefully": {
       "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
     },
