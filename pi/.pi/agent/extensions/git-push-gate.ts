@@ -5,7 +5,7 @@
  * Intercepts bash commands containing `git push` and prompts for confirmation.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	const gitPushPatterns = [

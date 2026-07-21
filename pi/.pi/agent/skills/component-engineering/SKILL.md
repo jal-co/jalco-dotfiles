@@ -1,7 +1,7 @@
 ---
 name: component-engineering
 description: |-
-  Apply the formal standard for React component engineering focusing on accessibility, composition, and styling. Use for building professional, composable React artifacts. Use proactively when creating or reviewing React components.
+  Apply the formal standard for React component engineering focusing on accessibility, composition, and styling. Use for building professional, composable React artifacts. Explicit invocation only (/component-create, /component-review, or naming this skill). Generic component builds and reviews route to design-engineer-bible (dxb) instead.
   Examples:
   - user: "/component-create Button trigger" → build accessible button with asChild and keyboard map
   - user: "/component-review src/components/Input.tsx" → audit for accessibility and composition compliance
