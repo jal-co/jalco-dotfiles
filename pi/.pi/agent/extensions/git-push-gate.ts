@@ -6,6 +6,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isYolo } from "./yolo-state";
 
 export default function (pi: ExtensionAPI) {
 	const gitPushPatterns = [
@@ -20,6 +21,8 @@ export default function (pi: ExtensionAPI) {
 		const isPush = gitPushPatterns.some((p) => p.test(command));
 
 		if (!isPush) return undefined;
+
+		if (isYolo()) return undefined;
 
 		if (!ctx.hasUI) {
 			return { block: true, reason: "Git push blocked (no UI for confirmation)" };
