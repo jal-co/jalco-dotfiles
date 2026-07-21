@@ -6,10 +6,11 @@
  */
 
 import type { ExtensionAPI, SessionBeforeSwitchEvent, SessionMessageEntry } from "@earendil-works/pi-coding-agent";
+import { isYolo } from "./yolo-state";
 
 export default function (pi: ExtensionAPI) {
 	pi.on("session_before_switch", async (event: SessionBeforeSwitchEvent, ctx) => {
-		if (!ctx.hasUI) return;
+		if (!ctx.hasUI || isYolo()) return;
 
 		if (event.reason === "new") {
 			const confirmed = await ctx.ui.confirm(
@@ -44,7 +45,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_before_fork", async (event, ctx) => {
-		if (!ctx.hasUI) return;
+		if (!ctx.hasUI || isYolo()) return;
 
 		const choice = await ctx.ui.select(`Fork from entry ${event.entryId.slice(0, 8)}?`, [
 			"Yes, create fork",
