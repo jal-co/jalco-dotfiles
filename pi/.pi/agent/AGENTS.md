@@ -304,6 +304,24 @@ If most answers are no, treat as legacy and surface the alternative.
 
 ---
 
+## 7a. Shared Todos (Notion)
+
+<context>
+Cross-agent and cross-repo task state lives in the "Agent Todos" database in Notion, reached via the `notion` MCP server. Repo-local TODO.md files are scratch only; the Notion database is the source of truth.
+</context>
+
+<rules>
+
+- At the start of any multi-step or multi-session task, MUST query the Agent Todos database for open items matching the current repo before planning new work
+- MUST add a row for any new task the user names that will outlive the current session (fields: task, status, repo, date)
+- MUST mark the row done immediately after completing the work, in the same turn, not batched at the end
+- MUST NOT duplicate an existing open row; update it instead
+- If the notion server is unreachable, MUST say so and fall back to the session todo list; MUST NOT silently skip the sync
+
+</rules>
+
+---
+
 ## 8. Voice & Attribution
 
 <rules>
