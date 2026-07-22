@@ -3,7 +3,7 @@
   "lastChangelogVersion": "0.80.10",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-fable-5",
-  "defaultThinkingLevel": "low",
+  "defaultThinkingLevel": "high",
   "quietStartup": true,
   "enabledModels": [
     "anthropic/claude-opus-4-5",
