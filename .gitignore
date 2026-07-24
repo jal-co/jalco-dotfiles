@@ -16,6 +16,9 @@ yarn.lock
 # jdot: machine-local package opt-outs
 .jdotignore
 
+# Local secrets, no longer git-crypt managed (removed 2026-07-24)
+home/zsh/.zshrc.local
+
 # tmux: TPM-managed plugins, reinstall via prefix + I
 home/tmux/.config/tmux/plugins/
 

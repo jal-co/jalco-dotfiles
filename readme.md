@@ -1,6 +1,6 @@
 # jalco-dotfiles
 
-Personal dev environment: shell, editors, terminal, git, and [pi](https://github.com/badlogic/pi-mono) agent config, managed with [GNU Stow](https://www.gnu.org/software/stow/) and a small CLI (`jdot`). [git-crypt](https://github.com/AGWA/git-crypt) encrypts private files, so this repo can be cloned anywhere without exposing secrets.
+Personal dev environment: shell, editors, terminal, git, and [pi](https://github.com/badlogic/pi-mono) agent config, managed with [GNU Stow](https://www.gnu.org/software/stow/) and a small CLI (`jdot`). `home/zsh/.zshrc.local` holds live secrets, stays on disk, and is gitignored, not committed.
 
 Layout inspired by [dmmulroy/.dotfiles](https://github.com/dmmulroy/.dotfiles) — packages live under `home/`, which mirrors `$HOME`, and a repo-root CLI handles stowing, Homebrew, and maintenance.
 
@@ -44,7 +44,7 @@ dotfiles/
     ├── tmux/.config/tmux/      # Plugins gitignored, reinstall via prefix + I
     ├── vscode/Library/Application Support/Code/User/
     ├── zed/.config/zed/
-    └── zsh/                    # .zshrc, .zshrc.local (encrypted)
+    └── zsh/                    # .zshrc; .zshrc.local (gitignored, not tracked)
 ```
 
 ## `jdot` commands
@@ -81,11 +81,10 @@ vscode
 
 ## What's Ignored
 
-Secrets (`auth.json`), runtime state (sessions, caches, `.zshrc.local` when locked), `node_modules/`, compiled binaries, tmux plugins (TPM-managed), and the three PII skills under `pi/`. See [`.gitignore`](.gitignore).
+Secrets (`auth.json`, `.zshrc.local`), runtime state (sessions, caches), `node_modules/`, compiled binaries, tmux plugins (TPM-managed), and the three PII skills under `pi/`. See [`.gitignore`](.gitignore).
 
 ## Acknowledgments
 
 - [GNU Stow](https://www.gnu.org/software/stow/)
-- [git-crypt](https://github.com/AGWA/git-crypt)
 - [dmmulroy/.dotfiles](https://github.com/dmmulroy/.dotfiles) — structural inspiration for `home/` + CLI
 - [pi](https://github.com/badlogic/pi-mono) by [badlogic](https://github.com/badlogic)
