@@ -1,0 +1,111 @@
+onboarding = false
+
+[theme]
+# Use Ghostty's palette so Herdr stays consistent with the terminal.
+name = "terminal"
+auto_switch = false
+
+[terminal]
+shell_mode = "auto"
+new_cwd = "follow"
+
+[update]
+channel = "stable"
+version_check = true
+manifest_check = true
+
+[keys]
+# Keep the main creation actions on single mnemonic letters in the prefix bar.
+new_tab = "prefix+t"
+close_tab = "prefix+x"
+new_workspace = "prefix+w"
+
+# Move the less common conflicting actions out of the way.
+close_pane = "prefix+shift+x"
+workspace_picker = "prefix+alt+w"
+
+# Keep the common plugin actions mnemonic: prefix, then R, I, or F.
+resize_mode = "prefix+alt+r"
+
+[[keys.command]]
+key = "prefix+r"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+description = "toggle diff review"
+
+[[keys.command]]
+key = "prefix+i"
+type = "plugin_action"
+command = "herdr-insight.open-timeline-down"
+description = "open agent timeline"
+
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer"
+description = "open file viewer"
+
+[[keys.command]]
+key = "prefix+p"
+type = "plugin_action"
+command = "jt.command-palette.open"
+description = "Command palette"
+
+[[keys.command]]
+key = "f12"
+type = "popup"
+command = "bash ~/.config/herdr/scripts/keybind-help.sh"
+description = "show shortcut cheat sheet"
+width = 58
+height = 22
+
+[ui]
+sidebar_width = 28
+sidebar_min_width = 20
+sidebar_max_width = 38
+sidebar_start_collapsed = false
+sidebar_collapsed_mode = "compact"
+mobile_width_threshold = 64
+
+mouse_capture = true
+copy_on_select = true
+host_cursor = "native"
+redraw_on_focus_gained = true
+mouse_scroll_lines = 3
+
+confirm_close = true
+prompt_new_tab_name = false
+prompt_new_workspace_name = true
+pane_borders = true
+pane_gaps = true
+show_agent_labels_on_pane_borders = true
+hide_tab_bar_when_single_tab = false
+agent_panel_sort = "priority"
+accent = "cyan"
+
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", "workspace", "tab", "$pr"],
+  ["agent", "terminal_title_stripped"],
+]
+
+[ui.sidebar.spaces]
+row_gap = 0
+rows = [
+  ["state_icon", "workspace"],
+  ["branch", "git_status"],
+]
+
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
+
+[ui.sound]
+enabled = false
+
+[session]
+resume_agents_on_restore = true
+
+[advanced]
+scrollback_limit_bytes = 10000000

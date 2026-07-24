@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Usage: open-smart-tmux <pane_path> <mouse_word>
+# Requires: tmux ≥ 3.2, macOS (uses `open`), optional: cursor/code, fd, realpath
+
+set -euo pipefail
+
+open_smart() {
+  local in="$1"
+  local p="$in" line="" full=""
+
+  # URL -> browser
+  if [[ "$in" =~ ^(https?|ftp)://.+ ]]; then
+    command open -- "$in"
+    return 0
+  fi
+
+  # strip leading a/ or b/ (git diffs)
+  if [[ "$p" == a/* ]]; then
+    p="${p#a/}"
+  elif [[ "$p" == b/* ]]; then
+    p="${p#b/}"
+  fi
+
+  # trailing :line
+  if [[ "$p" =~ :([0-9]+)$ ]]; then
+    line="${BASH_REMATCH[1]}"
+    p="${p%:*}"
+  fi
+
+  # expand ~
+  if [[ "$p" == "~"* ]]; then
+    p="${p/#\~/$HOME}"
+  fi
+
+  if [[ -e "$p" ]]; then
+    if command -v realpath >/dev/null 2>&1; then
+      full="$(realpath -- "$p")" || full="$p"
+    else
+      [[ "$p" = /* ]] && full="$p" || full="$PWD/$p"
+    fi
+  else
+    # try fd unique match
+    if command -v fd >/dev/null 2>&1; then
+      hits=()
+      while IFS= read -r h; do
+        hits+=("$h")
+      done < <(fd --full-path "$p" 2>/dev/null || true)
+
+      if (( ${#hits[@]} == 1 )); then
+        full="${hits[0]}"
+      else
+        printf 'open-smart: multiple or no results for %s\n' "$p" >&2
+        return 1
+      fi
+    else
+      printf 'open-smart: not found: %s\n' "$p" >&2
+      return 1
+    fi
+  fi
+
+  [[ -e "$full" ]] || { printf 'open-smart: not found: %s\n' "$p" >&2; return 1; }
+
+  # directory -> Finder
+  if [[ -d "$full" ]]; then
+    command open -- "$full"
+    return 0
+  fi
+
+  # file -> cursor/code with optional :line
+  if [[ -f "$full" ]]; then
+    if [[ -n "$line" ]]; then
+      if command -v cursor >/dev/null 2>&1; then
+        cursor --goto "$full:$line"; return 0
+      elif command -v code >/dev/null 2>&1; then
+        code --goto "$full:$line"; return 0
+      fi
+    else
+      if command -v cursor >/dev/null 2>&1; then
+        cursor "$full"; return 0
+      elif command -v code >/dev/null 2>&1; then
+        code "$full"; return 0
+      fi
+    fi
+    command open -- "$full"
+    return 0
+  fi
+
+  command open -- "$full"
+}
+
+# inner mode (runs inside popup)
+if [[ "${1-}" == "__inner" ]]; then
+  shift
+  pane_path="${PANE_PATH-}"
+  mouse_word="${MOUSE_WORD-}"
+  cd "$pane_path" || exit 1
+  open_smart "$mouse_word"
+  exit $?
+fi
+
+# outer mode (spawns popup)
+if [[ $# -lt 2 ]]; then
+  echo "usage: $(basename "$0") <pane_path> <mouse_word>" >&2
+  exit 1
+fi
+
+pane_path="$1"
+mouse_word="$2"
+
+popup_cmd=$(
+  printf "/usr/bin/env bash -lc 'PANE_PATH=%q MOUSE_WORD=%q export PANE_PATH MOUSE_WORD; %q __inner'\n" \
+    "$pane_path" "$mouse_word" "$0"
+)
+
+tmux popup -w 40% -h 10 -E "$popup_cmd"

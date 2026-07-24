@@ -1,54 +1,57 @@
 {
+  "agent": {
+    "dock": "right",
+    "favorite_models": [],
+    "model_parameters": [],
+  },
   "edit_predictions": {
-    "disabled_globs": []
+    "provider": "none",
+    "disabled_globs": [],
   },
   "formatter": "prettier",
   "context_servers": {
     "browser-tools-context-server": {
       "enabled": true,
-      "settings": {}
+      "settings": {},
     },
     "mcp-server-github": {
       "enabled": true,
       "settings": {
-        "github_personal_access_token": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
+        "github_personal_access_token": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}",
+      },
     },
     "mcp-server-context7": {
       "enabled": true,
       "settings": {
-        "context7_api_key": "${env:CONTEXT7_API_KEY}"
-      }
-    }
-  },
-  "features": {
-    "edit_prediction_provider": "copilot"
+        "context7_api_key": "${env:CONTEXT7_API_KEY}",
+      },
+    },
   },
   "collaboration_panel": {
-    "dock": "right"
+    "dock": "right",
   },
   "git_panel": {
     "dock": "left",
     "button": true,
-    "fallback_branch_name": "main"
+    "fallback_branch_name": "main",
   },
   "title_bar": {
+    "show_branch_status_icon": true,
     "show_menus": true,
-    "show_branch_icon": true
   },
   "telemetry": {
     "diagnostics": false,
-    "metrics": false
+    "metrics": false,
   },
   "icon_theme": {
     "mode": "dark",
     "light": "Zed (Default)",
-    "dark": "Colored Zed Icons Theme Dark"
+    "dark": "Colored Zed Icons Theme Dark",
   },
   "theme": {
     "mode": "system",
     "light": "Vercel Light",
-    "dark": "Vercel Dark"
+    "dark": "Vercel Dark",
   },
   "base_keymap": "VSCode",
   "ui_font_size": 16,
@@ -62,7 +65,7 @@
   "wrap_guides": [80],
   "show_whitespaces": "selection",
   "indent_guides": {
-    "enabled": true
+    "enabled": true,
   },
   "scroll_sensitivity": 1,
   "fast_scroll_sensitivity": 5,
@@ -73,26 +76,26 @@
   "rounded_selection": true,
   "gutter": {
     "line_numbers": true,
-    "folds": true
+    "folds": true,
   },
   "minimap": {
-    "show": "never"
+    "show": "never",
   },
   "sticky_scroll": {
-    "enabled": true
+    "enabled": true,
   },
   "scrollbar": {
     "axes": {
       "horizontal": false,
-      "vertical": true
-    }
+      "vertical": true,
+    },
   },
   "status_bar": {
-    "experimental.show": true
+    "experimental.show": true,
   },
   "tab_bar": {
     "show": true,
-    "show_tab_bar_buttons": true
+    "show_tab_bar_buttons": true,
   },
   "tabs": {
     "file_icons": true,
@@ -100,12 +103,12 @@
     "show_close_button": "hover",
     // valid values: "history" | "neighbour" | "left_neighbour"
     "activate_on_close": "history",
-    "git_status": false
+    "git_status": false,
   },
   "preview_tabs": {
     "enabled": true,
     "enable_preview_from_file_finder": true,
-    "enable_preview_from_code_navigation": true
+    "enable_keep_preview_on_code_navigation": true,
   },
   "max_tabs": 20,
   "format_on_save": "on",
@@ -113,7 +116,7 @@
   "ensure_final_newline_on_save": true,
 
   "search": {
-    "include_ignored": true
+    "include_ignored": true,
   },
 
   "file_scan_exclusions": [
@@ -124,20 +127,21 @@
     "**/.tmp",
     "**/node_modules",
     "**/Thumbs.db",
-    "**/dist"
+    "**/dist",
   ],
 
   "project_panel": {
+    "dock": "left",
     "git_status": false,
     "auto_fold_dirs": true,
     "auto_reveal_entries": true,
     "hide_gitignore": true,
-    "show_diagnostics": "errors"
+    "show_diagnostics": "errors",
   },
 
   "outline_panel": {
     "dock": "right",
-    "git_status": false
+    "git_status": false,
   },
 
   "terminal": {
@@ -148,13 +152,28 @@
     "blinking": "on",
     "copy_on_select": true,
     "max_scroll_history_lines": 5000,
-    "option_as_meta": true
+    "option_as_meta": true,
   },
 
   "file_types": {
-    "markdown": ["*.mdx"]
+    "markdown": ["*.mdx"],
   },
-
+  "agent_servers": {
+    "OpenCode": {
+      "type": "extension",
+      "favorite_models": [
+        "zai-coding-plan/glm-4.7",
+        "anthropic/claude-opus-4-5",
+        "openai/gpt-5.2",
+        "openai/gpt-5.2-codex",
+        "local/antigravity/gemini-3-flash",
+        "local/antigravity/claude-opus-4-5",
+        "local/antigravity/claude-sonnet-4-5",
+      ],
+      "default_config_options": {},
+      "favorite_config_option_values": {},
+    },
+  },
   "auto_indent_on_paste": false,
-  "use_on_type_format": false
+  "use_on_type_format": false,
 }

@@ -5,7 +5,7 @@
 	smudge = git-lfs smudge -- %f
 [user]
 	name = Justin Levine
-	email = 20596508+justinlevinedotme@users.noreply.github.com
+	email = 20596508+jal-co@users.noreply.github.com
 	signingkey = 2E9C31E5276833A6
 [core]
 	excludesfile = /Users/justin/.config/git/.gitignore_global
@@ -17,3 +17,5 @@
 	gpgSign = true
 [init]
 	defaultBranch = main
+[credential]
+	helper = osxkeychain
