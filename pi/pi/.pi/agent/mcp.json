@@ -1,0 +1,45 @@
+{
+  "settings": {
+    "toolPrefix": "server",
+    "idleTimeout": 10
+  },
+  "mcpServers": {
+    "catchall": {
+      "command": "node",
+      "args": [
+        "/Users/justin/Documents/Github/Catchall/mcp/index.js"
+      ]
+    },
+    "natural": {
+      "url": "https://mcp.natural.com",
+      "auth": "oauth"
+    },
+    "exa": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
+    },
+    "notion": {
+      "url": "https://mcp.notion.com/mcp",
+      "auth": "oauth",
+      "directTools": true
+    },
+    "typefully": {
+      "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
+    },
+    "paper": {
+      "url": "http://127.0.0.1:29979/mcp",
+      "directTools": true
+    },
+    "figma-desktop": {
+      "url": "http://127.0.0.1:3845/mcp",
+      "auth": false,
+      "directTools": false
+    }
+  }
+}
