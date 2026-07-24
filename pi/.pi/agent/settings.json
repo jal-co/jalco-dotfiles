@@ -1,27 +1,21 @@
 {
-  "theme": "geist-dark",
-  "lastChangelogVersion": "0.80.10",
+  "collapseChangelog": true,
+  "defaultModel": "claude-sonnet-5",
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-fable-5",
-  "defaultThinkingLevel": "high",
-  "quietStartup": true,
+  "defaultThinkingLevel": "low",
   "enabledModels": [
-    "anthropic/claude-opus-4-5",
-    "anthropic/claude-opus-4-6",
-    "anthropic/claude-opus-4-7",
     "anthropic/claude-opus-4-8",
-    "openai-codex/gpt-5.4",
-    "openai-codex/gpt-5.5",
-    "zai/glm-5.2",
-    "nvidia-nim/minimaxai/minimax-m2.7",
     "anthropic/claude-fable-5",
     "cursor/opus-4-8@1m:slow",
     "cursor/composer-2.5",
     "anthropic/claude-sonnet-5",
-    "openai-codex/gpt-5.6-luna",
-    "openai-codex/gpt-5.6-sol",
-    "openai-codex/gpt-5.6-terra"
+    "anthropic/claude-opus-5",
+    "zai/glm-5.2",
+    "openai-codex/gpt-5.6-sol"
   ],
+  "enableSkillCommands": false,
+  "extensions": [],
+  "lastChangelogVersion": "0.82.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-codex-conversion",
@@ -31,7 +25,6 @@
     "./packages/rpiv-ask-user-question",
     "./packages/rpiv-todo",
     "npm:@juicesharp/rpiv-args",
-    "npm:context-mode",
     "npm:pi-annotate",
     "npm:pi-goal-x",
     "npm:pi-markdown-preview",
@@ -42,11 +35,13 @@
     "npm:pi-updater",
     "npm:pi-cursor-sdk",
     "npm:pi-xai-oauth",
-    "git:github.com/jal-co/pi-agentation"
+    "git:github.com/jal-co/pi-agentation",
+    "../../Documents/Github/pi-codex-micro",
+    "npm:@ogulcancelik/pi-session-recall",
+    "npm:@ogulcancelik/pi-auto-permissions",
+    "npm:@ogulcancelik/pi-herdr",
+    "npm:claude-agent-sdk-pi"
   ],
-  "enableSkillCommands": false,
-  "collapseChangelog": true,
-  "extensions": [
-    "/Users/justin/Documents/GitHub/pi-codex-micro/src/index.ts"
-  ]
+  "quietStartup": true,
+  "theme": "geist-dark"
 }
