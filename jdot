@@ -22,6 +22,9 @@ const os = require("os");
 const { execFileSync, execSync } = require("child_process");
 
 const REPO_ROOT = __dirname;
+// Stow packages live under home/ (stow dir); repo-root files (folders.toml,
+// .jdotignore, DOTFILES.md) stay at REPO_ROOT.
+const PKG_ROOT = path.join(REPO_ROOT, "home");
 const HOME = os.homedir();
 
 function expandHome(p) {
@@ -83,7 +86,7 @@ function readIgnore() {
 
 function listPackages() {
   return fs
-    .readdirSync(REPO_ROOT, { withFileTypes: true })
+    .readdirSync(PKG_ROOT, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
     .filter((name) => !name.startsWith(".") && name !== "packages" && name !== "node_modules");
@@ -101,13 +104,13 @@ function cmdStow() {
     console.log("Nothing to stow.");
     return;
   }
-  execFileSync("stow", ["-t", HOME, ...toStow], { cwd: REPO_ROOT, stdio: "inherit" });
+  execFileSync("stow", ["-t", HOME, ...toStow], { cwd: PKG_ROOT, stdio: "inherit" });
   console.log(`Stowed: ${toStow.join(", ")}`);
 }
 
 function cmdUnstow(pkg) {
   const targets = pkg ? [pkg] : listPackages();
-  execFileSync("stow", ["-D", "-t", HOME, ...targets], { cwd: REPO_ROOT, stdio: "inherit" });
+  execFileSync("stow", ["-D", "-t", HOME, ...targets], { cwd: PKG_ROOT, stdio: "inherit" });
   console.log(`Unstowed: ${targets.join(", ")}`);
 }
 
@@ -172,7 +175,7 @@ function cmdAlias() {
 
 function readPackageIgnore(pkgDir) {
   const patterns = [];
-  for (const file of [path.join(REPO_ROOT, ".stow-local-ignore"), path.join(pkgDir, ".stow-local-ignore")]) {
+  for (const file of [path.join(PKG_ROOT, ".stow-local-ignore"), path.join(pkgDir, ".stow-local-ignore")]) {
     if (!fs.existsSync(file)) continue;
     for (const line of fs.readFileSync(file, "utf8").split("\n")) {
       const trimmed = line.trim();
@@ -186,7 +189,7 @@ function cmdDoctor() {
   const packages = listPackages();
   let broken = 0;
   for (const pkg of packages) {
-    const pkgDir = path.join(REPO_ROOT, pkg);
+    const pkgDir = path.join(PKG_ROOT, pkg);
     const ignorePatterns = readPackageIgnore(pkgDir);
     walk(pkgDir, pkgDir, ignorePatterns);
   }
@@ -330,9 +333,9 @@ function cmdAgents() {
 }
 
 function cmdPiDigest() {
-  const piAgentDir = path.join(REPO_ROOT, "pi", ".pi", "agent");
+  const piAgentDir = path.join(PKG_ROOT, "pi", ".pi", "agent");
   if (!fs.existsSync(piAgentDir)) {
-    console.error(`No pi/.pi/agent found under ${REPO_ROOT} yet. Run this after the pi package is merged in.`);
+    console.error(`No pi/.pi/agent found under ${PKG_ROOT} yet. Run this after the pi package is merged in.`);
     process.exit(1);
   }
 
@@ -384,7 +387,7 @@ function cmdPiDigest() {
   for (const pkg of packages) lines.push(`- \`${pkg}\``);
   lines.push("");
 
-  const outPath = path.join(REPO_ROOT, "pi", "PI.md");
+  const outPath = path.join(PKG_ROOT, "pi", "PI.md");
   fs.writeFileSync(outPath, lines.join("\n"));
   console.log(`Wrote ${outPath}`);
 }

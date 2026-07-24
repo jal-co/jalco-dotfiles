@@ -1,1 +1,1 @@
-zsh/.zshrc.local filter=git-crypt diff=git-crypt
+home/zsh/.zshrc.local filter=git-crypt diff=git-crypt
