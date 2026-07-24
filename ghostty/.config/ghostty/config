@@ -1,3 +1,4 @@
+theme = dark:Vercel,light:GitHub Light Default
 # --- Font ---
 font-family = GeistMono Nerd Font Mono
 font-size = 14
@@ -25,4 +26,4 @@ foreground = #ededed
 cursor-color = #f6f1fe
 selection-background = #ffffff
 selection-foreground = #ededed
-keybind = shift+enter=text:\x1b\r
+keybind = shift+enter=text:\n
