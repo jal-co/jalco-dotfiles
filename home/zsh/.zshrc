@@ -3,7 +3,7 @@ export ZSH_CUSTOM="$ZSH/custom"
 export TERM=xterm-256color
 export DOCKER_SOCK="$HOME/.docker/run/docker.sock"
 export HOMEBREW_NO_ENV_HINTS=1
-export GIT_CONFIG_GLOBAL="$HOME/dotfiles/git/.config/git/.gitconfig"
+export GIT_CONFIG_GLOBAL="$HOME/dotfiles/home/git/.config/git/.gitconfig"
 export GPG_TTY=$(tty)
 
 
