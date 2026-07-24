@@ -54,6 +54,18 @@ pi/.pi/context-mode/
 
 # Personal time tracking data
 pi/.pi/agent/time-tracking.json
+pi/.pi/agent/time-clients.json
+
+# Codex Micro runtime state
+pi/.pi/agent/codex-micro-slots/
+pi/.pi/agent/codex-micro.json
+pi/.pi/agent/settings.json.codex-micro-backup
+pi/.pi/agent/microd.log
+
+# Compiled helper binaries (time-tracker deps, rebuild locally)
+pi/.pi/agent/fnkey
+pi/.pi/agent/frontapp
+pi/.pi/agent/keysend
 
 # Parked skills
 pi/.pi/agent/skills-disabled/
