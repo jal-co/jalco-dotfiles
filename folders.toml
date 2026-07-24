@@ -1,0 +1,25 @@
+# Folder shortcuts, managed by `jdot alias`.
+#
+# `jdot alias` does two things per entry:
+#   1. writes `alias <name>="cd <path>"` into ~/.config/jdot/aliases.zsh
+#      (sourced from .zshrc)
+#   2. if finder = true, creates a real macOS Finder alias file at
+#      <finder_dir>/<name> pointing at <path>, so you can click into it
+#      from Finder too
+
+[folders]
+
+[folders.gotogit]
+path = "~/Documents/GitHub"
+
+[folders.docs]
+path = "~/Documents/GitHub/FMMLoader26-Docs"
+
+[folders.dotfiles]
+path = "~/dotfiles"
+finder = true
+finder_dir = "~/Documents/GitHub"
+
+# Compound aliases (cd + run a command) go here, kept separate so
+# plain jumps are easy to scan.
+[commands]
