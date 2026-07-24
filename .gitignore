@@ -16,6 +16,9 @@ yarn.lock
 # jdot: machine-local package opt-outs
 .jdotignore
 
+# tmux: TPM-managed plugins, reinstall via prefix + I
+tmux/.config/tmux/plugins/
+
 # Environment files
 .env
 .env.local

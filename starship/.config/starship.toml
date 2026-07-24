@@ -2,19 +2,18 @@ add_newline = true
 
 # Vercel-style layout: directory → git → prompt
 format = """\
-$directory$git_branch$git_status
+  ${env_var.ZMX_SESSION}$username [in](fg:#666666) $directory$git_branch$git_status
 $character\
 """
 
 continuation_prompt = "… "
 [character]
-success_symbol = "[➜](bold green)"     # The "success_symbol" segment is being set to "➜" with the color "bold green"
-error_symbol = "[✗](bold red)"         # The "error_symbol" segment is being set to "✗" with the color "bold red"
-# ─────────── Hostname (clean / subtle) ───────────
-[hostname]
-ssh_only = true
-format = "[$hostname](fg:#999999) "
-disabled = false
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+[username]
+show_always = true
+style_user = "bold fg:#ffffff"
+format = "[$user](bold fg:#ffffff)"
 
 # ─────────── Directory (Vercel-black + sharp edges) ───────────
 [directory]
@@ -28,7 +27,7 @@ read_only_style = "fg:#777777"
 # ─────────── Git Branch (clean, gray, subtle) ───────────
 [git_branch]
 symbol = " "
-format = "[$symbol$branch](fg:#999999) "
+format = "[$symbol$branch](fg:#999999)"
 truncation_length = 15
 truncation_symbol = ""
 
@@ -105,3 +104,8 @@ disabled = true
 [sudo]
 disabled = false
 
+# ─────────── zmx session indicator ───────────
+[env_var.ZMX_SESSION]
+symbol = ""
+format = "[($symbol$env_value)]($style) "
+style = "italic fg:#666666"

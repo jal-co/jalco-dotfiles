@@ -1,59 +1,65 @@
-//   _____ _____ _____ _____ _____ _____ _____ _____ _____
-//  |   __|  _  |   __|_   _|   __|   __|_   _|     |  |  |
-//  |   __|     |__   | | | |   __|   __| | | |   --|     |
-//  |__|  |__|__|_____| |_| |__|  |_____| |_| |_____|__|__|  OS
-//
-//  by Bina
-
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "source": "macos_small", // search for logos: fastfetch --list-logos or --print-logos
-    "padding": {
-      "top": 1,
-      "left": 2,
-      "right": 2,
-      "bottom": 1
-    }
+    "type": "none"
   },
   "display": {
-    "separator": "  "
+    "separator": "  ",
+    "color": {
+      "separator": "90"
+    }
   },
   "modules": [
     "break",
-    "title",
+    {
+      "type": "title",
+      "format": "{1}",
+      "key": " ",
+      "keyColor": "37",
+      "color": {
+        "1": "white"
+      }
+    },
+    {
+      "type": "separator",
+      "string": "─"
+    },
     {
       "type": "os",
-      "key": "os    ",
-      "keyColor": "33" // = color3
+      "key": "  os",
+      "keyColor": "90"
     },
     {
       "type": "kernel",
-      "key": "kernel",
-      "keyColor": "33"
+      "key": "  kernel",
+      "keyColor": "90"
     },
     {
       "type": "host",
       "format": "{5} {1}",
-      "key": "host  ",
-      "keyColor": "33"
+      "key": "  host",
+      "keyColor": "90"
     },
     {
-      "type": "packages",
-      "format": "{} (pacman)",
-      "key": "pkgs  ",
-      "keyColor": "33"
+      "type": "shell",
+      "key": "  shell",
+      "keyColor": "90"
+    },
+    {
+      "type": "terminal",
+      "key": "  term",
+      "keyColor": "90"
     },
     {
       "type": "uptime",
       "format": "{2}h {3}m",
-      "key": "uptime",
-      "keyColor": "33"
+      "key": "  uptime",
+      "keyColor": "90"
     },
     {
       "type": "memory",
-      "key": "memory",
-      "keyColor": "33"
+      "key": "  memory",
+      "keyColor": "90"
     },
     "break"
   ]

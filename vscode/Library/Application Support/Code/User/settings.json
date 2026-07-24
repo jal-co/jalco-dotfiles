@@ -1,6 +1,6 @@
 {
   "[markdown]": {
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
   },
   "better-comments.tags": [
     {
@@ -10,7 +10,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "- [x]",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -19,7 +19,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "[x]",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -28,7 +28,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "!",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -37,7 +37,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "?",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -46,7 +46,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "todo",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -55,7 +55,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "[ ] todo",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -64,7 +64,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "- [ ] todo",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -73,7 +73,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "bug",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -82,7 +82,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "[ ] bug",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -91,7 +91,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "- [ ] bug",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -100,7 +100,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "fix",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -109,7 +109,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "[ ] fix",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -118,7 +118,7 @@
       "italic": false,
       "strikethrough": false,
       "tag": "- [ ] fix",
-      "underline": false
+      "underline": false,
     },
     {
       "backgroundColor": "transparent",
@@ -127,8 +127,8 @@
       "italic": false,
       "strikethrough": false,
       "tag": "*",
-      "underline": false
-    }
+      "underline": false,
+    },
   ],
   "claudeCode.useTerminal": true,
   "editor.cursorBlinking": "smooth",
@@ -136,9 +136,9 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.detectIndentation": false,
   "editor.fontFamily": "Geist MonoNF, Fira Code, Menlo, Monaco, 'Courier New', monospace",
-  "editor.formatOnPaste": true,
-  "editor.formatOnSave": true,
-  "editor.formatOnType": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnSave": false,
+  "editor.formatOnType": false,
   "editor.guides.indentation": true,
   "editor.minimap.enabled": false,
   "editor.overviewRulerBorder": false,
@@ -150,23 +150,23 @@
     "errorMessage": {
       "color": "#DA3036",
       "infoColor": "#DA3036",
-      "textDecoration": ";background:#551A1E;border-radius:0.3em;padding:0 0.5ch;"
+      "textDecoration": ";background:#551A1E;border-radius:0.3em;padding:0 0.5ch;",
     },
     "hintMessage": {
       "color": "#808080",
       "infoColor": "#808080",
-      "textDecoration": ";background:rgba(128, 128, 128, 0.1); border-radius:0.3em;padding:0 0.5ch;"
+      "textDecoration": ";background:rgba(128, 128, 128, 0.1); border-radius:0.3em;padding:0 0.5ch;",
     },
     "infoMessage": {
       "color": "#0C9784",
       "infoColor": "#0C9784",
-      "textDecoration": ";background:#085E53; border-radius:0.3em;padding:0 0.5ch;"
+      "textDecoration": ";background:#085E53; border-radius:0.3em;padding:0 0.5ch;",
     },
     "warningMessage": {
       "color": "#E79C13",
       "infoColor": "#E79C13",
-      "textDecoration": ";background:#693F05;border-radius:0.3em;padding:0 0.5ch;"
-    }
+      "textDecoration": ";background:#693F05;border-radius:0.3em;padding:0 0.5ch;",
+    },
   },
   "errorLens.gutterIconsEnabled": true,
   "errorLens.messageBackgroundMode": "none",
@@ -181,7 +181,7 @@
     "**/.tmp": true,
     "**/node_modules": true,
     "**/Thumbs.db": true,
-    "**dist": true
+    "**dist": true,
   },
   "git.decorations.enabled": false,
   "git.ignoreRebaseWarning": true,
@@ -197,12 +197,12 @@
   "todo-tree.filtering.excludeGlobs": [
     "**/node_modules/*",
     "**/.git/*",
-    "**/README.md"
+    "**/README.md",
   ],
   "todo-tree.general.tagGroups": {
     "BUG": ["BUG", "FIXME", "bug", "fixme"],
     "MARK": ["MARK", "mark"],
-    "TODO": ["TODO", "todo"]
+    "TODO": ["TODO", "todo"],
   },
   "todo-tree.general.tags": [
     "TODO",
@@ -212,20 +212,20 @@
     "FIXME",
     "fixme",
     "MARK",
-    "mark"
+    "mark",
   ],
   "todo-tree.highlights.customHighlight": {
     "BUG": {
       "icon": "bug",
-      "iconColour": "#DA3036"
+      "iconColour": "#DA3036",
     },
     "MARK": {
       "icon": "bookmark",
-      "iconColour": "#FFFFFF8A"
+      "iconColour": "#FFFFFF8A",
     },
     "TODO": {
-      "icon": "checklist"
-    }
+      "icon": "checklist",
+    },
   },
   "todo-tree.highlights.enabled": false,
   "todo-tree.tree.labelFormat": "${tag:uppercase} ${after} [${filename}]",
@@ -236,7 +236,7 @@
   "workbench.list.smoothScrolling": true,
   "workbench.settings.editor": "json",
   "files.associations": {
-    "*.mdx": "markdown"
+    "*.mdx": "markdown",
   },
   "githubLocalActions.dockerDesktopPath": "/Applications/Docker.app",
   "claudeCode.preferredLocation": "sidebar",
@@ -254,7 +254,7 @@
     "*.sqlite3": "${capture}.${extname}-*",
     "*.db3": "${capture}.${extname}-*",
     "*.sdb": "${capture}.${extname}-*",
-    "*.s3db": "${capture}.${extname}-*"
+    "*.s3db": "${capture}.${extname}-*",
   },
   "explorer.confirmPasteNative": false,
   "github.copilot.nextEditSuggestions.enabled": true,
@@ -264,13 +264,14 @@
     "*": true,
     "plaintext": false,
     "markdown": true,
-    "scminput": false
+    "scminput": false,
   },
   "claudeCode.selectedModel": "default",
   "chat.viewSessions.orientation": "stacked",
   "chat.mcp.gallery.enabled": true,
   "workbench.editorAssociations": {
     "*.copilotmd": "vscode.markdown.preview.editor",
-    "*.db": "default"
-  }
+    "*.db": "default",
+  },
+  "git.enableSmartCommit": true,
 }

@@ -1,6 +1,6 @@
 # PI
 
-**Generated:** 2026-07-24T20:27:47.406Z
+**Generated:** 2026-07-24T20:49:22.787Z
 
 Digest of the pi/ package: skills, single-file extensions, and installed packages.
 Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inventory only.
