@@ -1,7 +1,7 @@
 # DOTFILES
 
-**Generated:** 2026-07-24T20:49:22.735Z
-**Commit:** 0ea81a0
+**Generated:** 2026-07-24T23:36:05.207Z
+**Commit:** 3b6e55a
 
 macOS dev env via GNU Stow, managed by `jdot`.
 
