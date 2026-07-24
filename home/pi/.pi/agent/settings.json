@@ -35,6 +35,7 @@
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-auto-permissions",
     "npm:@ogulcancelik/pi-herdr",
+    "npm:@ogulcancelik/pi-web-browse",
     "npm:claude-agent-sdk-pi"
   ],
   "quietStartup": true,
