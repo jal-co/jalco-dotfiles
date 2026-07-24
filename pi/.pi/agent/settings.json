@@ -1,17 +1,12 @@
 {
   "collapseChangelog": true,
-  "defaultModel": "claude-sonnet-5",
+  "defaultModel": "claude-opus-5",
   "defaultProvider": "anthropic",
   "defaultThinkingLevel": "low",
   "enabledModels": [
-    "anthropic/claude-opus-4-8",
     "anthropic/claude-fable-5",
-    "cursor/opus-4-8@1m:slow",
-    "cursor/composer-2.5",
-    "anthropic/claude-sonnet-5",
     "anthropic/claude-opus-5",
-    "zai/glm-5.2",
-    "openai-codex/gpt-5.6-sol"
+    "anthropic/claude-sonnet-5"
   ],
   "enableSkillCommands": false,
   "extensions": [],

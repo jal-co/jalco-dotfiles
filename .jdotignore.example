@@ -1,0 +1,17 @@
+# jdot ignore file (tracked example / shared defaults)
+#
+# Copy to .jdotignore (gitignored) and edit per machine, or edit this
+# file directly if you want a shared default committed to the repo.
+#
+# Two kinds of entries, one per line:
+#
+# 1. A bare package name skips the whole package during `jdot stow`.
+#      vscode
+#      zed
+#
+# 2. A glob (contains / or *) skips matching files within any package,
+#    useful for submodule READMEs/LICENSEs you don't want symlinked
+#    into $HOME.
+#      */README.md
+#      */LICENSE
+#      skills/*/node_modules
