@@ -1,0 +1,211 @@
+tap "anomalyco/tap"
+tap "maddada/tap"
+tap "marsanne/cask"
+tap "mdsakalu/tap"
+tap "neurosnap/tap"
+tap "oven-sh/bun"
+brew "mise"
+
+# Run your GitHub Actions locally
+brew "act"
+# Universal zig executable that runs any version of zig
+brew "anyzig"
+# Clone of cat(1) with syntax highlighting and Git integration
+brew "bat"
+# Memory upgrade for your coding agent
+brew "beads"
+# Resource monitor. C++ version and continuation of bashtop and bpytop
+brew "btop"
+# Cloudflare Tunnel client (formerly Argo Tunnel)
+brew "cloudflared"
+# Dependency manager for Cocoa projects
+brew "cocoapods"
+# Tool for managing dock items
+brew "dockutil"
+# Modern, maintained replacement for ls
+brew "eza"
+# Like neofetch, but much faster because written mostly in C
+brew "fastfetch"
+# Play, record, convert, and stream select audio and video codecs
+brew "ffmpeg"
+# Command-line fuzzy finder written in Go
+brew "fzf"
+# GitHub command-line tool
+brew "gh"
+# Interpreter for PostScript and PDF
+brew "ghostscript"
+# GIF image/animation creator/editor
+brew "gifsicle"
+# Distributed revision control system
+brew "git"
+# Enable transparent encryption/decryption of files in a git repo
+brew "git-crypt"
+# Syntax-highlighting pager for git and diff output
+brew "git-delta"
+# Audit git repos for secrets
+brew "gitleaks"
+# Render markdown on the CLI
+brew "glow"
+# GNU Privacy Guard (OpenPGP)
+brew "gnupg"
+# Agent multiplexer that lives in your terminal
+brew "herdr", restart_service: :changed
+# CLI tool for searching and downloading app packages from the iOS App Store
+brew "ipatool"
+# Postgres C API library
+brew "libpq"
+# Library to render SVG files using Cairo
+brew "librsvg"
+# Mac App Store command-line interface
+brew "mas"
+# Java-based project management
+brew "maven"
+# Manage multiple Node.js versions
+# Swiss-army knife of markup format conversion
+brew "pandoc"
+# Pinentry for GPG on Mac
+brew "pinentry-mac"
+# Execute binaries from Python packages in isolated environments
+brew "pipx"
+# Fast, disk space efficient package manager
+brew "pnpm"
+# PDF rendering library (based on the xpdf-3.0 code base)
+brew "poppler"
+# Protocol buffers (Google's data interchange format)
+brew "protobuf"
+# Generic syntax highlighter
+brew "pygments"
+# Interpreted, interactive, object-oriented programming language
+# Rust toolchain installer
+brew "rustup"
+# Non-interactive SSH password auth
+brew "sshpass"
+# Cross-shell prompt for astronauts
+brew "starship"
+# Organize software neatly under a single directory tree (e.g. /usr/local)
+brew "stow"
+# Easiest, most secure way to use WireGuard and 2FA
+brew "tailscale"
+# Official tldr client written in Rust
+brew "tlrc"
+# Terminal multiplexer
+brew "tmux"
+# Display directories as trees (with optional color/HTML output)
+brew "tree"
+# Command-line interface for Vercel
+brew "vercel"
+# Internet file retriever
+brew "wget"
+# Port of OpenAI's Whisper model in C/C++
+brew "whisper-cpp"
+# Generate your Xcode project from a spec file and your folder structure
+brew "xcodegen"
+# JavaScript package manager
+brew "yarn"
+# Shell extension to navigate your filesystem faster
+brew "zoxide"
+# Fish shell like syntax highlighting for zsh
+brew "zsh-syntax-highlighting"
+# Configure Gatekeeper, unquarantine and self-sign apps
+cask "alienator88-sentinel"
+# Agent orchestration platform
+cask "antigravity"
+# 3D model slicing software for 3D printers, maintained by Bambu Lab
+cask "bambu-studio"
+# Compact TeX distribution as alternative to the full TeX Live / MacTeX
+cask "basictex"
+# Terminal-based AI coding assistant
+cask "claude-code"
+# OpenAI's coding agent that runs in your terminal
+cask "codex"
+# Client for the Dropbox cloud storage service
+cask "dropbox"
+# Collaborative team software
+cask "figma"
+# Web browser
+cask "firefox@developer-edition"
+cask "font-geist"
+cask "font-geist-mono-nerd-font"
+# Terminal emulator that uses platform-native UI and GPU acceleration
+cask "ghostty"
+# Web browser
+cask "google-chrome"
+# Chromium-based web browser
+cask "helium-browser"
+# File archiver
+cask "keka"
+cask "brave-browser"
+cask "proton-mail"
+cask "slack"
+cask "typefully"
+cask "wispr-flow"
+cask "microsoft-word"
+cask "discord"
+cask "notion"
+cask "utm"
+# Host-based application firewall
+cask "little-snitch"
+# Spreadsheet software
+cask "microsoft-excel"
+# Presentation software
+cask "microsoft-powerpoint"
+# Open-source software for live streaming and screen recording
+cask "obs"
+# Knowledge base that works on top of a local folder of plain text Markdown files
+cask "obsidian"
+# Verify system files structure, run miscellaneous maintenance and more
+cask "onyx"
+# Replacement for Docker Desktop
+cask "orbstack"
+# PDF reader, editor and annotator
+cask "pdf-expert"
+# Desktop client for Proton Pass
+cask "proton-pass"
+# VPN client focusing on security
+cask "protonvpn"
+# Companion app for Flipper Zero devices
+cask "qflipper"
+# All-in-one bookmark manager
+cask "raindropio"
+# Control your tools with a few keystrokes
+cask "raycast"
+# Move and resize windows using keyboard shortcuts or snap areas
+cask "rectangle"
+# Font manager that helps preview, install, sync and manage fonts
+cask "rightfont"
+# Screen recorder and editor
+cask "screen-studio"
+# Collection of apps available by subscription
+cask "setapp"
+# Video game digital distribution service
+cask "steam"
+# Email client
+cask "superhuman"
+# SSH client
+cask "termius"
+# Menu bar manager
+cask "thaw"
+# Git client focusing on power and productivity
+cask "tower"
+# Open-source code editor
+# Multiplayer code editor
+cask "zed"
+# Collect, organise, cite, and share research sources
+cask "zotero"
+mas "CrystalFetch", id: 6454431289
+mas "Tailscale", id: 1475387142
+mas "WhatsApp", id: 310633997
+go "github.com/Domain-Connect/dc-template-linter"
+cargo "cargo-about"
+cargo "cargo-bundle"
+npm "@earendil-works/pi-coding-agent"
+npm "@mariozechner/pi-tui"
+npm "@mermaid-js/mermaid-cli"
+npm "applesign"
+npm "ccusage"
+npm "shadcn"
+npm "skills"
+npm "tokscale"
+npm "typescript-language-server"
+npm "typescript"
+npm "wscat"
