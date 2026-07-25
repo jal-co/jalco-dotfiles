@@ -12,9 +12,6 @@
 [folders.gotogit]
 path = "~/Documents/GitHub"
 
-[folders.docs]
-path = "~/Documents/GitHub/FMMLoader26-Docs"
-
 [folders.dotfiles]
 path = "~/dotfiles"
 finder = true
