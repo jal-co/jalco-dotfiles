@@ -1,6 +1,6 @@
 {
   "collapseChangelog": true,
-  "defaultModel": "claude-opus-5",
+  "defaultModel": "claude-sonnet-5",
   "defaultProvider": "anthropic",
   "defaultThinkingLevel": "low",
   "enabledModels": [
@@ -36,7 +36,8 @@
     "npm:@ogulcancelik/pi-auto-permissions",
     "npm:@ogulcancelik/pi-herdr",
     "npm:@ogulcancelik/pi-web-browse",
-    "npm:claude-agent-sdk-pi"
+    "npm:claude-agent-sdk-pi",
+    "npm:@plannotator/pi-extension"
   ],
   "quietStartup": true,
   "theme": "geist-dark"

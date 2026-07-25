@@ -39,6 +39,31 @@ MUST use available question tools — MUST NOT dump a wall of text.
 
 ---
 
+## 1a. Plan Review via Plannotator
+
+<context>
+When `@plannotator/pi-extension` is installed, it registers `plannotator_submit_plan`, a tool that opens a visual browser UI where the user reviews a markdown plan, marks it up with inline annotations, and approves, denies, or denies-with-feedback. It is the concrete mechanism for the Socratic-Questioning gate on large tasks, not a separate workflow.
+</context>
+
+<rules>
+
+- MUST write the plan as a real markdown file inside the working directory (`.md`/`.mdx`), not as chat prose, before calling `plannotator_submit_plan` for any task that would otherwise trigger the Socratic-Questioning "ask first" rule
+- MUST structure the plan with headers per phase and checkboxes per step so annotations can target a specific line instead of the whole document
+- MUST NOT begin implementation (writes beyond the plan file itself) before the plan is submitted and approved
+- On denial, MUST edit the same file in place and resubmit the same path, not a new file, so the user gets a diff/version view on re-review
+- MUST mark each completed step with `[DONE:n]` in the response as it finishes, matching the step numbering in the plan file
+
+</rules>
+
+<guidelines>
+
+- SHOULD prefer `plannotator_submit_plan` over `ask_user_question` for whole-plan review; keep `ask_user_question` for discrete multiple-choice decisions inside an already-approved plan
+- SHOULD delete the plan file once its steps are complete and merged, unless the user wants it kept as a record
+
+</guidelines>
+
+---
+
 ## 2. Branch Naming
 
 <rules>
