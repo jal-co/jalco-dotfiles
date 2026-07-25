@@ -10,7 +10,7 @@
   ],
   "enableSkillCommands": false,
   "extensions": [],
-  "lastChangelogVersion": "0.82.0",
+  "lastChangelogVersion": "0.82.1",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-codex-conversion",
