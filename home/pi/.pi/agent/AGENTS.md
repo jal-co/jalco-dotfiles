@@ -64,6 +64,31 @@ When `@plannotator/pi-extension` is installed, it registers `plannotator_submit_
 
 ---
 
+## 1b. Worktrees for Large Planned Features
+
+<context>
+When `@jalco/pi-herdr-worktree` is installed and pi is running inside a Herdr pane, `herdr_worktree_create`/`open`/`list`/`remove` wrap Herdr's native worktree-backed panes. Combined with plan review (§1a), this is the default execution model for large planned features: plan reviewed and approved in the main worktree, implementation happens in an isolated worktree so the main working tree stays clean and reviewable in parallel.
+</context>
+
+<rules>
+
+- MUST create a dedicated worktree via `herdr_worktree_create` before starting implementation on any plan that was gated through `plannotator_submit_plan` (§1a), unless the user declines or the change is confined to a single file
+- MUST NOT implement a large planned feature directly in the main checkout when `herdr_worktree_create` is available; use it even if the user did not explicitly ask for a worktree
+- MUST name the branch/worktree after the feature, matching the Branch Naming conventions in §2
+- MUST leave the user's main pane and working directory untouched; the worktree gets its own Herdr pane
+- SHOULD remove the worktree via `herdr_worktree_remove` after the feature branch merges, unless the user wants it kept
+
+</rules>
+
+<guidelines>
+
+- SHOULD add a project-level `.pi/worktree.json` (postCreate/preRemove/linkPaths) the first time a repo's worktree setup needs dependency install, env linking, or DB provisioning, so future worktrees in that repo need no manual setup
+- SHOULD fall back to a plain sibling `herdr_layout pane_split` (no worktree) for small, single-file, or exploratory changes where branch isolation adds no value
+
+</guidelines>
+
+---
+
 ## 2. Branch Naming
 
 <rules>
