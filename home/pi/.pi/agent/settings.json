@@ -37,7 +37,8 @@
     "npm:@ogulcancelik/pi-herdr",
     "npm:@ogulcancelik/pi-web-browse",
     "npm:claude-agent-sdk-pi",
-    "npm:@plannotator/pi-extension"
+    "npm:@plannotator/pi-extension",
+    "npm:@jalco/pi-herdr-worktree"
   ],
   "quietStartup": true,
   "theme": "geist-dark"
