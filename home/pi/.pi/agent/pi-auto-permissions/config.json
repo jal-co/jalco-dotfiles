@@ -1,4 +1,7 @@
 {
+  "ui": {
+    "enabled": false
+  },
   "rules": [
     {
       "pattern": "\\bgit\\s+commit\\b",
