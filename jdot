@@ -292,7 +292,7 @@ function cmdAgents() {
   lines.push("");
   lines.push("```");
   lines.push("dotfiles/");
-  lines.push("├── jdot                 # CLI: stow/unstow/alias/doctor/benchmark-shell/agents");
+  lines.push("├── jdot                 # CLI: stow/unstow/alias/doctor/benchmark-shell/digest");
   lines.push("├── folders.toml         # Folder jump aliases + Finder aliases");
   lines.push("├── .jdotignore          # Machine-local package/glob opt-outs (gitignored)");
   for (const pkg of packages.sort()) {
@@ -310,7 +310,7 @@ function cmdAgents() {
   lines.push("jdot alias             # Regenerate shell + Finder aliases from folders.toml");
   lines.push("jdot doctor            # Find broken symlinks under $HOME");
   lines.push("jdot benchmark-shell   # zsh startup perf (-r N runs, -v verbose)");
-  lines.push("jdot agents            # Regenerate this file");
+  lines.push("jdot digest             # Regenerate this file");
   lines.push("```");
   lines.push("");
   if (folderNames.length) {
