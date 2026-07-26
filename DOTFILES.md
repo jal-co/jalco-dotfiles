@@ -1,7 +1,7 @@
 # DOTFILES
 
-**Generated:** 2026-07-24T23:36:05.207Z
-**Commit:** 3b6e55a
+**Generated:** 2026-07-26T22:08:25.284Z
+**Commit:** d360356
 
 macOS dev env via GNU Stow, managed by `jdot`.
 
@@ -9,11 +9,10 @@ macOS dev env via GNU Stow, managed by `jdot`.
 
 ```
 dotfiles/
-├── jdot                 # CLI: stow/unstow/alias/doctor/benchmark-shell/agents
+├── jdot                 # CLI: stow/unstow/alias/doctor/benchmark-shell/digest
 ├── folders.toml         # Folder jump aliases + Finder aliases
 ├── .jdotignore          # Machine-local package/glob opt-outs (gitignored)
 ├── agents/
-├── claude/
 ├── eza/
 ├── fastfetch/
 ├── ghostty/
@@ -37,12 +36,12 @@ jdot unstow [pkg]      # Unstow one package, or everything
 jdot alias             # Regenerate shell + Finder aliases from folders.toml
 jdot doctor            # Find broken symlinks under $HOME
 jdot benchmark-shell   # zsh startup perf (-r N runs, -v verbose)
-jdot agents            # Regenerate this file
+jdot digest             # Regenerate this file
 ```
 
 ## FOLDER ALIASES
 
-`gotogit`, `docs`, `dotfiles`
+`gotogit`, `dotfiles`
 
 ## ANTI-PATTERNS
 
