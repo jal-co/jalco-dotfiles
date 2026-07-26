@@ -6,16 +6,18 @@
   "enabledModels": [
     "anthropic/claude-fable-5",
     "anthropic/claude-opus-5",
-    "anthropic/claude-sonnet-5"
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-haiku-4-5",
+    "openai-codex/gpt-5.6-sol",
+    "openai-codex/gpt-5.6-terra"
   ],
-  "enableSkillCommands": false,
+  "enableSkillCommands": true,
   "extensions": [],
   "lastChangelogVersion": "0.82.1",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-codex-conversion",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
-    "npm:@howaboua/pi-markdown-workflows",
     "npm:@benvargas/pi-claude-code-use",
     "./packages/rpiv-ask-user-question",
     "./packages/rpiv-todo",
@@ -26,21 +28,23 @@
     "npm:pi-mcp-adapter",
     "npm:pi-notify",
     "npm:pi-skills-sh",
-    "npm:pi-subagents",
     "npm:pi-updater",
     "npm:pi-cursor-sdk",
     "npm:pi-xai-oauth",
     "git:github.com/jal-co/pi-agentation",
     "../../Documents/Github/pi-codex-micro",
     "npm:@ogulcancelik/pi-session-recall",
+    "npm:@ogulcancelik/pi-codex-subagents",
     "npm:@ogulcancelik/pi-auto-permissions",
     "npm:@ogulcancelik/pi-herdr",
-    "npm:@ogulcancelik/pi-web-browse",
     "npm:claude-agent-sdk-pi",
     "npm:@plannotator/pi-extension",
     "npm:@jalco/pi-herdr-worktree",
     "npm:pi-web-access"
   ],
   "quietStartup": true,
-  "theme": "geist-dark"
+  "theme": "geist-dark",
+  "warnings": {
+    "anthropicExtraUsage": false
+  }
 }

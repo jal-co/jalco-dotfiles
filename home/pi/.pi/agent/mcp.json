@@ -4,12 +4,6 @@
     "idleTimeout": 10
   },
   "mcpServers": {
-    "catchall": {
-      "command": "node",
-      "args": [
-        "/Users/justin/Documents/Github/Catchall/mcp/index.js"
-      ]
-    },
     "natural": {
       "url": "https://mcp.natural.com",
       "auth": "oauth"
@@ -35,11 +29,6 @@
     "paper": {
       "url": "http://127.0.0.1:29979/mcp",
       "directTools": true
-    },
-    "figma-desktop": {
-      "url": "http://127.0.0.1:3845/mcp",
-      "auth": false,
-      "directTools": false
     }
   }
 }

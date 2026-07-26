@@ -1,0 +1,6 @@
+{
+  "queryModel": {
+    "provider": "anthropic",
+    "id": "claude-haiku-4-5"
+  }
+}

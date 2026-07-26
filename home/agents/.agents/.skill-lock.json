@@ -24,10 +24,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "d601c797f9bbb8e999d98ff25d0ebdfb3acbd6aa",
-      "pluginName": "agent-browser",
+      "skillFolderHash": "037e8078db4b20b4aa25c04f21c6de7d335ec449",
       "installedAt": "2026-03-21T23:01:35.372Z",
-      "updatedAt": "2026-03-21T23:01:35.372Z"
+      "updatedAt": "2026-07-26T22:04:29.647Z"
     },
     "latex-document": {
       "source": "ndpvt-web/latex-document-skill",
