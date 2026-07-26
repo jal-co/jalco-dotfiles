@@ -105,3 +105,21 @@ home/pi/.pi/agent/skills-disabled/
 # Browser-tools scratch scripts
 home/pi/.pi/agent/skills/browser-tools/_*.mjs
 home/pi/.pi/agent/skills/browser-tools/capture-badges.mjs
+
+# Skills vendored from ~/.claude/skills (aiforui set).
+# Real directories, not symlinks, so they stay out of the repo.
+home/pi/.pi/agent/skills/animations/
+home/pi/.pi/agent/skills/color/
+home/pi/.pi/agent/skills/component-design/
+home/pi/.pi/agent/skills/design-foundations/
+home/pi/.pi/agent/skills/design-vocabulary/
+home/pi/.pi/agent/skills/engineering-vocabulary/
+home/pi/.pi/agent/skills/forms-and-inputs/
+home/pi/.pi/agent/skills/marketing-pages/
+home/pi/.pi/agent/skills/performance/
+home/pi/.pi/agent/skills/surfaces/
+home/pi/.pi/agent/skills/touch-and-accessibility/
+home/pi/.pi/agent/skills/typography/
+home/pi/.pi/agent/skills/ui-polish/
+home/pi/.pi/agent/skills/ui-review/
+home/pi/.pi/agent/skills/writing-skills/

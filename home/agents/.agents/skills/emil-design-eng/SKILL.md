@@ -1,7 +1,7 @@
 ---
 name: emil-design-eng
 description: >-
-  Explicit invocation only: use when the user names Emil Kowalski or emil-design-eng directly. Encodes Emil's philosophy on UI polish, component design, and animation decisions. Generic polish requests route to design-engineer-bible (dxb) instead.
+  Explicit invocation only: use when the user names Emil Kowalski or emil-design-eng directly. Encodes Emil's philosophy on UI polish, component design, and animation decisions. Generic polish requests route to interface-craft or ui-polish instead.
 ---
 
 # Design Engineering
