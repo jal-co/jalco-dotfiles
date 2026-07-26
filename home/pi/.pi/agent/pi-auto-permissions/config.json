@@ -18,11 +18,41 @@
       "label": "Git push"
     },
     {
+      "pattern": "\\bgit\\s+push\\b.*(--force(?!-with-lease)|\\s-f\\b)",
+      "flags": "i",
+      "level": "convention",
+      "group": "git",
+      "label": "Force push",
+      "message": "Force pushing rewrites shared history. Use --force-with-lease, or request an override if this branch is yours alone."
+    },
+    {
       "pattern": "\\bnpm\\s+publish\\b",
       "flags": "i",
       "level": "guarded",
       "group": "npm",
       "label": "npm publish"
+    },
+    {
+      "pattern": "\\brm\\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r|--recursive)",
+      "flags": "i",
+      "level": "guarded",
+      "group": "filesystem",
+      "label": "Recursive delete"
+    },
+    {
+      "pattern": "\\bsudo\\b",
+      "flags": "i",
+      "level": "guarded",
+      "group": "system",
+      "label": "sudo"
+    },
+    {
+      "pattern": "(^|[;&|]\\s*)(sudo\\s+)?(chmod|chown)\\s+(-[a-zA-Z]+\\s+)*(777|a\\+rwx)\\b",
+      "flags": "i",
+      "level": "convention",
+      "group": "system",
+      "label": "World-writable permissions",
+      "message": "777 grants write access to every user on the machine. Set the narrowest mode that works, usually 755 for directories and 644 for files."
     }
   ]
 }
