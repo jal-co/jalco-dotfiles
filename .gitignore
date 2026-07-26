@@ -63,6 +63,9 @@ home/pi/.pi/agent/skills/write-like-justin/
 home/pi/.pi/agent/skills/job-search/
 home/pi/.pi/agent/skills/real-app/
 
+# Licensed skill content (installer-gated, not redistributable)
+home/agents/.agents/skills/interface-craft/
+
 # Personal prompts (resume details, contact info)
 home/pi/.pi/agent/prompts/jobs.md
 

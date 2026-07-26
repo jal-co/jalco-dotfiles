@@ -174,13 +174,13 @@
       "updatedAt": "2026-07-02T02:06:40.293Z"
     },
     "emil-design-eng": {
-      "source": "emilkowalski/skill",
+      "source": "emilkowalski/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/emilkowalski/skill.git",
+      "sourceUrl": "https://github.com/emilkowalski/skills.git",
       "skillPath": "skills/emil-design-eng/SKILL.md",
-      "skillFolderHash": "0e6f8d7223a0abe73f81e890b3ec76257029a834",
+      "skillFolderHash": "175725745e70946d891b93a1694d7c9ebb71b69d",
       "installedAt": "2026-07-03T03:03:09.170Z",
-      "updatedAt": "2026-07-03T03:03:09.170Z"
+      "updatedAt": "2026-07-26T18:37:16.300Z"
     },
     "shieldcn-badges": {
       "source": "jal-co/shieldcn",
@@ -451,6 +451,15 @@
       "skillFolderHash": "b9ad1c622f0692d6aa071c0b861920cd2954414a",
       "installedAt": "2026-07-26T18:32:46.819Z",
       "updatedAt": "2026-07-26T18:32:46.819Z"
+    },
+    "building-components": {
+      "source": "vercel/components.build",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel/components.build.git",
+      "skillPath": "skills/building-components/SKILL.md",
+      "skillFolderHash": "b7f8c5d9010b2f8cd1b4c9f250886264d5ce6d15",
+      "installedAt": "2026-07-26T18:37:10.483Z",
+      "updatedAt": "2026-07-26T18:37:10.483Z"
     }
   },
   "dismissed": {
