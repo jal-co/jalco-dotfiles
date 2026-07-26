@@ -47,6 +47,7 @@ When `@plannotator/pi-extension` is installed, it registers `plannotator_submit_
 
 <rules>
 
+- MUST run `/plannotator` to enter planning mode before calling `plannotator_submit_plan`; the tool only works while that mode is active, and `/plannotator` again exits it
 - MUST write the plan as a real markdown file inside the working directory (`.md`/`.mdx`), not as chat prose, before calling `plannotator_submit_plan` for any task that would otherwise trigger the Socratic-Questioning "ask first" rule
 - MUST structure the plan with headers per phase and checkboxes per step so annotations can target a specific line instead of the whole document
 - MUST NOT begin implementation (writes beyond the plan file itself) before the plan is submitted and approved
