@@ -439,9 +439,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/jakubkrehel/make-interfaces-feel-better.git",
       "skillPath": "skills/make-interfaces-feel-better/SKILL.md",
-      "skillFolderHash": "ae0b04b484f3c222048395723a253f6959bf727d",
+      "skillFolderHash": "e880ad90e8a0a8384f5cfae2cdd6a854e2de5d89",
       "installedAt": "2026-07-22T18:26:09.041Z",
-      "updatedAt": "2026-07-22T18:26:09.041Z"
+      "updatedAt": "2026-07-26T18:32:54.196Z"
+    },
+    "component-engineering": {
+      "source": "igorwarzocha/opencode-workflows",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/igorwarzocha/opencode-workflows.git",
+      "skillPath": "agents/component-engineer/.opencode/skill/component-engineering/SKILL.md",
+      "skillFolderHash": "b9ad1c622f0692d6aa071c0b861920cd2954414a",
+      "installedAt": "2026-07-26T18:32:46.819Z",
+      "updatedAt": "2026-07-26T18:32:46.819Z"
     }
   },
   "dismissed": {
