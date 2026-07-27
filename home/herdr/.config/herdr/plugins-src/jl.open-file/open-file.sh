@@ -7,7 +7,7 @@
 # against the cwd of that pane, not the cwd of this script.
 #
 # Actions run without a TTY, so a terminal editor would hang here with no way
-# to reach it. Override the editor with HERDR_LINK_EDITOR if you want zed.
+# to reach it. Override the editor with HERDR_LINK_EDITOR if you want code.
 
 set -euo pipefail
 
@@ -39,10 +39,10 @@ fi
 
 editor="${HERDR_LINK_EDITOR:-}"
 if [[ -z $editor ]]; then
-	if command -v code >/dev/null 2>&1; then
-		editor=code
-	elif command -v zed >/dev/null 2>&1; then
+	if command -v zed >/dev/null 2>&1; then
 		editor=zed
+	elif command -v code >/dev/null 2>&1; then
+		editor=code
 	else
 		echo "no GUI editor found; set HERDR_LINK_EDITOR" >&2
 		exit 1
