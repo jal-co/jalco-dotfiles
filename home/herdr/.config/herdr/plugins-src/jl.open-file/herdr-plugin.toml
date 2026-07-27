@@ -1,0 +1,23 @@
+id = "jl.open-file"
+name = "Open file at line"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Makes path:line references in pane output clickable. Agent output is full of them, and retyping a path into an editor is the most common small friction in a terminal workflow."
+platforms = ["linux", "macos"]
+
+# Matches a path with a file extension followed by :line, optionally :column.
+# Requiring an extension keeps it off host:port pairs and bare timestamps.
+# The regex crate has no lookarounds, so the shape does the filtering.
+[[link_handlers]]
+id = "path-line"
+title = "Open file at line"
+pattern = '[\w./@+-]*[\w-]+\.[A-Za-z][A-Za-z0-9]{0,9}:\d+(?::\d+)?'
+action = "open-file"
+
+# Herdr runs actions without a TTY, so this cannot launch a terminal editor.
+# open-file.sh resolves the path against the pane cwd and hands it to a GUI editor.
+[[actions]]
+id = "open-file"
+title = "Open file at line"
+contexts = ["pane"]
+command = ["bash", "open-file.sh"]
