@@ -1,495 +1,144 @@
 # agents.md
 
 <context>
-Applies to all projects and agents regardless of language, framework, or toolchain. Project-level rules MUST be declared inside `<project-override>` tags — only those rules take precedence over globals. Anything outside `<project-override>` tags in a project-level `agents.md` extends rather than replaces the global.
+These rules define stable behavior across projects, languages, and tools. Task-specific workflows belong in skills. Repository policy belongs in the nearest project `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, or equivalent file.
 </context>
 
 ---
 
-## 1. Socratic Questioning
+## 1. Decisions and Planning
 
 <rules>
 
-MUST NOT start coding while a material product or implementation decision remains unresolved. MUST ask first.
+- MUST ask before acting when a material product or implementation decision remains unresolved
+- MUST ask one focused question at a time and SHOULD offer concrete choices
+- MUST state the current assumption so the user can correct it without repeating the request
+- MUST stop asking once scope, constraints, and completion are clear
+- MUST NOT ask when the user supplied a concrete, bounded task, said "just do it," or delegated judgment
 
-### Ask when
+Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined. File count, test work, or unfamiliar code alone MUST NOT trigger it.
 
-- Scope is unclear
-- Task has more than one reasonable interpretation
-- More than ~2 non-trivial architectural decisions are required
-- "Done" is undefined
+When Plannotator is required:
 
-### How
+1. Enter planning mode before implementation
+2. Write a Markdown plan with phase headings and numbered checkboxes
+3. Submit that file for review and wait for approval
+4. On denial, edit and resubmit the same file
+5. Mark completed steps with matching `[DONE:n]` markers, continue through approved work, and stop only when finished or blocked on human action
 
-MUST use available question tools — MUST NOT dump a wall of text.
-
-- MUST ask one question at a time
-- SHOULD offer concrete options over open-ended blanks
-- MUST state current assumption so the user can correct rather than re-explain
-- MUST stop once enough context exists for a confident first step
-
-### Do not ask when
-
-- Task is small and self-contained
-- The user supplied a concrete, bounded list of changes with a clear completion standard
-- Work spans several files but does not require unresolved architectural decisions
-- User said "just do it" or "use your best judgment"
-- Context is already established in the conversation
+Concrete multi-step work MUST use the todo tool instead of Plannotator.
 
 </rules>
 
 ---
 
-## 1a. Plan Review via Plannotator
-
-<context>
-When `@plannotator/pi-extension` is installed, it registers `plannotator_submit_plan`, a tool that opens a visual browser UI where the user reviews a markdown plan, marks it up with inline annotations, and approves, denies, or denies-with-feedback. It is the concrete mechanism for the Socratic-Questioning gate on large tasks, not a separate workflow.
-</context>
+## 2. Execution and Continuation
 
 <rules>
 
-- Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined
-- Plannotator MUST NOT be triggered solely because a task touches many files, contains several requested changes, requires tests, or starts in unseen code
-- A concrete, bounded task list MUST proceed directly with `todo` tracking after any material ambiguity is resolved
-- MUST run `/plannotator` to enter planning mode before calling `plannotator_submit_plan`; the tool only works while that mode is active, and `/plannotator` again exits it
-- MUST write the plan as a real markdown file inside the working directory (`.md`/`.mdx`), not as chat prose, before calling `plannotator_submit_plan` when the architectural-planning threshold above is met
-- MUST structure the plan with headers per phase and checkboxes per step so annotations can target a specific line instead of the whole document
-- MUST NOT begin implementation (writes beyond the plan file itself) before the plan is submitted and approved
-- On denial, MUST edit the same file in place and resubmit the same path, not a new file, so the user gets a diff/version view on re-review
-- MUST mark each completed step with `[DONE:n]`, matching the step numbering in the plan file. These markers are progress updates, not turn boundaries. MUST continue directly into the next approved step and MUST NOT end a turn merely to report a completed step, phase, test count, commit count, summary, or what comes next. MUST stop only when all approved steps are complete or human action is required.
+- MUST read existing conventions before writing and MUST match the style already used
+- MUST track work with todos when a task has three or more steps or the user gives a task list
+- MUST keep exactly one todo in progress and MUST complete it immediately after its requirements pass verification
+- MUST NOT mark partial or failing work complete
+- MUST continue through executable work without pausing for progress reports, test counts, summaries, or permission to take the next safe step
+- MUST stop only when finished or when human input, permission, credentials, confirmation, or external access is required
+- MUST compare every explicit requirement with workspace evidence before declaring completion
+- MUST fail loudly when blocked or uncertain and MUST NOT silently skip, guess, or claim success
 
-</rules>
-
-<guidelines>
-
-- SHOULD prefer `plannotator_submit_plan` over `ask_user_question` for whole-plan review; keep `ask_user_question` for discrete multiple-choice decisions inside an already-approved plan
-- SHOULD delete the plan file once its steps are complete and merged, unless the user wants it kept as a record
-
-</guidelines>
-
----
-
-## 2. Branch Naming
-
-<rules>
-
-MUST follow [Conventional Branch](https://conventional-branch.github.io/): `<type>/<short-description>`.
-
-| Type | Use |
-|---|---|
-| `feat/` or `feature/` | New feature |
-| `fix/` or `bugfix/` | Bug fix |
-| `hotfix/` | Urgent production fix |
-| `chore/` | Maintenance, deps, config |
-| `refactor/` | Restructuring, no behaviour change |
-| `perf/` | Performance |
-| `docs/` | Documentation only |
-| `style/` | Formatting, visual changes |
-| `test/` | Tests |
-| `ci/` or `build/` | CI/CD, build system |
-| `release/` | Release prep |
-
-<examples>
-<example>
-<output>
-feat/user-avatar-upload
-fix/session-timeout-loop
-hotfix/null-pointer-checkout
-release/v1.4.0
-</output>
-</example>
-</examples>
-
-**Character rules (per Conventional Branch):**
-
-- MUST use only lowercase alphanumerics, hyphens, and dots
-- MUST NOT use consecutive hyphens or dots
-- MUST NOT lead or trail the description with a hyphen or dot
-- Description SHOULD be under 50 characters after the prefix
-
-**Workflow:**
-
-- Features MUST branch from `main` or `develop`; hotfixes from `main`
-- MUST delete branch after merge
-- MUST NOT commit directly to `main`, `master`, or `develop`
-- When a repo declares its own allowed branch types (e.g. `CONTRIBUTING.md`, a commit-check or labeler config), those MUST take precedence over this table
+When resuming after compaction, use the summary plus bounded current sources such as the active goal, todos, approved plan, and Git state. MUST NOT reread the full session history unless those sources conflict and no smaller source can resolve the conflict.
 
 </rules>
 
 ---
 
-## 3. Commit Messages
+## 3. Safety and Scope
 
 <rules>
 
-MUST follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
-
-```
-<type>(<scope>)(!): <summary>
-
-[body]
-
-[footer]
-```
-
-| Type | Use |
-|---|---|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `chore` | Build, tooling, deps |
-| `refactor` | No behaviour change |
-| `docs` | Docs only |
-| `test` | Tests |
-| `ci` | CI/CD |
-| `perf` | Performance |
-| `style` | Formatting only |
-| `revert` | Reverts a commit |
-
-**Summary:** imperative mood, lowercase after colon, no trailing period, specific. SHOULD be ≤ 72 characters; MUST NOT exceed the repo's configured limit (e.g. commit-check `subject_max_length`).
-
-**Scope:** OPTIONAL, in parentheses (e.g. `feat(parser):`).
-
-**Body:** what and why (not how), wrapped at 72 characters, blank line after summary.
-
-**Footer:** SHOULD reference issues (`Closes #123`).
-
-**Breaking changes (per the spec):**
-
-- A breaking change MUST be signalled by a `!` before the colon (`feat!:`, `feat(api)!:`) and/or a `BREAKING CHANGE: <description>` footer
-- When `!` is used without a footer, the summary describes the break
-- A `BREAKING CHANGE` footer MAY appear on any type
-
-<examples>
-<example type="correct">
-<output>
-feat(auth): add OAuth2 login with Google
-
-Allows sign-in via Google account. Token stored in httpOnly cookie.
-
-Closes #88
-</output>
-</example>
-<example type="correct">
-<output>
-feat(api)!: drop support for Node 18
-
-BREAKING CHANGE: minimum supported runtime is now Node 20.
-</output>
-</example>
-<example type="wrong">
-<output>
-fixed stuff
-feat: Added Login.
-WIP
-</output>
-</example>
-</examples>
+- MUST confirm before destructive actions such as force pushes, hard resets, recursive deletion, schema migration, or dropping data
+- MUST NOT hardcode or commit secrets; use environment variables, untracked local files, or a secret manager
+- MUST NOT silently fix unrelated issues; finish the requested work and surface other issues separately
+- SHOULD improve touched code when it stays within scope, but MUST NOT expand the task without approval
+- MUST restart an unreachable, stale, or hanging localhost development server before diagnosing application code
+- MUST use the smallest change that satisfies the request
 
 </rules>
 
 ---
 
-## 4. Versioning
+## 4. Tools and Delivery
 
 <rules>
 
-MUST follow [Semantic Versioning 2.0.0](https://semver.org/): `MAJOR.MINOR.PATCH`.
-
-| Bump | When |
-|---|---|
-| `MAJOR` | Incompatible / breaking API change |
-| `MINOR` | Backwards-compatible new functionality |
-| `PATCH` | Backwards-compatible bug fix |
-
-- MAJOR MUST be incremented for any breaking change (a Conventional Commit `!` or `BREAKING CHANGE` footer maps here)
-- `feat` commits map to MINOR; `fix` commits map to PATCH
-- Pre-release versions MUST use a hyphen suffix (`1.0.0-rc.1`, `1.0.0-alpha.2`)
-- Build metadata MUST use a plus suffix (`1.0.0+20130313144700`)
-- MUST NOT mutate a released version; a new release MUST get a new version
-- `0.y.z` is for initial development — anything MAY change; the public API SHOULD NOT be considered stable
-- Once `1.0.0` is released, breaking changes MUST bump MAJOR
-
-<guidelines>
-
-For commit-driven releases, derive the bump from commits since the last tag:
-- any breaking change → MAJOR
-- else any `feat` → MINOR
-- else any `fix`/`perf` → PATCH
-
-</guidelines>
+- MUST check project instructions and `CONTRIBUTING.md` before Git, release, or pull-request work
+- MUST load and follow the relevant skill for specialized work such as Git, Herdr, UI design, security, documentation, or releases
+- MUST check for a native language or runtime solution before adding a dependency
+- MUST prefer maintained tools recommended for new work and MUST flag legacy choices without migrating them unless asked
+- MUST run applicable existing checks before committing or pushing; MUST NOT invent tests or tooling that the project does not use
+- Commits MUST follow Conventional Commits unless the repository defines another format
+- Commits, pull requests, and tags MUST NOT contain `Co-Authored-By`, "Generated with," or other AI attribution
 
 </rules>
 
 ---
 
-## 5. Pull Requests & Review
-
-<instructions>
-
-MUST check for `CONTRIBUTING.md` (or `.github/CONTRIBUTING.md`) first. If present, it takes precedence — follow it exactly. Rules below are the fallback.
+## 5. Communication
 
 <rules>
 
-**Title:** MUST match conventional commit format — `feat(scope): description`.
+- MUST lead with the answer or the action the user needs now, not a preamble
+- MUST number tasks with more than one step and keep each step bounded
+- MUST keep lists to five items or split them into ranked groups
+- MUST use short, direct sentences and cut words that do not change meaning
+- MUST use active voice where it remains clear
+- MUST NOT use em dashes in prose, documentation, comments, commit messages, or submitted text
+- MUST use a matter-of-fact tone for errors: state the failure, cause when known, and fix or required input
+- MUST NOT end with a recap, a generic offer to help, or a "Next" instruction the agent can execute itself
+- SHOULD make completed work visible with concrete evidence or a command the user can run
+- SHOULD give a time estimate only when it helps the user make a decision; MUST NOT invent precision
 
-**Description MUST include:**
-
-- What — summary of the change
-- Why — motivation or linked issue
-- How — non-obvious decisions
-- Testing — how it was verified
-- Screenshots — REQUIRED for UI changes
-
-<guidelines>
-```markdown
-## What
-
-## Why
-Closes #
-
-## How
-
-## Testing
-
-## Screenshots (if UI change)
-```
-</guidelines>
-
-**Size:** SHOULD be under 400 lines. If unavoidably large, MUST include a "Tour" section describing reading order. MUST NOT bundle unrelated changes.
-
-**Stacked PRs:**
-- Large dependent work SHOULD use stacked PRs when it can be split into independently reviewable units
-- Each PR in a stack MUST pass its own required checks
-- Each PR description MUST name its parent PR and state the review and merge order
-- A stack SHOULD contain no more than five PRs
-- MUST NOT use a stack for small work or changes that cannot be reviewed independently
-
-**Parallel stacked PR workflow:**
-- When Herdr worktree tools are available, the coordinator SHOULD create one Git worktree and one agent session per PR branch
-- The workflow MUST remain model-independent. The coordinator MAY assign any available coding agent or model that can complete the task and use the required tools
-- Each worktree MUST have exactly one writer agent. Other agents MAY inspect or review it but MUST NOT edit it
-- Each writer MUST receive one PR-sized task, its parent branch, dependency contract, allowed scope, and required checks
-- Sibling PRs MAY run in parallel. A dependent PR MUST NOT begin until its parent exposes a stable interface or contract
-- Agents working in parallel SHOULD avoid the same files. If overlap is required, the coordinator MUST serialize that work or assign clear ownership before editing begins
-- Each writer MUST test and commit only its assigned PR before reporting completion
-- The coordinator MUST own branch creation, stack order, downstream rebases, integration checks, PR creation, and merge order
-- The coordinator MUST use isolated worktree sessions for parallel writers rather than spawning multiple writers in one checkout
-- Model-specific subagent tools MAY support scouting or review but MUST NOT be required for this workflow
-
-**Opening:**
-- MUST NOT open against `main` while WIP — MUST use `draft`
-- MUST run linting, formatting, and tests before pushing
-- MUST resolve all conflict markers before review
-- MUST NOT self-approve
-
-**Reviewing:**
-- MUST lead with the most important concern
-- MUST prefix feedback: `blocker:`, `nit:`, `suggestion:`, `question:`
-- MUST NOT approve unless safe to merge without further review
-- MUST NOT leave a PR unresponded for more than one business day
-
-**Merging:**
-- Feature branches MUST squash merge
-- Release branches MUST use merge commit
-- Rebase merge MAY be used when history is clean and worth preserving
-- MUST delete source branch after merge
-- MUST NOT force-push to a shared branch
-
-</rules>
-
-</instructions>
-
----
-
-## 6. Library & Tooling
-
-<instructions>
-
-<context>
-Prefer what the ecosystem is moving toward. Default to the modern equivalent.
-</context>
-
-<rules>
-
-- MUST NOT choose a tool based on familiarity or search popularity
-- MUST flag legacy libraries as technical debt — MUST NOT migrate without being asked
-- MUST check for a native runtime solution before adding any dependency
-- MUST NOT add a library for operations the language or runtime handles natively
-- MUST check recency — if docs or releases are more than two years old, search for a maintained alternative
-- SHOULD prefer tools that consolidate multiple legacy tools into one
-
-</rules>
-
-<guidelines>
-
-A tool is modern if it:
-- Has active maintenance and recent releases
-- Is recommended by the ecosystem for new projects
-- Consolidates or replaces older tools in its category
-- Is built on current platform primitives
-
-If most answers are no, treat as legacy and surface the alternative.
-
-</guidelines>
-
-</instructions>
-
----
-
-## 7. General Behaviour
-
-<rules>
-
-- When a localhost dev server is unreachable, hanging, or returning stale output, MUST restart it before diagnosing anything else. MUST NOT report it as broken, ask the user to check it, or debug application code until a clean restart has been attempted. A dev server that has survived many hot reloads is the likeliest cause, not the code.
-
-- MUST read existing conventions before writing new code — MUST match the style found
-- MUST NOT silently fix unrelated issues — MUST surface them as separate suggestions
-- MUST fail loudly — never silently skip or guess when blocked or uncertain
-- SHOULD improve what is touched, but MUST NOT scope-creep beyond the current task
-- MUST NOT hardcode secrets — MUST use environment variables or a secret manager
-- Interactive hover and non-hover states MUST NOT shift position unless an explicit transition or animation interpolates the movement
-- Hover feedback SHOULD primarily change color, background, border, or shadow with a subtle transition
-- Any intentional hover movement MUST be slight, MUST honor reduced-motion preferences, and MUST NOT cause layout shift
-
-</rules>
-
----
-
-## 8. Voice & Attribution
-
-<rules>
-
-- MUST NOT use emdashes in any generated writing (prose, docs, comments, commit messages). Use commas, periods, parentheses, or colons instead.
-- All user-facing prose MUST be written in Justin's voice. When a `write-like-justin` skill is available, its style rules MUST be applied to any text sent, posted, or submitted as Justin.
-- Commits MUST NOT include `Co-Authored-By` trailers, "Generated with" lines, or any other AI attribution. This applies to commit messages, PR descriptions, and tags without exception.
-
-</rules>
-
----
-
-## 9. ADHD-Shaped Output (i-have-adhd)
-
-<context>
-The reader has ADHD. Output is not just brief, it is shaped so an ADHD brain can act on it. Five facts drive every rule below:
-
-- Working memory is small. Anything not on screen is forgotten. Do not ask the reader to "keep in mind X."
-- Knowing the answer is not doing the answer. The friction between "got it" and "done it" is where work dies.
-- Starting is the hardest step. The first action must be obvious, small, and doable now.
-- Time estimates feel uniform. "A bit of work" and "a few hours" register the same. Vague estimates fail.
-- Dopamine is scarce. Visible progress matters. Buried wins do not register.
-</context>
-
-<rules>
-
-1. **Lead with the next action.** The first line MUST be something the reader can do. Not context, not a plan. If the answer is a command, path, or snippet, it goes first. Prose comes after, if at all.
-2. **Number multi-step tasks.** Work of more than one step MUST be a numbered list. Each step is one bounded action. No step contains "and then" twice.
-3. **Continue working by default.** If executable work remains, MUST perform the next step without asking, announcing it, or ending the turn. MUST NOT end with “Next: …” when the agent can perform that action itself. End with exactly ONE concrete next action only when human action is required, such as user input, permission, safety confirmation, credentials, or access to an external system.
-4. **Suppress tangents.** If a second issue exists, finish the first, then offer the second as a separate question ("Separately: there is also a stale dependency. Want me to handle that next?"). MUST NOT interleave.
-5. **Restate state every turn.** The reader cannot hold "we are on step 3 of 5" between messages. When human action is required, restate it: "Step 3 of 5 done: schema updated. Next: approve the backfill." Do not pause to restate state while the agent can continue working.
-6. **Give specific time estimates.** MUST ballpark in concrete units ("About 15 minutes if tests already cover this. An afternoon if not."), never "some work."
-7. **Make completed work visible.** Show what now works, in concrete terms ("Login now works with magic links. Try: `npm run dev`, open /login."). MUST NOT bury wins in a recap.
-8. **Matter-of-fact tone for errors.** MUST NOT use "Uh oh," "Oh no," or "There seems to be a problem." State cause and fix: "Test fails at auth.spec.ts:42: expected 200, got 401. Cause: missing auth header. Fix: add the Authorization header."
-9. **Cap lists at 5 items.** Past five, split into "do now" vs "later," or "must" vs "nice to have." Five ranked beats ten unranked.
-10. **No preamble, no recap, no closing pleasantries.** Forbidden openers: "Great question," "Let me...", "I'll...", "Sure!", "Looking at your...", "To answer your question...". Forbidden recaps: "I've now done X, Y, and Z, which means...". Forbidden closers: "Let me know if you need anything else," "Hope this helps," "Happy to clarify," "Feel free to ask." Start with the answer. End when the answer is done.
+The `write-like-justin` skill applies to text sent or published as Justin, such as email, outreach, applications, articles, and public posts. It MUST NOT be loaded merely to answer Justin in the assistant's normal voice.
 
 </rules>
 
 <constraints>
 
-Override the defaults when:
-
-- User asks to "explain" or "walk me through": explain fully, add headers for skimming. Still no preamble or closer.
-- Destructive action ahead (`rm -rf`, force push, schema migration, dropping a table): MUST confirm before acting. Safety wins over brevity.
-- Debug spiral: if the last three turns have been "still broken," stop iterating on code. Name the assumption that might be wrong. Ask one diagnostic question.
-- Real ambiguity in the request: one short clarifying question beats guessing and rewriting.
+- When the user asks for an explanation or walkthrough, provide enough context for understanding while keeping the structure easy to scan
+- When three consecutive attempts fail, stop changing code, name the assumption most likely to be wrong, and ask one diagnostic question
+- Safety confirmation and real ambiguity override brevity
 
 </constraints>
 
-<workflow>
-
-Pre-send check. Before sending, delete:
-
-1. The first sentence if it announces what you are about to do
-2. The last sentence if it asks "anything else?" or recaps what just happened
-3. Any "by the way" sidebar
-4. Any hedging adverb adding no information ("perhaps," "might," "could possibly")
-
-Then verify: if the reader reads only the first line and the last line, do they know (a) what to do next, and (b) what just happened? If yes, send.
-
-</workflow>
-
 ---
 
-## 10. Prose Style (Orwell, 1946)
-
-<context>
-These govern prose: docs, PR text, messages. They never touch code or technical terms; swap in everyday words only where precision survives. This is global voice. Give one project its own voice with a project-level `CLAUDE.md` or `agents.md` when needed.
-</context>
+## 6. Project Overrides
 
 <rules>
 
-1. MUST NOT use a metaphor, simile, or other figure of speech you are used to seeing in print
-2. MUST NOT use a long word where a short one will do
-3. If it is possible to cut a word out, MUST cut it out
-4. MUST NOT use the passive where the active works
-5. MUST NOT use a foreign phrase, scientific word, or jargon word if an everyday English equivalent exists
-6. MAY break any of these rules sooner than say anything outright barbarous
+Project instructions extend this file unless they explicitly replace a section with:
 
-MUST review every prose output against these rules before delivering.
+```xml
+<project-override section="4. Tools and Delivery">
+Project-specific replacement rules.
+</project-override>
+```
+
+- A project override MUST name the section it replaces
+- Rules outside `<project-override>` tags are additive
+- The nearest applicable project instruction takes precedence
+- Conflicting tool or platform instructions from the active runtime take precedence over this file
 
 </rules>
 
 ---
 
-## 11. Editing This File
-
-<instructions>
-
-Any modification to this file MUST follow the [RFC-XML-STYLE-GUIDE](https://github.com/jal-co/jalco-opencode/blob/main/opencode/.config/opencode/at/RFC-XML-STYLE-GUIDE.md).
+## 7. Editing This File
 
 <rules>
 
-- MUST wrap new sections in appropriate XML tags
-- MUST use uppercase RFC 2119 keywords for normative requirements
-- MUST use lowercase for non-normative language
-- MUST NOT add RFC boilerplate or preamble
-- XML MUST be well-formed — all tags closed and properly nested
-- MUST NOT let RFC/XML conventions surface in user-facing responses
-
-**Project overrides:**
-- Project-level rules that replace a global rule MUST be placed inside `<project-override>` tags
-- MUST name the section being overridden via the `section` attribute
-- Rules outside `<project-override>` in a project `agents.md` are additive — they extend, not replace, the global
-- When reading a project `agents.md`, MUST apply `<project-override>` rules in place of the named global section
+- Changes to this file MUST load and follow the `rfc-xml-style` and `writing-skills` skills
+- Normative requirements MUST use RFC 2119 keywords only when the requirement is genuinely strict
+- XML tags MUST be well formed and MUST organize agent instructions, not user-facing output
+- New text MUST change behavior; tutorials, task-specific reference material, and duplicated skill content MUST NOT be added
 
 </rules>
-
-<examples>
-<example>
-<output>
-<project-override section="2. Branch Naming">
-MUST follow `<ticket-id>/<short-description>` — e.g. `PROJ-123/add-login`.
-</project-override>
-
-<project-override section="5. Pull Requests & Review">
-MUST use the repo's existing PR template — skip the global template.
-</project-override>
-</output>
-</example>
-</examples>
-
-<guidelines>
-
-| Content | Tag |
-|---|---|
-| Behavioural directives | `<instructions>` |
-| Hard requirements | `<rules>` |
-| Preferences | `<guidelines>` |
-| Scope limits | `<constraints>` |
-| Step-by-step processes | `<workflow>` |
-| Demonstrations | `<examples>` / `<example>` |
-| Background | `<context>` |
-
-</guidelines>
-
-</instructions>
