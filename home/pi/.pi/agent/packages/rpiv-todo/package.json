@@ -1,7 +1,7 @@
 {
 	"name": "@juicesharp/rpiv-todo",
-	"version": "1.19.0-local.1",
-	"description": "Pi extension (LOCAL FORK). Todo list tool, patched to tolerate runtimes that stringify container tool arguments (blockedBy/metadata). See PATCH.md.",
+	"version": "1.19.0-local.3",
+	"description": "Pi extension (LOCAL FORK). Todo tools with container coercion, bulk completion, and a replayable shared-event API. See PATCH.md.",
 	"keywords": [
 		"pi-package",
 		"pi-extension",
@@ -28,9 +28,11 @@
 	},
 	"files": [
 		"config.ts",
+		"complete-todos.ts",
 		"index.ts",
 		"locales/",
 		"todo.ts",
+		"todo-events.ts",
 		"todo-overlay.ts",
 		"LICENSE",
 		"README.md",
