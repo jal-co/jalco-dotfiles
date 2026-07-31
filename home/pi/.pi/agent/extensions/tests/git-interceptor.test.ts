@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { interceptGitCommand } from "./git-interceptor.ts";
+import { interceptGitCommand } from "../git-interceptor.ts";
 
 test("ignores non-git commands", () => {
 	assert.equal(interceptGitCommand("printf gitignore"), undefined);
