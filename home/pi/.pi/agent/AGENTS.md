@@ -10,14 +10,13 @@ Applies to all projects and agents regardless of language, framework, or toolcha
 
 <rules>
 
-MUST NOT start coding when a task is large, ambiguous, or spans multiple systems. MUST ask first.
+MUST NOT start coding while a material product or implementation decision remains unresolved. MUST ask first.
 
 ### Ask when
 
 - Scope is unclear
 - Task has more than one reasonable interpretation
 - More than ~2 non-trivial architectural decisions are required
-- Work spans files, services, or domains not yet seen
 - "Done" is undefined
 
 ### How
@@ -32,6 +31,8 @@ MUST use available question tools — MUST NOT dump a wall of text.
 ### Do not ask when
 
 - Task is small and self-contained
+- The user supplied a concrete, bounded list of changes with a clear completion standard
+- Work spans several files but does not require unresolved architectural decisions
 - User said "just do it" or "use your best judgment"
 - Context is already established in the conversation
 
@@ -47,12 +48,15 @@ When `@plannotator/pi-extension` is installed, it registers `plannotator_submit_
 
 <rules>
 
+- Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined
+- Plannotator MUST NOT be triggered solely because a task touches many files, contains several requested changes, requires tests, or starts in unseen code
+- A concrete, bounded task list MUST proceed directly with `todo` tracking after any material ambiguity is resolved
 - MUST run `/plannotator` to enter planning mode before calling `plannotator_submit_plan`; the tool only works while that mode is active, and `/plannotator` again exits it
-- MUST write the plan as a real markdown file inside the working directory (`.md`/`.mdx`), not as chat prose, before calling `plannotator_submit_plan` for any task that would otherwise trigger the Socratic-Questioning "ask first" rule
+- MUST write the plan as a real markdown file inside the working directory (`.md`/`.mdx`), not as chat prose, before calling `plannotator_submit_plan` when the architectural-planning threshold above is met
 - MUST structure the plan with headers per phase and checkboxes per step so annotations can target a specific line instead of the whole document
 - MUST NOT begin implementation (writes beyond the plan file itself) before the plan is submitted and approved
 - On denial, MUST edit the same file in place and resubmit the same path, not a new file, so the user gets a diff/version view on re-review
-- MUST mark each completed step with `[DONE:n]` in the response as it finishes, matching the step numbering in the plan file
+- MUST mark each completed step with `[DONE:n]`, matching the step numbering in the plan file. These markers are progress updates, not turn boundaries. MUST continue directly into the next approved step and MUST NOT end a turn merely to report a completed step, phase, test count, commit count, summary, or what comes next. MUST stop only when all approved steps are complete or human action is required.
 
 </rules>
 
@@ -253,6 +257,25 @@ Closes #
 
 **Size:** SHOULD be under 400 lines. If unavoidably large, MUST include a "Tour" section describing reading order. MUST NOT bundle unrelated changes.
 
+**Stacked PRs:**
+- Large dependent work SHOULD use stacked PRs when it can be split into independently reviewable units
+- Each PR in a stack MUST pass its own required checks
+- Each PR description MUST name its parent PR and state the review and merge order
+- A stack SHOULD contain no more than five PRs
+- MUST NOT use a stack for small work or changes that cannot be reviewed independently
+
+**Parallel stacked PR workflow:**
+- When Herdr worktree tools are available, the coordinator SHOULD create one Git worktree and one agent session per PR branch
+- The workflow MUST remain model-independent. The coordinator MAY assign any available coding agent or model that can complete the task and use the required tools
+- Each worktree MUST have exactly one writer agent. Other agents MAY inspect or review it but MUST NOT edit it
+- Each writer MUST receive one PR-sized task, its parent branch, dependency contract, allowed scope, and required checks
+- Sibling PRs MAY run in parallel. A dependent PR MUST NOT begin until its parent exposes a stable interface or contract
+- Agents working in parallel SHOULD avoid the same files. If overlap is required, the coordinator MUST serialize that work or assign clear ownership before editing begins
+- Each writer MUST test and commit only its assigned PR before reporting completion
+- The coordinator MUST own branch creation, stack order, downstream rebases, integration checks, PR creation, and merge order
+- The coordinator MUST use isolated worktree sessions for parallel writers rather than spawning multiple writers in one checkout
+- Model-specific subagent tools MAY support scouting or review but MUST NOT be required for this workflow
+
 **Opening:**
 - MUST NOT open against `main` while WIP — MUST use `draft`
 - MUST run linting, formatting, and tests before pushing
@@ -317,6 +340,8 @@ If most answers are no, treat as legacy and surface the alternative.
 
 <rules>
 
+- When a localhost dev server is unreachable, hanging, or returning stale output, MUST restart it before diagnosing anything else. MUST NOT report it as broken, ask the user to check it, or debug application code until a clean restart has been attempted. A dev server that has survived many hot reloads is the likeliest cause, not the code.
+
 - MUST read existing conventions before writing new code — MUST match the style found
 - MUST NOT silently fix unrelated issues — MUST surface them as separate suggestions
 - MUST fail loudly — never silently skip or guess when blocked or uncertain
@@ -325,38 +350,6 @@ If most answers are no, treat as legacy and surface the alternative.
 - Interactive hover and non-hover states MUST NOT shift position unless an explicit transition or animation interpolates the movement
 - Hover feedback SHOULD primarily change color, background, border, or shadow with a subtle transition
 - Any intentional hover movement MUST be slight, MUST honor reduced-motion preferences, and MUST NOT cause layout shift
-
-</rules>
-
----
-
-## 7a. Shared Todos (Notion)
-
-<context>
-Cross-agent and cross-repo task state lives in the "Agent Todos" page in Notion (page id `3a4fa3bb-92be-813e-9513-e5cd3644ffa4`), reached via the `notion` server through the pi mcp gateway tool (pi-mcp-adapter). It holds one subpage per repo/project, each with a checkbox todo list. Repo-local TODO.md files are scratch only; the Notion subpage is the source of truth. The session `todo` tool remains the in-session working list; Notion is its persistent mirror.
-</context>
-
-<rules>
-
-- At the start of any multi-step or multi-session task, MUST fetch the current repo's subpage under Agent Todos and fold its open items into planning before creating new work
-- If no subpage exists for the current repo, MUST create one under the Agent Todos page (title = repo name) before adding tasks
-- When adding a task to the session `todo` tool that will outlive the session, MUST also add a `- [ ]` item to the repo's subpage
-- When completing such a task, MUST check off the Notion item in the same turn as marking the `todo` tool task completed, not batched at the end
-- MUST NOT duplicate an existing open item; update or check off the existing one instead
-- When checking off an item completed by a commit, SHOULD append the short hash as a link to the item, e.g. `- [x] task ([a095ef0](https://github.com/jal-co/jalco-pi-mono/commit/a095ef0))`; use the pushed remote URL, or the bare hash if the commit is local only
-- Purely in-session micro-steps (e.g. "run tests", "read file") stay in the `todo` tool only; Notion holds user-named, durable tasks
-- If the notion server is unreachable, MUST say so and fall back to the session todo list; MUST NOT silently skip the sync
-
-**Long plans / task context:**
-- A todo item stays one line; anything longer (plan, constraints, decisions, verification notes) goes in a child page under the repo subpage, titled after the task
-- The todo item MUST link to its child page; the child page links back to relevant commits/PRs
-- Agents resuming a linked task MUST fetch the child page before planning
-- SHOULD append a short outcome line to the child page when checking the item off
-
-**Cross-repo initiatives:**
-- Work spanning repos (e.g. an app plus the component library it drives) SHOULD live on ONE subpage, owned by the driving repo, with the member repos named in its intro line
-- Agents MUST also fetch any Agent Todos subpage whose intro names the current repo, not just the repo's own subpage
-- An item MUST live on exactly one page; the other repo's subpage links to it rather than copying it
 
 </rules>
 
@@ -390,9 +383,9 @@ The reader has ADHD. Output is not just brief, it is shaped so an ADHD brain can
 
 1. **Lead with the next action.** The first line MUST be something the reader can do. Not context, not a plan. If the answer is a command, path, or snippet, it goes first. Prose comes after, if at all.
 2. **Number multi-step tasks.** Work of more than one step MUST be a numbered list. Each step is one bounded action. No step contains "and then" twice.
-3. **End with one concrete next action.** If anything is left open, name exactly ONE thing the reader can do in under two minutes (e.g. "Next: run `npm test` and paste the first failing line.").
+3. **Continue working by default.** If executable work remains, MUST perform the next step without asking, announcing it, or ending the turn. MUST NOT end with “Next: …” when the agent can perform that action itself. End with exactly ONE concrete next action only when human action is required, such as user input, permission, safety confirmation, credentials, or access to an external system.
 4. **Suppress tangents.** If a second issue exists, finish the first, then offer the second as a separate question ("Separately: there is also a stale dependency. Want me to handle that next?"). MUST NOT interleave.
-5. **Restate state every turn.** The reader cannot hold "we are on step 3 of 5" between messages. Restate it: "Step 3 of 5 done: schema updated. Next: backfill the new column."
+5. **Restate state every turn.** The reader cannot hold "we are on step 3 of 5" between messages. When human action is required, restate it: "Step 3 of 5 done: schema updated. Next: approve the backfill." Do not pause to restate state while the agent can continue working.
 6. **Give specific time estimates.** MUST ballpark in concrete units ("About 15 minutes if tests already cover this. An afternoon if not."), never "some work."
 7. **Make completed work visible.** Show what now works, in concrete terms ("Login now works with magic links. Try: `npm run dev`, open /login."). MUST NOT bury wins in a recap.
 8. **Matter-of-fact tone for errors.** MUST NOT use "Uh oh," "Oh no," or "There seems to be a problem." State cause and fix: "Test fails at auth.spec.ts:42: expected 200, got 401. Cause: missing auth header. Fix: add the Authorization header."

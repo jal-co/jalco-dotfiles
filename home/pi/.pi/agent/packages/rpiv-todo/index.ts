@@ -20,10 +20,12 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { registerCompleteTodosTool } from "./complete-todos.js";
 import { I18N_NAMESPACE } from "./state/i18n-bridge.js";
 import { replayFromBranch } from "./state/replay.js";
 import { replaceState } from "./state/store.js";
 import { registerTodosCommand, registerTodoTool, TOOL_NAME } from "./todo.js";
+import { registerTodoEventListener } from "./todo-events.js";
 import { TodoOverlay } from "./todo-overlay.js";
 
 type I18nLoader = {
@@ -57,6 +59,8 @@ export default function (pi: ExtensionAPI) {
 
 	registerTodoTool(pi);
 	registerTodosCommand(pi);
+	registerCompleteTodosTool(pi, () => todoOverlay?.update());
+	registerTodoEventListener(pi, () => todoOverlay?.update());
 
 	pi.on("session_start", async (_event, ctx) => {
 		replaceState(replayFromBranch(ctx));

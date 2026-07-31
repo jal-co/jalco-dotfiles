@@ -35,7 +35,7 @@ because `blockedBy` arrived as the string `"[1]"`.
 
 ## What was changed
 
-1. **`tool/types.ts`** — added `TodoParamsWireSchema`, which accepts
+1. **`tool/types.ts`**: added `TodoParamsWireSchema`, which accepts
    `blockedBy` / `addBlockedBy` / `removeBlockedBy` as `number[] | string` and
    `metadata` as `record | string`, so validation passes regardless of how the
    runtime serialized the argument. Added `coerceTodoParams()` which
@@ -43,19 +43,33 @@ because `blockedBy` arrived as the string `"[1]"`.
    and validates the result (arrays of numbers / object), plus the
    `COERCIBLE_FIELDS` list.
 
-2. **`todo.ts`** — `registerTool` now uses `TodoParamsWireSchema`. `execute()`
+2. **`todo.ts`**: `registerTool` now uses `TodoParamsWireSchema`. `execute()`
    runs `coerceTodoParams()` before the reducer and **throws** on malformed
-   input (the tool contract signals failure via throw, not an `isError` flag —
-   `AgentToolResult` has no `isError` field). Scalar-only calls are unaffected.
+   input. The tool contract signals failure via throw, not an `isError` flag;
+   `AgentToolResult` has no `isError` field. Scalar-only calls are unaffected.
 
-3. **`config.ts`** — vendored the helpers used from `@juicesharp/rpiv-config`
+3. **`config.ts`**: vendored the helpers used from `@juicesharp/rpiv-config`
    (`configPath`, `loadJsonConfig`, `validateGuidanceFields`) inline, since pi
    does not run `npm install` for local-path packages. Byte-for-byte from
    rpiv-config@1.19.0.
 
-4. **`package.json`** — version `1.19.0-local.1`; removed the
+4. **`package.json`**: version `1.19.0-local.3`; removed the
    `@juicesharp/rpiv-config` dependency (now vendored). Only pi-bundled peer
    deps remain.
+
+5. **`todo-events.ts` and `state/replay.ts`**: added the typed
+   `rpiv-todo:request` shared-event contract for sibling extensions. Atomic
+   reducer-backed mutation batches append full `rpiv-todo-snapshot` entries,
+   refresh the existing overlay, and replay from the active session branch.
+   This is used by the Plannotator bridge without importing todo internals.
+
+6. **`complete-todos.ts`**: added `complete_todos` for explicit stale-state
+   cleanup. It supports selected IDs or an explicit all-active mode, preserves
+   history, validates atomically, and stores an optional completion reason.
+
+7. **Tests and type checks**: added focused coverage for atomic shared-event
+   mutations, replay, selected completion, all-active completion, and input
+   validation, plus a scoped strict TypeScript configuration.
 
 ## Upstream fix
 

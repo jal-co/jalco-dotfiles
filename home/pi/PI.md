@@ -28,7 +28,6 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `npm:pi-markdown-preview`
 - `npm:pi-mcp-adapter`
 - `npm:pi-notify`
-- `npm:pi-skills-sh`
 - `npm:pi-subagents`
 - `npm:pi-updater`
 - `npm:pi-cursor-sdk`

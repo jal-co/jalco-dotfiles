@@ -1,3 +1,4 @@
+import { TODO_SNAPSHOT_ENTRY } from "../todo-events.js";
 import type { TaskDetails } from "../tool/types.js";
 import { EMPTY_STATE, type TaskState } from "./state.js";
 
@@ -24,14 +25,26 @@ export function isTaskDetails(value: unknown): value is TaskDetails {
 export function replayFromBranch(ctx: { sessionManager: { getBranch(): Iterable<unknown> } }): TaskState {
 	let result: TaskState = { tasks: [...EMPTY_STATE.tasks], nextId: EMPTY_STATE.nextId };
 	for (const entry of ctx.sessionManager.getBranch()) {
-		const e = entry as { type?: string; message?: { role?: string; toolName?: string; details?: unknown } };
-		if (e.type !== "message") continue;
-		const msg = e.message;
-		if (msg?.role !== "toolResult" || msg.toolName !== "todo") continue;
-		if (!isTaskDetails(msg.details)) continue;
+		const e = entry as {
+			type?: string;
+			customType?: string;
+			data?: unknown;
+			message?: { role?: string; toolName?: string; details?: unknown };
+		};
+		let details: unknown;
+		if (e.type === "message") {
+			const msg = e.message;
+			if (msg?.role !== "toolResult" || msg.toolName !== "todo") continue;
+			details = msg.details;
+		} else if (e.type === "custom" && e.customType === TODO_SNAPSHOT_ENTRY) {
+			details = e.data;
+		} else {
+			continue;
+		}
+		if (!isTaskDetails(details)) continue;
 		result = {
-			tasks: msg.details.tasks.map((t) => ({ ...t })),
-			nextId: msg.details.nextId,
+			tasks: details.tasks.map((t) => ({ ...t })),
+			nextId: details.nextId,
 		};
 	}
 	return result;

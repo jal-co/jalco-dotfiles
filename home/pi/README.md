@@ -57,7 +57,6 @@ pi/.pi/agent/
 - `pi-notify` — desktop notifications
 - `pi-updater` — auto-update
 - `pi-copy-output` — copy last output
-- `pi-skills-sh` — skills.sh ecosystem
 - `@juanibiapina/pi-extension-settings` — extension settings UI
 - `@howaboua/pi-codex-conversion` — Codex-oriented tool and prompt adapter
 - `@howaboua/pi-markdown-workflows` — markdown workflows
@@ -102,7 +101,6 @@ source ~/.zshrc.local
 |-----------|-------------|
 | `pi-agent-manager` | Subagent and skill permission manager |
 | `pi-rfc-keywords` | Auto-uppercase RFC 2119 keywords in prompts |
-| `pi-skills-sh` | skills.sh ecosystem integration |
 | `pi-webfetch` | Enhanced web fetching |
 
 ## Skills

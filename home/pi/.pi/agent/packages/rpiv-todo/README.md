@@ -106,6 +106,48 @@ Returns:
 
 - **`/todos`** - print the current todo list grouped by status.
 
+## Cleanup tool
+
+`complete_todos` marks stale task state complete without clearing todo history.
+
+- Pass `ids` to complete selected todos.
+- Pass `allActive: true` to complete every pending and in-progress todo.
+- The modes are mutually exclusive.
+- An optional `reason` is stored as `completionReason` metadata.
+- Completed tasks are idempotent; missing or deleted IDs fail the whole call.
+
+```ts
+complete_todos({ ids: [2, 4], reason: "work verified outside this session" });
+complete_todos({ allActive: true, reason: "approved plan is complete" });
+```
+
+## Shared event API
+
+Sibling Pi extensions can read or atomically mutate the todo state without importing package internals. Emit `rpiv-todo:request` with a unique `requestId`, an action, and a `respond` callback:
+
+```ts
+pi.events.emit("rpiv-todo:request", {
+  requestId: "bridge-1",
+  action: "mutate",
+  origin: "my-extension",
+  mutations: [
+    { action: "create", params: { subject: "Implement parser" } },
+    { action: "update", params: { id: 1, status: "completed" } },
+  ],
+  respond(response) {
+    // handled: { snapshot, operations }
+    // error: { error }
+  },
+});
+```
+
+Actions:
+
+- `get`: returns the current full snapshot.
+- `mutate`: applies one or more normal reducer mutations atomically. If any mutation fails, none commit.
+
+Successful mutations append an `rpiv-todo-snapshot` session entry, refresh the overlay, and replay on reload, compaction, resume, and branch navigation. The event API uses the same reducer and transition rules as the `todo` tool.
+
 ## Overlay
 
 The aboveEditor widget auto-renders whenever any overlay-visible tasks exist.

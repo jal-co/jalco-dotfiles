@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@earendil-works/pi-coding-agent": ["../../extensions/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"],
+      "@earendil-works/pi-ai": ["../../extensions/node_modules/@earendil-works/pi-ai/dist/index.d.ts"],
+      "typebox": ["../../extensions/node_modules/typebox/build/index.d.mts"]
+    },
+    "types": ["node"],
+    "typeRoots": ["../../extensions/node_modules/@types"]
+  },
+  "include": [
+    "./complete-todos.ts",
+    "./complete-todos.test.ts",
+    "./todo-events.ts",
+    "./todo-events.test.ts",
+    "./state/replay.ts",
+    "./state/state-reducer.ts",
+    "./state/store.ts",
+    "./state/state.ts",
+    "./state/invariants.ts",
+    "./state/task-graph.ts",
+    "./tool/types.ts"
+  ]
+}

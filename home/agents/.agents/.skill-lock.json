@@ -225,6 +225,24 @@
       "skillFolderHash": "b7f8c5d9010b2f8cd1b4c9f250886264d5ce6d15",
       "installedAt": "2026-07-26T18:37:10.483Z",
       "updatedAt": "2026-07-26T18:37:10.483Z"
+    },
+    "ui-sound-design": {
+      "source": "dannyjpwilliams/ui-sound-design-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/dannyjpwilliams/ui-sound-design-skill.git",
+      "skillPath": "skills/ui-sound-design/SKILL.md",
+      "skillFolderHash": "0f0b273097dd90556c330c840c18494d034e0891",
+      "installedAt": "2026-07-29T10:27:07.893Z",
+      "updatedAt": "2026-07-29T10:27:07.893Z"
+    },
+    "ux-sound": {
+      "source": "jal-co/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jal-co/skills.git",
+      "skillPath": "skills/ux-sound/SKILL.md",
+      "skillFolderHash": "1b4c7f494df72d18212db46c36bac2316c312771",
+      "installedAt": "2026-07-29T11:38:28.996Z",
+      "updatedAt": "2026-07-29T11:38:28.996Z"
     }
   },
   "dismissed": {
