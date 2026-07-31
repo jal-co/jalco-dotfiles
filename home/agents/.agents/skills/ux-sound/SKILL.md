@@ -9,7 +9,7 @@ metadata:
 
 # UX Sound
 
-Sound design for interfaces. This skill decides **whether, what, how loud, and from where**. For the Web Audio mechanics of building a specific sound (oscillators, envelopes, filters, recipes), use the `ui-sound-design` skill alongside this one.
+Sound design for interfaces. This skill decides **whether, what, how loud, and from where**, then guides implementation through synthesis, recording, or generation.
 
 The distinction that organizes everything below:
 
@@ -62,10 +62,7 @@ Does the sound carry information the user cannot already see?
 Three routes. Choose by measuring, not by taste.
 
 ```
-Run the analyzer first:
-  node <ui-sound-design skill>/tools/analyze-sound.mjs reference.mp3
-
-Is noise_percent > 80% AND fewer than 4 harmonics?
+Is the reference mostly filtered noise with little stable pitch?
 ├── Yes → SYNTHESIZE. It is filtered noise; a file adds bytes and buys nothing.
 └── No
     ├── Does the sound need to last an unknown duration (hover, hold, drag)?
