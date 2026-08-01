@@ -1,7 +1,7 @@
 {
   "collapseChangelog": true,
-  "defaultModel": "gpt-5.6-sol",
-  "defaultProvider": "openai-codex",
+  "defaultModel": "claude-opus-5",
+  "defaultProvider": "anthropic",
   "defaultThinkingLevel": "low",
   "enabledModels": [
     "anthropic/claude-fable-5",
@@ -13,10 +13,11 @@
   ],
   "enableSkillCommands": true,
   "extensions": [],
+  "followUpMode": "all",
+  "hideThinkingBlock": true,
   "lastChangelogVersion": "0.82.1",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
-    "npm:@howaboua/pi-codex-conversion",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
     "npm:@benvargas/pi-claude-code-use",
     "./packages/rpiv-ask-user-question",
@@ -38,9 +39,12 @@
     "npm:claude-agent-sdk-pi",
     "npm:@plannotator/pi-extension",
     "npm:@jalco/pi-herdr-worktree",
-    "npm:pi-web-access"
+    "npm:pi-web-access",
+    "npm:@ryan_nookpi/pi-extension-codex-fast-mode",
+    "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055"
   ],
   "quietStartup": true,
+  "steeringMode": "all",
   "theme": "geist-dark",
   "warnings": {
     "anthropicExtraUsage": false
