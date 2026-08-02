@@ -72,6 +72,9 @@ When resuming after compaction, use the summary plus bounded current sources suc
 
 - MUST check project instructions and `CONTRIBUTING.md` before Git, release, or pull-request work
 - MUST load and follow the relevant skill for specialized work such as Git, Herdr, UI design, security, documentation, or releases
+- MUST do the work in the current session by default; subagents are the exception, not the default execution path
+- MUST NOT spawn a subagent for work the current session can do directly, for a single file read, search, edit, command, or review, or to parallelize a task the user did not ask to parallelize
+- MAY spawn a subagent only when the task needs a fresh context window for a large independent unit of work, or when the user asks for one; MUST spawn at most one at a time unless the user asks for more
 - MUST check for a native language or runtime solution before adding a dependency
 - MUST prefer maintained tools recommended for new work and MUST flag legacy choices without migrating them unless asked
 - MUST run applicable existing checks before committing or pushing; MUST NOT invent tests or tooling that the project does not use
