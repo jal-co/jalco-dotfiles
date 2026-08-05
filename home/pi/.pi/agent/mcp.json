@@ -4,6 +4,20 @@
     "idleTimeout": 10
   },
   "mcpServers": {
+    "blender": {
+      "command": "/opt/homebrew/bin/uvx",
+      "args": [
+        "--python",
+        "3.11",
+        "blender-mcp"
+      ],
+      "env": {
+        "UV_PYTHON_PREFERENCE": "only-managed",
+        "BLENDER_HOST": "localhost",
+        "BLENDER_PORT": "9876",
+        "DISABLE_TELEMETRY": "true"
+      }
+    },
     "natural": {
       "url": "https://mcp.natural.com",
       "auth": "oauth"
@@ -20,15 +34,13 @@
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp",
-      "auth": "oauth",
-      "directTools": true
+      "auth": "oauth"
     },
     "typefully": {
       "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
     },
     "paper": {
-      "url": "http://127.0.0.1:29979/mcp",
-      "directTools": true
+      "url": "http://127.0.0.1:29979/mcp"
     }
   }
 }
