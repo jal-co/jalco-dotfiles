@@ -16,17 +16,7 @@ These rules define stable behavior across projects, languages, and tools. Task-s
 - MUST stop asking once scope, constraints, and completion are clear
 - MUST NOT ask when the user supplied a concrete, bounded task, said "just do it," or delegated judgment
 
-Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined. File count, test work, or unfamiliar code alone MUST NOT trigger it.
-
-When Plannotator is required:
-
-1. Enter planning mode before implementation
-2. Write a Markdown plan with phase headings and numbered checkboxes
-3. Submit that file for review and wait for approval
-4. On denial, edit and resubmit the same file
-5. Mark completed steps with matching `[DONE:n]` markers, continue through approved work, and stop only when finished or blocked on human action
-
-Concrete multi-step work MUST use the todo tool instead of Plannotator.
+Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined. File count, test work, or unfamiliar code alone MUST NOT trigger it. Its planning phase supplies the rest of the procedure. Concrete multi-step work MUST use the todo tool instead.
 
 </rules>
 
@@ -61,6 +51,11 @@ When resuming after compaction, use the summary plus bounded current sources suc
 - SHOULD improve touched code when it stays within scope, but MUST NOT expand the task without approval
 - MUST restart an unreachable, stale, or hanging localhost development server before diagnosing application code
 - MUST use the smallest change that satisfies the request
+- MUST touch the fewest files that satisfy the request and MUST NOT create new files when an existing one fits
+- MUST justify every added line and MUST NOT add defensive code for cases the request does not require
+- MUST write comments only when the code cannot explain itself: a non-obvious why, a workaround, or a required API contract. Default to zero comments
+- MUST NOT add comments that restate the code, decorative headers, section banners, docstrings for self-evident functions, or notes about the change being made
+- MUST match the surrounding commenting density in code the user did not write, and MUST NOT introduce a personal style into another codebase
 
 </rules>
 
@@ -90,10 +85,12 @@ When resuming after compaction, use the summary plus bounded current sources suc
 <rules>
 
 - MUST lead with the answer or the action the user needs now, not a preamble
+- MUST write for the user's purpose: give what they need to decide or act, and cut what only documents the agent's process
+- MUST add headings once an answer runs past three paragraphs
 - MUST number tasks with more than one step and keep each step bounded
 - MUST keep lists to five items or split them into ranked groups
-- MUST use short, direct sentences and cut words that do not change meaning
-- MUST use active voice where it remains clear
+- MUST use short, direct sentences, the active voice, and the present tense; cut words that do not change meaning
+- MUST define a technical term on first use, then reuse the same word for the same thing; MUST NOT switch synonyms mid-answer
 - MUST NOT use em dashes in prose, documentation, comments, commit messages, or submitted text
 - MUST use a matter-of-fact tone for errors: state the failure, cause when known, and fix or required input
 - MUST NOT end with a recap, a generic offer to help, or a "Next" instruction the agent can execute itself
@@ -114,34 +111,12 @@ The `write-like-justin` skill applies to text sent or published as Justin, such 
 
 ---
 
-## 6. Project Overrides
+## 6. Precedence and Edits
 
 <rules>
 
-Project instructions extend this file unless they explicitly replace a section with:
-
-```xml
-<project-override section="4. Tools and Delivery">
-Project-specific replacement rules.
-</project-override>
-```
-
-- A project override MUST name the section it replaces
-- Rules outside `<project-override>` tags are additive
-- The nearest applicable project instruction takes precedence
-- Conflicting tool or platform instructions from the active runtime take precedence over this file
-
-</rules>
-
----
-
-## 7. Editing This File
-
-<rules>
-
-- Changes to this file MUST load and follow the `rfc-xml-style` and `writing-skills` skills
-- Normative requirements MUST use RFC 2119 keywords only when the requirement is genuinely strict
-- XML tags MUST be well formed and MUST organize agent instructions, not user-facing output
-- New text MUST change behavior; tutorials, task-specific reference material, and duplicated skill content MUST NOT be added
+- Project instructions are additive and take precedence, nearest file first; a `<project-override section="...">` block replaces the named section outright
+- Conflicting instructions from the active runtime take precedence over this file
+- Changes to this file MUST load the `rfc-xml-style` and `writing-skills` skills, and MUST change behavior rather than document it
 
 </rules>
