@@ -88,6 +88,12 @@ home/pi/.pi/context-mode/
 home/pi/.pi/agent/time-tracking.json
 home/pi/.pi/agent/time-clients.json
 
+# Local backups of pi config (machine-specific)
+home/pi/.pi/agent/*.bak
+
+# Codex subagent run transcripts (ephemeral, large)
+home/pi/.pi/agent/pi-codex-subagents/runs/
+
 # Codex Micro runtime state
 home/pi/.pi/agent/codex-micro-slots/
 home/pi/.pi/agent/codex-micro.json
