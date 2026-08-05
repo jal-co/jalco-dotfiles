@@ -1,0 +1,14 @@
+{
+  "toolAliases": [
+    ["ask_user_question", "mcp__pi__ask_user_question"],
+    ["todo", "mcp__pi__todo"],
+    ["complete_todos", "mcp__pi__complete_todos"],
+    ["spawn_agent", "mcp__pi__spawn_agent"],
+    ["wait_agent", "mcp__pi__wait_agent"],
+    ["wait_all_agents", "mcp__pi__wait_all_agents"],
+    ["list_agents", "mcp__pi__list_agents"],
+    ["read_agent_response", "mcp__pi__read_agent_response"],
+    ["send_message", "mcp__pi__send_message"],
+    ["interrupt_agent", "mcp__pi__interrupt_agent"]
+  ]
+}

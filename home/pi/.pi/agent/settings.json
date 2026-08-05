@@ -18,7 +18,7 @@
   "extensions": [],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.82.1",
+  "lastChangelogVersion": "0.83.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
@@ -30,6 +30,7 @@
     "npm:pi-goal-x",
     "npm:pi-mcp-adapter",
     "npm:pi-notify",
+    "npm:pi-tool-display",
     "npm:pi-updater",
     "npm:pi-cursor-sdk",
     "npm:pi-xai-oauth",
