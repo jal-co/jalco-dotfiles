@@ -46,6 +46,12 @@ command = "herdr-file-viewer.open-file-viewer"
 description = "open file viewer"
 
 [[keys.command]]
+key = "prefix+shift+n"
+type = "plugin_action"
+command = "neon.herdr.dashboard"
+description = "open Neon dashboard in a split"
+
+[[keys.command]]
 key = "prefix+p"
 type = "plugin_action"
 command = "jt.command-palette.open"
