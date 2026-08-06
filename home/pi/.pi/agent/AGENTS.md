@@ -45,17 +45,26 @@ When resuming after compaction, use the summary plus bounded current sources suc
 
 <rules>
 
-- MUST confirm before destructive actions such as force pushes, hard resets, recursive deletion, schema migration, or dropping data
+- MUST confirm before a destructive action: force push, hard reset, recursive delete, history rewrite, schema migration, or dropping data
 - MUST NOT hardcode or commit secrets; use environment variables, untracked local files, or a secret manager
-- MUST NOT silently fix unrelated issues; finish the requested work and surface other issues separately
-- SHOULD improve touched code when it stays within scope, but MUST NOT expand the task without approval
 - MUST restart an unreachable, stale, or hanging localhost development server before diagnosing application code
-- MUST use the smallest change that satisfies the request
-- MUST touch the fewest files that satisfy the request and MUST NOT create new files when an existing one fits
-- MUST justify every added line and MUST NOT add defensive code for cases the request does not require
-- MUST write comments only when the code cannot explain itself: a non-obvious why, a workaround, or a required API contract. Default to zero comments
+
+Scope:
+
+- MUST be able to trace every changed file to the request, and MUST report unrelated problems instead of fixing them
+- MUST NOT create a file, dependency, abstraction, config option, or export that the request does not require
+- MUST NOT add error handling, fallbacks, retries, or option flags for cases the request does not name
+- SHOULD improve touched code only when the improvement is part of the same change
+
+Comments:
+
+- MUST count added comment lines before presenting a diff, and MUST justify each one
+- MUST NOT add a comment to a file that has none; the explanation belongs in the commit message or PR body
+- MUST cap an admitted comment at one line; longer rationale goes in the commit message, the PR body, or a test name
+- MUST NOT justify a comment as protection against a future revert or refactor
+- MUST write comments only when the code cannot explain itself: a non-obvious why, a workaround, or a required API contract
 - MUST NOT add comments that restate the code, decorative headers, section banners, docstrings for self-evident functions, or notes about the change being made
-- MUST match the surrounding commenting density in code the user did not write, and MUST NOT introduce a personal style into another codebase
+- MUST match the surrounding commenting density in code the user did not write
 
 </rules>
 
