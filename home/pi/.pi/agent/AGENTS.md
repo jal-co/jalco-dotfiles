@@ -76,12 +76,34 @@ Comments:
 
 - MUST check project instructions and `CONTRIBUTING.md` before Git, release, or pull-request work
 - MUST load and follow the relevant skill for specialized work such as Git, Herdr, UI design, security, documentation, or releases
-- MUST do the work in the current session by default; subagents are the exception, not the default execution path
-- MUST NOT spawn a subagent for work the current session can do directly, for a single file read, search, edit, command, or review, or to parallelize a task the user did not ask to parallelize
-- MAY spawn a subagent only when the task needs a fresh context window for a large independent unit of work, or when the user asks for one; MUST spawn at most one at a time unless the user asks for more
+- MUST perform all work in the current session unless the user explicitly requests subagents for that task
+- MUST NOT spawn, invoke, or delegate to a subagent without that explicit request; task size, context pressure, model review, and parallelism do not grant permission
+- When the user authorizes subagents without specifying a count, MUST use at most one at a time
+
+Worktrees:
+
+- Implementation tied to a Linear issue MUST create or reuse one dedicated worktree before editing; read-only investigation MAY stay in the current checkout
+- MUST inspect existing worktrees first and reuse the matching issue branch instead of creating a duplicate
+- MUST use Linear's `gitBranchName` when available; otherwise use a lowercase issue identifier and short slug
+- When a branch is pushed or a pull request is opened, MUST link it to the Linear issue through the repository integration when available and verify the issue shows the branch or pull request; if automatic linking is unavailable, MUST include the issue identifier in the branch name and pull request
+- In Herdr, MUST use the `herdr_worktree_*` tools so repository hooks and linked paths run; outside Herdr, MUST use native `git worktree` commands
+- New worktrees MUST start from the repository's current remote default branch after fetching, unless repository policy or the issue names another base
+- Multiple implementation issues MUST use separate worktrees unless the user explicitly groups them into one change; concurrent agents and processes MUST NOT share a working tree
+- MUST record the issue identifier, branch, and worktree path in the relevant todo metadata so resumed work can recover the same checkout
+- Before cleanup, MUST verify the worktree is clean and the branch has no unpushed or unmerged commits
+- After the PR is merged or the completed change is confirmed on the base branch, MUST remove the worktree and safely delete its local branch
+- MUST NOT force-remove a worktree or delete a branch with uncommitted, unpushed, or unmerged work; report the blocker and ask before discarding anything
+
+Migrations:
+
+- A pull-request stack SHOULD contain one final migration
+- Multiple migrations MAY exist during development, but MUST be collapsed before delivery unless separate migrations are required for a safe rollout
+
 - MUST check for a native language or runtime solution before adding a dependency
 - MUST prefer maintained tools recommended for new work and MUST flag legacy choices without migrating them unless asked
 - MUST run applicable existing checks before committing or pushing; MUST NOT invent tests or tooling that the project does not use
+- MUST deliver work as a single pull request unless the user explicitly requests a stack; every branch in a stack runs full CI, and each restack re-runs it across the whole stack
+- When a stack exists, MUST NOT rebase or sync it routinely; restack only to resolve conflicts or immediately before merge
 - Commits MUST follow Conventional Commits unless the repository defines another format
 - Commits, pull requests, and tags MUST NOT contain `Co-Authored-By`, "Generated with," or other AI attribution
 
