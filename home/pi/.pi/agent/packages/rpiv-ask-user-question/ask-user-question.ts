@@ -1,14 +1,15 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { loadConfig, validateGuidanceFields } from "./config.js";
 import { ASK_USER_PROMPT_EVENT, type AskUserPromptEventPayload } from "./events.js";
 import { displayLabel } from "./state/i18n-bridge.js";
-import { sentinelsToAppend } from "./state/row-intent.js";
+import { ROW_INTENT_META, sentinelsToAppend } from "./state/row-intent.js";
 import { buildQuestionnaireResponse, buildToolResult } from "./tool/response-envelope.js";
 import {
 	MAX_OPTIONS,
 	MAX_QUESTIONS,
 	MIN_OPTIONS,
 	type QuestionData,
+	type QuestionAnswer,
 	type QuestionnaireResult,
 	type QuestionParams,
 	QuestionParamsWireSchema,
@@ -122,6 +123,10 @@ Preview content is rendered as markdown in a monospace box. Multi-line text with
 			// Emit event for external listeners (e.g., notification plugins)
 			emitAskUserPromptEvent(pi, typed);
 
+			if (ctx.mode !== "tui") {
+				return buildQuestionnaireResponse(await askViaDialogs(ctx, typed), typed);
+			}
+
 			const itemsByTab: WrappingSelectItem[][] = typed.questions.map((q) => buildItemsForQuestion(q));
 
 			// Lazy — QuestionnaireSession pulls the ~560ms view/TUI render graph;
@@ -153,6 +158,40 @@ Preview content is rendered as markdown in a monospace box. Multi-line text with
 			return buildQuestionnaireResponse(result, typed);
 		},
 	});
+}
+
+async function askViaDialogs(
+	ctx: ExtensionContext,
+	params: QuestionParams,
+): Promise<QuestionnaireResult> {
+	const typeSomething = ROW_INTENT_META.other.label;
+	const answers: QuestionAnswer[] = [];
+	for (let questionIndex = 0; questionIndex < params.questions.length; questionIndex++) {
+		const question = params.questions[questionIndex]!;
+		const labels = question.options.map((option) => option.label);
+		const choice = await ctx.ui.select(question.question, [...labels, typeSomething]);
+		if (choice === undefined) {
+			return { answers, cancelled: true };
+		}
+		if (choice === typeSomething) {
+			const text = await ctx.ui.input(question.question);
+			if (text === undefined) {
+				return { answers, cancelled: true };
+			}
+			answers.push({ questionIndex, question: question.question, kind: "custom", answer: text });
+			continue;
+		}
+		const option = question.options.find((candidate) => candidate.label === choice);
+		answers.push({
+			questionIndex,
+			question: question.question,
+			kind: question.multiSelect ? "multi" : "option",
+			answer: choice,
+			...(question.multiSelect ? { selected: [choice] } : {}),
+			...(option?.preview ? { preview: option.preview } : {}),
+		});
+	}
+	return { answers, cancelled: false };
 }
 
 export { buildQuestionnaireResponse, buildToolResult };
