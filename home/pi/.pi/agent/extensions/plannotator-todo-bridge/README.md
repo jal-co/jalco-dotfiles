@@ -4,7 +4,7 @@ Connects Plannotator plan execution, the local `rpiv-todo` fork, and `pi-goal-x`
 
 ## Workflow
 
-1. For a large implementation task, the agent calls `start_plannotator` as its first action. The same flow is available manually as `/plan-task <task>`.
+1. For unresolved cross-system architectural design or an explicit Plannotator request, the agent calls `start_plannotator` before implementation. The same flow is available manually as `/plan-task <task>`.
 2. The bridge asks Plannotator to enter planning mode and waits for a confirmed `planning` phase before queuing the task.
 3. The agent writes a Markdown plan and calls `plannotator_submit_plan`. Plannotator opens its browser review and implementation remains blocked until approval.
 4. After approval, the bridge detects Plannotator's `plannotator-execute` marker, imports the plan checkboxes into `rpiv-todo`, and hides Plannotator's duplicate execution widget. `rpiv-todo` is the single visible checklist.
@@ -13,20 +13,16 @@ Connects Plannotator plan execution, the local `rpiv-todo` fork, and `pi-goal-x`
 
 ## Automatic planning criteria
 
-The `start_plannotator` tool guidance requires immediate planning when an implementation task has any of these traits:
+Use `start_plannotator` only when work requires cross-system architectural design and its implementation path or completion standard remains undefined, or when the user explicitly requests Plannotator.
 
-- unclear scope
-- multiple reasonable interpretations
-- more than about two architectural decisions
-- work across unseen files, services, or domains
-- undefined completion criteria
+File count, unfamiliar code, and test work alone do not trigger planning. Approved, bounded work uses a checklist without another approval gate for the same decisions. Clarify an unresolved product decision directly when it does not require architectural design.
 
 The decision is agent-judged. The bridge does not use keyword interception and does not ask for a second confirmation.
 
 ## Commands and tool
 
 - `/plan-task <task>`: enter Plannotator and queue the task after phase confirmation.
-- `start_plannotator({ task })`: agent-callable equivalent with large-task guidance.
+- `start_plannotator({ task })`: agent-callable equivalent with the planning criteria above.
 - `/sisyphus-todos`: start Sisyphus from remaining bridge-linked todos in plan order.
 
 ## Synchronization ownership

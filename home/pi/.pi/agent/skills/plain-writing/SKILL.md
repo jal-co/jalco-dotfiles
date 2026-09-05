@@ -14,7 +14,7 @@ description: |-
 <overview>
 Rules for prose that a human reads. They remove the vocabulary and sentence shapes that mark text as machine-generated. Every rule states the fix, not only the ban.
 
-Section 5 of the global AGENTS.md carries a compressed version of the pattern rules, which applies to all output. This file is the full list, for when text is the deliverable.
+The global AGENTS.md sets the conversational baseline. This file supplies the detailed pattern rules when prose is the deliverable. `write-like-justin` loads it together with `emil-unslop-writing` for text sent as Justin.
 </overview>
 
 <constraints>

@@ -151,10 +151,10 @@ export default function plannotatorTodoBridge(pi: ExtensionAPI): void {
 		name: TOOL_NAME,
 		label: "Start Plannotator",
 		description:
-			"Enter Plannotator planning mode and immediately hand off a large implementation task. Use before implementation when scope is unclear, multiple interpretations exist, more than about two architectural decisions are required, work spans unseen files/services/domains, or completion is undefined. Once the plan is ready, call plannotator_submit_plan so the user can review it in the browser.",
-		promptSnippet: "Start Plannotator planning for a large or cross-system implementation task.",
+			"Enter Plannotator for cross-system architectural design whose implementation path or completion standard remains undefined, or when explicitly requested. Use a checklist for approved, bounded work. Submit the plan with plannotator_submit_plan before implementation.",
+		promptSnippet: "Start Plannotator for unresolved cross-system architectural design or an explicit planning request.",
 		promptGuidelines: [
-			"For a large implementation task, start_plannotator MUST be the first action when scope is unclear, there are multiple reasonable interpretations, more than about two architectural decisions are required, work spans unseen files/services/domains, or done is undefined.",
+			"Use start_plannotator before implementation only when cross-system architectural design is required and its implementation path or completion standard remains undefined, or when the user explicitly requests Plannotator. File count, unfamiliar code, and test work alone do not qualify. Execute approved, bounded work with a checklist without another approval gate for the same decisions.",
 			"start_plannotator enters planning immediately without asking for another confirmation, then hands off the supplied task. During planning, write the plan and call plannotator_submit_plan to open browser review before implementation.",
 			"When using Plannotator, MUST NOT manually create duplicate todo tasks from the plan. The bridge imports approved checklist items into rpiv-todo and makes that overlay the single visible execution checklist.",
 		],
