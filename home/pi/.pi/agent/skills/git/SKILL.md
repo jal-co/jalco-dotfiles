@@ -20,6 +20,20 @@ Comprehensive guide for git operations, GitHub CLI usage, commit practices, and 
 
 </overview>
 
+<rules>
+
+## Local workflow policy
+
+Before implementation or worktree operations, read `~/.pi/agent/workflows/worktrees.md`. It owns checkout selection, workspace-manager precedence, agent permission, issue identity, and cleanup. Its rules take precedence over the generic command examples below.
+
+- Use Conventional Commits unless the repository defines another format. Commits, PRs, and tags MUST NOT include AI attribution.
+- Deliver one PR unless Justin explicitly requests a stack. Each stack branch runs full CI; restacking reruns it across the stack. Do not routinely rebase or sync a stack; restack only for conflicts or immediately before merge.
+- A stack should have one final migration. Collapse development migrations before delivery unless separate migrations are required for safe rollout. Confirm before running migrations.
+- Link an existing task issue when publishing and verify the linkage. Do not invent an issue requirement for tasks without one. Outside the Mastra internal exception below, ask for an existing issue when repository policy requires one. Never create GitHub issues in Mastra repositories.
+- Run applicable existing checks before commits or pushes. Publication, merges, and reviewer requests require their respective user authorization.
+
+</rules>
+
 <commands>
 
 ## Git CLI Essentials
@@ -573,7 +587,7 @@ git reset --hard HEAD@{2}        # Recover
 - No period at end of subject
 - Separate subject from body with blank line
 - Explain "what" and "why" in body, not "how"
-- Reference issues: "Closes #123" or "Fixes #456"
+- Reference the task's issue when one exists: "Closes #123" or "Fixes #456"
 
 ### MUST NOT
 
