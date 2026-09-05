@@ -1,7 +1,7 @@
 # DOTFILES
 
-**Generated:** 2026-07-26T22:08:25.284Z
-**Commit:** d360356
+**Generated:** 2026-09-04T13:19:56.421Z
+**Commit:** 0adbfee
 
 macOS dev env via GNU Stow, managed by `jdot`.
 
@@ -19,6 +19,7 @@ dotfiles/
 ├── git/
 ├── herdr/
 ├── mise/
+├── opencode/
 ├── pi/
 ├── starship/
 ├── tmux/

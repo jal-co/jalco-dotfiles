@@ -7,7 +7,7 @@ description: |-
 
   Examples:
   - user: "Commit these changes" → stage files, create conventional commit
-  - user: "Create a PR" → push branch, use gh pr create with proper template
+  - user: "Create a PR" → push branch, write a short body per <pull-requests>, gh pr create
   - user: "Rebase on main" → fetch, rebase, handle conflicts
   - user: "Fix merge conflict" → identify conflicts, resolve, complete merge
   - user: "Squash my commits" → interactive rebase guidance
@@ -414,16 +414,18 @@ git rebase origin/main        # Or merge
 
 # 5. Push and create PR
 git push -u origin feat/user-profile
-gh pr create --title "feat(profile): add user profile page" --body "$(cat <<'EOF'
-## Summary
-- Add avatar upload with S3
-- Add bio field with markdown support
+cat > /tmp/pr-body.md <<'EOF'
+Adds avatar upload (S3) and a markdown bio field to the profile page.
 
-## Testing
-- [ ] Upload various image formats
-- [ ] Test bio with special characters
+| | Light | Dark |
+| --- | --- | --- |
+| After | ![Profile page with avatar and bio in light mode](./after-light.png) | ![Profile page with avatar and bio in dark mode](./after-dark.png) |
+
+Tested: uploaded png/jpg/webp, bio with html entities renders escaped.
 EOF
-)"
+gh pr create --title "feat(profile): add user profile page" \
+  --body-file /tmp/pr-body.md \
+  --attach ./after-light.png --attach ./after-dark.png
 
 # 6. After approval
 gh pr merge --squash --delete-branch
@@ -499,6 +501,87 @@ gh pr merge --squash
 ```
 
 </workflow>
+
+<pull-requests>
+
+## Pull Request Descriptions
+
+A PR body is for the reviewer. It answers what changed, why, and how to verify it. Anything else is noise.
+
+### Length caps
+
+- MUST keep the body under 120 words of prose, excluding the visual, the screenshot table, and code fences
+- MUST NOT exceed one short paragraph per section; MUST NOT use more than three sections
+- MUST NOT restate the diff, list every touched file, narrate the implementation steps, or explain what a reviewer can read in the code
+- MUST NOT add headings such as "Summary", "Changes", "Motivation", or "Testing" when the section is one or two lines; write the line directly
+- MUST NOT include checklists, emoji, "Note:" callouts, or a closing recap
+
+### Shape
+
+```markdown
+<one or two sentences: what changed and why>
+
+<visual, only when the PR is complex>
+
+<screenshot table, only when the PR changes rendered UI>
+
+<one line: how it was verified, or the linked issue>
+```
+
+Simple PRs are one sentence plus the verification line. That is a complete body.
+
+### Visual
+
+- A complex PR (control flow, data flow, state transitions, multi-file ownership, or architectural effect that a sentence cannot carry) MUST load `show-me` and include one visual
+- The visual MUST replace prose, not sit beside it; if the diagram explains the change, delete the paragraph that tried to
+- MUST pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, `diff` fence, or Mermaid
+- A visual that shows changed code or behavior MUST use a `diff` fence with `+`/`-` markers so GitHub colors it
+- MUST NOT add a visual to a simple PR
+
+### Screenshots
+
+- A PR that changes rendered UI MUST load `pr-screenshots` and follow its capture and upload workflow
+- MUST use the `pr-screenshots` table format; changed UI shows Before and After rows, new UI shows After only
+- MUST upload with repeatable `gh --attach` and verify every image renders on the published PR
+- Alt text MUST name what the image shows; the table replaces any prose describing the UI
+
+### Voice
+
+- MUST load `write-like-justin` and `plain-writing` before writing the body
+- MUST write in plain sentences, present tense, no filler transitions, no em dashes
+- MUST NOT include AI attribution
+
+### Examples
+
+Simple:
+
+```markdown
+Fixes the session list re-fetching on every keystroke by debouncing the search input 150ms.
+
+Verified in playground: typing a 20 char query fires one request.
+```
+
+Complex:
+
+````markdown
+Moves permission review out of the tool call path into a queue so a slow reviewer no longer blocks unrelated tool calls.
+
+```diff
+ executeTool(call)
+-  await review(call)
+-  run(call)
++  enqueue(call)
++
++reviewQueue.drain()
++  for call in queue
++    if review(call).approved
++      run(call)
+```
+
+Existing tests pass; added a test for two concurrent guarded calls.
+````
+
+</pull-requests>
 
 <constraints>
 

@@ -22,6 +22,10 @@
       "url": "https://mcp.natural.com",
       "auth": "oauth"
     },
+    "granola": {
+      "url": "https://mcp.granola.ai/mcp",
+      "auth": "oauth"
+    },
     "exa": {
       "command": "npx",
       "args": [
@@ -31,6 +35,22 @@
       "env": {
         "EXA_API_KEY": "${EXA_API_KEY}"
       }
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp",
+      "auth": "oauth"
+    },
+    "posthog-flags": {
+      "url": "https://mcp.posthog.com/mcp?features=flags",
+      "auth": "oauth"
+    },
+    "posthog-read": {
+      "url": "https://mcp.posthog.com/mcp?readonly=true",
+      "auth": "oauth"
+    },
+    "posthog": {
+      "url": "https://mcp.posthog.com/mcp",
+      "auth": "oauth"
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp",

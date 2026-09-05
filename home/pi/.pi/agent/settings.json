@@ -3,22 +3,25 @@
   "compaction": {
     "keepRecentTokens": 48000
   },
-  "defaultModel": "claude-opus-5",
-  "defaultProvider": "anthropic",
-  "defaultThinkingLevel": "low",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "openai-codex",
+  "defaultThinkingLevel": "medium",
   "enabledModels": [
     "anthropic/claude-fable-5",
     "anthropic/claude-opus-5",
     "anthropic/claude-sonnet-5",
     "anthropic/claude-haiku-4-5",
     "openai-codex/gpt-5.6-sol",
-    "openai-codex/gpt-5.6-terra"
+    "openai-codex/gpt-5.6-terra",
+    "crof/glm-5.3-flash",
+    "anthropic/claude-fable-5-1",
+    "openai-codex/gpt-6-astra"
   ],
   "enableSkillCommands": true,
   "extensions": [],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.85.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",

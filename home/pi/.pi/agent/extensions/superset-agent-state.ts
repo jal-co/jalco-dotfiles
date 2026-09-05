@@ -27,6 +27,9 @@ function notify(eventName: string, sessionId: string | undefined): void {
 
 export default function supersetAgentState(pi: ExtensionAPI) {
   if (!enabled()) return;
+  if (process.env.SUPERSET_WORKSPACE_ID && !process.env.BROWSER) {
+    process.env.BROWSER = `${process.env.HOME}/.pi/agent/superset/open-url`;
+  }
 
   pi.on("session_start", (_event, ctx) => {
     notify("SessionStart", ctx.sessionManager.getSessionId());

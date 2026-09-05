@@ -58,6 +58,24 @@ command = "jt.command-palette.open"
 description = "Command palette"
 
 [[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "annotate.capture"
+description = "annotate text"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "plugin_action"
+command = "annotate.copy-context"
+description = "copy annotations as context"
+
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "annotate.manage"
+description = "manage annotations"
+
+[[keys.command]]
 key = "f12"
 type = "popup"
 command = "bash ~/.config/herdr/scripts/keybind-help.sh"
@@ -86,7 +104,7 @@ pane_borders = true
 pane_gaps = true
 show_agent_labels_on_pane_borders = true
 hide_tab_bar_when_single_tab = false
-agent_panel_sort = "spaces"
+agent_panel_sort = "priority"
 accent = "cyan"
 
 [ui.sidebar.agents]
@@ -104,11 +122,11 @@ rows = [
 ]
 
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
 delay_seconds = 1
 
 [ui.sound]
-enabled = false
+enabled = true
 
 [session]
 resume_agents_on_restore = true

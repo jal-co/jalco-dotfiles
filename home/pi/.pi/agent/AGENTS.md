@@ -85,6 +85,8 @@ Mastra design:
 
 Worktrees:
 
+- When the `superset` CLI is on PATH and `superset auth whoami` succeeds, MUST create implementation worktrees as Superset workspaces instead of raw `git worktree` commands: resolve the repository's project id with `superset projects list --json` (`superset projects setup` adopts a repository that has no project), then run `superset ws create --local --project <id> --branch <branch> --name <slug> --agent pi --prompt "<bounded task>"` and load `superset-orchestrate` to write the prompt and monitor the worker; when the work belongs to a different repository than the current one, this is the only permitted way to start it
+- A Superset-created workspace MUST reuse an existing workspace on the same branch (`superset workspaces list --local --json`) instead of creating a duplicate, and MUST be deleted with `superset ws delete` only under the cleanup rules below
 - Before creating a worktree, MUST run `printenv SUPERSET_WORKSPACE_ID`; when it prints a value, the current directory is a Superset workspace that already is the task's worktree, so MUST work there directly, MUST NOT create, switch, or remove worktrees or branches for the task, and MUST skip the remaining worktree rules in this section
 - Before implementing in a Git repository, MUST resolve the target repository from the task and available context; MUST ask the user when the repository cannot be identified unambiguously
 - Every implementation task in a Git repository MUST create or reuse one dedicated worktree before editing; read-only investigation MAY stay in the current checkout
@@ -116,6 +118,10 @@ Reviews and issues:
 - MUST NOT create GitHub issues in any Mastra repository
 - MUST NOT infer permission to create an issue from a request to open a pull request
 - When Mastra repository policy requires a linked issue and none exists, MUST stop and ask the user for an existing issue
+
+Human review handoff:
+
+- When asking the user to review a running localhost route and `SUPERSET_WORKSPACE_ID` is set, MUST open that exact URL with `~/.pi/agent/superset/open-url <url>` before writing the handoff so it is already showing in the workspace browser pane; outside Superset, MUST include the URL in the handoff and MUST NOT launch the user's browser
 
 Browser testing:
 

@@ -3,8 +3,8 @@
     "enabled": false
   },
   "reviewer": {
-    "provider": "openai-codex",
-    "model": "gpt-5.6-luna",
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
     "reasoningEffort": "low",
     "timeoutMs": 30000
   },
