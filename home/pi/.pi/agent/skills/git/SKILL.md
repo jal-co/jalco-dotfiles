@@ -504,82 +504,13 @@ gh pr merge --squash
 
 <pull-requests>
 
-## Pull Request Descriptions
+## Mastra internal pull requests
 
-A PR body is for the reviewer. It answers what changed, why, and how to verify it. Anything else is noise.
+When Justin works in `mastra-ai/mastra`, treat the pull request as an internal core-contributor change. The agent MUST NOT require, create, or link a GitHub issue unless Justin asks for one or the task already has one. The linked-issue requirement in `CONTRIBUTING.md` applies to external contributions and MUST NOT block these pull requests.
 
-### Length caps
+## Pull request workflow
 
-- MUST keep the body under 120 words of prose, excluding the visual, the screenshot table, and code fences
-- MUST NOT exceed one short paragraph per section; MUST NOT use more than three sections
-- MUST NOT restate the diff, list every touched file, narrate the implementation steps, or explain what a reviewer can read in the code
-- MUST NOT add headings such as "Summary", "Changes", "Motivation", or "Testing" when the section is one or two lines; write the line directly
-- MUST NOT include checklists, emoji, "Note:" callouts, or a closing recap
-
-### Shape
-
-```markdown
-<one or two sentences: what changed and why>
-
-<visual, only when the PR is complex>
-
-<screenshot table, only when the PR changes rendered UI>
-
-<one line: how it was verified, or the linked issue>
-```
-
-Simple PRs are one sentence plus the verification line. That is a complete body.
-
-### Visual
-
-- A complex PR (control flow, data flow, state transitions, multi-file ownership, or architectural effect that a sentence cannot carry) MUST load `show-me` and include one visual
-- The visual MUST replace prose, not sit beside it; if the diagram explains the change, delete the paragraph that tried to
-- MUST pick the smallest view that makes the point: pseudocode, call tree, component tree, shallow file tree, `diff` fence, or Mermaid
-- A visual that shows changed code or behavior MUST use a `diff` fence with `+`/`-` markers so GitHub colors it
-- MUST NOT add a visual to a simple PR
-
-### Screenshots
-
-- A PR that changes rendered UI MUST load `pr-screenshots` and follow its capture and upload workflow
-- MUST use the `pr-screenshots` table format; changed UI shows Before and After rows, new UI shows After only
-- MUST upload with repeatable `gh --attach` and verify every image renders on the published PR
-- Alt text MUST name what the image shows; the table replaces any prose describing the UI
-
-### Voice
-
-- MUST load `write-like-justin` and `plain-writing` before writing the body
-- MUST write in plain sentences, present tense, no filler transitions, no em dashes
-- MUST NOT include AI attribution
-
-### Examples
-
-Simple:
-
-```markdown
-Fixes the session list re-fetching on every keystroke by debouncing the search input 150ms.
-
-Verified in playground: typing a 20 char query fires one request.
-```
-
-Complex:
-
-````markdown
-Moves permission review out of the tool call path into a queue so a slow reviewer no longer blocks unrelated tool calls.
-
-```diff
- executeTool(call)
--  await review(call)
--  run(call)
-+  enqueue(call)
-+
-+reviewQueue.drain()
-+  for call in queue
-+    if review(call).approved
-+      run(call)
-```
-
-Existing tests pass; added a test for two concurrent guarded calls.
-````
+MUST load and follow `preparing-pull-requests` when preparing, opening, updating, or finalizing a PR. It owns the body format, Justin's voice, no-slop pass, screenshots, diff explanations, and publication checks. For UI work intended for a PR, load it before implementation so the before state is captured in time.
 
 </pull-requests>
 

@@ -1,15 +1,6 @@
 {
   "version": 3,
   "skills": {
-    "writing-docs": {
-      "source": "remotion-dev/remotion",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/remotion-dev/remotion.git",
-      "skillPath": ".claude/skills/writing-docs/SKILL.md",
-      "skillFolderHash": "3abab687ecb13989baa60938a09906a0f03f4a22",
-      "installedAt": "2026-03-13T20:47:01.040Z",
-      "updatedAt": "2026-03-13T20:47:01.040Z"
-    },
     "polish": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
@@ -127,15 +118,6 @@
       "installedAt": "2026-07-03T03:03:09.170Z",
       "updatedAt": "2026-07-26T18:37:16.300Z"
     },
-    "shieldcn-badges": {
-      "source": "jal-co/shieldcn",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jal-co/shieldcn.git",
-      "skillPath": "skills/shieldcn-badges/SKILL.md",
-      "skillFolderHash": "28fa3b120c7551ffa5c4c7df86282058db7ed954",
-      "installedAt": "2026-07-05T20:11:03.926Z",
-      "updatedAt": "2026-07-05T20:11:03.926Z"
-    },
     "improve-animations": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -180,15 +162,6 @@
       "skillFolderHash": "c85dfe0d2c5d1fa599c88e54cef7ae9495862a04",
       "installedAt": "2026-07-19T20:01:46.345Z",
       "updatedAt": "2026-07-19T20:01:46.345Z"
-    },
-    "better-colors": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-colors/SKILL.md",
-      "skillFolderHash": "78717951629ce065b2bd8357374a7ff2f15bd363",
-      "installedAt": "2026-07-19T20:01:46.346Z",
-      "updatedAt": "2026-07-19T20:01:46.346Z"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
@@ -367,7 +340,6 @@
     "gemini-cli",
     "github-copilot",
     "kimi-code-cli",
-    "opencode",
     "warp",
     "zed",
     "pi"

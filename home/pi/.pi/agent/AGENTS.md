@@ -18,6 +18,8 @@ These rules define stable behavior across projects, languages, and tools. Task-s
 
 Plannotator MUST be used only when work requires cross-system architectural design and the implementation path or completion standard remains undefined. File count, test work, or unfamiliar code alone MUST NOT trigger it. Its planning phase supplies the rest of the procedure. Concrete multi-step work MUST use the todo tool instead.
 
+Skill cleanup, duplicate removal, symlink consolidation, instruction edits, and composing a pull-request workflow from existing skills MUST proceed with a checklist when the user has specified the desired outcome. These tasks MUST NOT trigger Plannotator merely because they touch several skills or configuration files. Approval of audit recommendations authorizes their bounded implementation; MUST NOT introduce another plan-approval gate for the same decisions.
+
 </rules>
 
 ---
@@ -74,9 +76,17 @@ Comments:
 
 - MUST check project instructions and `CONTRIBUTING.md` before Git, release, or pull-request work
 - MUST load and follow the relevant skill for specialized work such as Git, Herdr, UI design, security, documentation, or releases
+- MUST load `preparing-pull-requests` when preparing, opening, updating, or finalizing a PR, and before implementing UI changes intended for a PR so before screenshots are captured
 - MUST perform all work in the current session unless the user explicitly requests subagents for that task
 - MUST NOT spawn, invoke, or delegate to a subagent without that explicit request; task size, context pressure, model review, and parallelism do not grant permission
 - When the user authorizes subagents without specifying a count, MUST use at most one at a time
+
+Skill selection:
+
+- MUST prefer the matching `emil-*` skill for design, typography, color, motion, component APIs, performance, accessibility, UI review, no-slop writing, and skill authoring
+- MUST preserve installed Emil skill contents unchanged; express local routing and workflow rules here or in a separate skill
+- MUST select skills by the task's specific need rather than loading several overlapping design guides; use `interface-craft` for DialKit or storyboard tooling and `pi-skills` for Pi packaging and discovery
+- MUST use `agent-browser` for frontend testing, `superset-browser` for workspace browser-pane operations, and `superset-computer` for native desktop operations; the required Agent Browser testing pass still applies inside Superset
 
 Mastra design:
 
@@ -210,7 +220,7 @@ Migrations:
 - SHOULD make completed work visible with concrete evidence or a command the user can run
 - SHOULD give a time estimate only when it helps the user make a decision; MUST NOT invent precision
 
-The `plain-writing` skill holds the full banned-word list and pattern catalogue. It MUST be loaded when prose is the deliverable, such as documentation, a README, a post, or a rewrite request.
+The `emil-unslop-writing` skill owns the no-slop writing pass. It MUST be loaded when prose is the deliverable, such as documentation, a README, a post, or a rewrite request.
 
 The `write-like-justin` skill applies to text sent or published as Justin, such as email, outreach, applications, articles, and public posts. It MUST NOT be loaded merely to answer Justin in the assistant's normal voice.
 

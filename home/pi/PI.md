@@ -1,40 +1,44 @@
 # PI
 
-**Generated:** 2026-07-24T20:49:22.787Z
+**Generated:** 2026-09-05T04:20:27.339Z
 
-Digest of the pi/ package: skills, single-file extensions, and installed packages.
+Local inventory: unique skills from both repository roots, Pi single-file extensions, and configured packages. Includes locally installed private and licensed skill names.
 Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inventory only.
 
-## SKILLS (22)
+## SKILLS (76)
 
-`brandkit`, `browser-tools`, `building-components`, `color-accessibility`, `component-engineering`, `docs-writer`, `exa`, `find-skills`, `git`, `grep-app`, `interface-craft`, `make-interfaces-feel-better`, `mcp-management`, `neon-postgres`, `pi-skills`, `remocn`, `repo-ci`, `rfc-xml-style`, `security-ai-keys`, `security-secrets`, `shadcn-ui`, `ship-or-skip`
+`agent-browser`, `background-terminals`, `brandkit`, `building-components`, `emil-animations`, `emil-ask-emil`, `emil-ask-lapse`, `emil-build-a-tool`, `emil-color`, `emil-component-design`, `emil-design-eng`, `emil-design-foundations`, `emil-design-system-docs`, `emil-design-vocabulary`, `emil-engineering-vocabulary`, `emil-forms-and-inputs`, `emil-get-creative`, `emil-marketing-pages`, `emil-performance`, `emil-prototype`, `emil-surfaces`, `emil-touch-and-accessibility`, `emil-typography`, `emil-ui-polish`, `emil-ui-review`, `emil-unslop-code`, `emil-unslop-design`, `emil-unslop-writing`, `emil-writing-skills`, `exa`, `find-skills`, `gh-stack`, `git`, `grep-app`, `growth-ux-audit`, `herdr`, `improve-animations`, `improve`, `interface-craft`, `job-search`, `mastra-work`, `mcp-management`, `neon-postgres`, `pi-skills`, `plain-writing`, `plan-to-linear`, `platform-local-dev`, `platform-settings-sections`, `pr-screenshots`, `preparing-pull-requests`, `react-best-practices`, `real-app`, `repo-ci`, `rfc-xml-style`, `security-ai-keys`, `security-secrets`, `shadcn-ui`, `ship-or-skip`, `show-me`, `superset-10x`, `superset-automate`, `superset-browser`, `superset-computer`, `superset-contribute`, `superset-doctor`, `superset-feedback`, `superset-mcp`, `superset-orchestrate`, `superset-page`, `superset-setup`, `superset-standup`, `thesvg`, `tldraw-offline`, `ux-sound`, `write-like-justin`, `writing-skills`
 
-## EXTENSIONS (12)
+## EXTENSIONS (14)
 
-`codex-micro-reporter`, `confirm-destructive`, `custom-header`, `git-push-gate`, `herdr-agent-state`, `impeccable-commands`, `nvidia-nim-clean`, `permission-gate`, `time-tracker`, `titlebar-spinner`, `yolo-mode`, `yolo-state`
+`codex-micro-reporter`, `confirm-destructive`, `continue-after-compaction`, `counter-model-reviewer`, `custom-header`, `footer-cleanup`, `git-interceptor`, `herdr-agent-state`, `superset-agent-state`, `superset-hooks`, `time-tracker`, `titlebar-spinner`, `tool-reference-alias-fix`, `whimsical`
 
-## PACKAGES (24)
+## PACKAGES (27)
 
 - `npm:@juanibiapina/pi-extension-settings`
-- `npm:@howaboua/pi-codex-conversion`
 - `npm:@howaboua/pi-howaboua-extensions-primitives-sdk`
-- `npm:@howaboua/pi-markdown-workflows`
 - `npm:@benvargas/pi-claude-code-use`
 - `./packages/rpiv-ask-user-question`
 - `./packages/rpiv-todo`
 - `npm:@juicesharp/rpiv-args`
 - `npm:pi-annotate`
 - `npm:pi-goal-x`
-- `npm:pi-markdown-preview`
 - `npm:pi-mcp-adapter`
 - `npm:pi-notify`
-- `npm:pi-subagents`
+- `npm:pi-tool-display`
 - `npm:pi-updater`
 - `npm:pi-cursor-sdk`
 - `npm:pi-xai-oauth`
 - `git:github.com/jal-co/pi-agentation`
 - `../../Documents/Github/pi-codex-micro`
 - `npm:@ogulcancelik/pi-session-recall`
+- `npm:@ogulcancelik/pi-codex-subagents`
 - `npm:@ogulcancelik/pi-auto-permissions`
 - `npm:@ogulcancelik/pi-herdr`
 - `npm:claude-agent-sdk-pi`
+- `npm:@plannotator/pi-extension`
+- `npm:@jalco/pi-herdr-worktree`
+- `npm:pi-web-access`
+- `npm:@ryan_nookpi/pi-extension-codex-fast-mode`
+- `git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055`
+- `npm:@lll9p/pi-better-compaction`

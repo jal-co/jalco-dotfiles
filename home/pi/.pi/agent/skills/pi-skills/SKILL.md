@@ -1,6 +1,6 @@
 ---
 name: pi-skills
-description: Create and manage pi skills with proper SKILL.md format, frontmatter, and organization. Use for skill creation, naming conventions, bundled resources (scripts/references/assets), progressive disclosure patterns, MCP-related skill documentation, and deciding when to use skills vs Pi MCP servers. Use proactively when user says "create a skill", "SKILL.md", "add a skill", "document this workflow", "add MCP server docs", or asks about skill structure.
+description: Use when configuring Pi skill discovery, resolving duplicate skill names or symlinks, validating SKILL.md frontmatter, packaging scripts and references, or choosing between a Pi skill and an MCP server. Use emil-writing-skills for authoring instructions and behavior.
 ---
 
 # Pi Skills

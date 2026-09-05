@@ -1,6 +1,7 @@
 ---
 name: writing-skills
-description: Use when creating new skills, editing existing skills, or verifying skills work before deployment
+description: Use when explicitly requesting test-driven skill authoring or pressure-scenario validation. Default skill-authoring guidance is emil-writing-skills.
+disable-model-invocation: true
 ---
 
 # Writing Skills
