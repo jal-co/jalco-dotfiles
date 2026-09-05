@@ -56,6 +56,9 @@ export PATH="$HOME/.flutter-sdk/bin:$PATH"
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
+# Superset CLI (bundled with the desktop app)
+export PATH="$HOME/.superset/bin:$PATH"
+
 ###############################################
 #                     Python
 ###############################################
@@ -321,3 +324,6 @@ export PATH="$PATH:/Users/justin/.local/bin"
 
 # sentry
 fpath=("/Users/justin/.local/share/zsh/site-functions" $fpath)
+
+# Vite+ bin (https://viteplus.dev)
+. "$HOME/.config/vite-plus/env"

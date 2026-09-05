@@ -243,6 +243,114 @@
       "skillFolderHash": "c29ba25c9c07534c27f1a3253bd0ca3846c4f8c7",
       "installedAt": "2026-08-04T21:15:12.278Z",
       "updatedAt": "2026-08-04T21:15:12.278Z"
+    },
+    "writing-skills": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/writing-skills/SKILL.md",
+      "skillFolderHash": "1768f7552ec98fc6b06aeea747a0c4ef6bde0473",
+      "installedAt": "2026-08-28T13:35:42.863Z",
+      "updatedAt": "2026-08-28T13:35:42.863Z"
+    },
+    "pr-screenshots": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/github/awesome-copilot.git",
+      "skillPath": "skills/pr-screenshots/SKILL.md",
+      "skillFolderHash": "c1b4397ab7c996bfdde25582029e28eab40939bb",
+      "installedAt": "2026-08-31T16:26:11.897Z",
+      "updatedAt": "2026-08-31T16:26:11.897Z"
+    },
+    "show-me": {
+      "source": "humanlayer/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/humanlayer/skills.git",
+      "skillPath": "plugins/show-me/skills/show-me/SKILL.md",
+      "skillFolderHash": "0bdb821a21e793a4f6f82a7078c052154447e5cc",
+      "installedAt": "2026-09-01T15:37:27.901Z",
+      "updatedAt": "2026-09-01T15:37:27.901Z"
+    },
+    "superset-10x": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-10x/SKILL.md",
+      "skillFolderHash": "484c8100b39bf99607914bdc4c053f018c6824b3",
+      "installedAt": "2026-09-04T17:10:13.316Z",
+      "updatedAt": "2026-09-04T17:10:13.316Z"
+    },
+    "superset-automate": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-automate/SKILL.md",
+      "skillFolderHash": "d733f5ac5dbd41e541b1803fc1d59a82a4bcbfd5",
+      "installedAt": "2026-09-04T17:10:13.324Z",
+      "updatedAt": "2026-09-04T17:10:13.324Z"
+    },
+    "superset-contribute": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-contribute/SKILL.md",
+      "skillFolderHash": "82a9fb7081001f441704928251303fb521dc09ea",
+      "installedAt": "2026-09-04T17:10:13.327Z",
+      "updatedAt": "2026-09-04T17:10:13.327Z"
+    },
+    "superset-doctor": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-doctor/SKILL.md",
+      "skillFolderHash": "a4f8fcd50ea47fd163ada430c6f6e97bdef36013",
+      "installedAt": "2026-09-04T17:10:13.331Z",
+      "updatedAt": "2026-09-04T17:10:13.331Z"
+    },
+    "superset-feedback": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-feedback/SKILL.md",
+      "skillFolderHash": "4b3a57896263c45c366691d9ef72eb7e1c370d46",
+      "installedAt": "2026-09-04T17:10:13.332Z",
+      "updatedAt": "2026-09-04T17:10:13.332Z"
+    },
+    "superset-mcp": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-mcp/SKILL.md",
+      "skillFolderHash": "0e06409ea136cd3ab919ac7593e6912e7b088ba4",
+      "installedAt": "2026-09-04T17:10:13.333Z",
+      "updatedAt": "2026-09-04T17:10:13.333Z"
+    },
+    "superset-orchestrate": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-orchestrate/SKILL.md",
+      "skillFolderHash": "c01f1d5d1e6eb9cfe6493fb06c58860ae4cffb31",
+      "installedAt": "2026-09-04T17:10:13.334Z",
+      "updatedAt": "2026-09-04T17:10:13.334Z"
+    },
+    "superset-setup": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-setup/SKILL.md",
+      "skillFolderHash": "dcdddc783cf6edbd9a624e56423183d435e56a71",
+      "installedAt": "2026-09-04T17:10:13.335Z",
+      "updatedAt": "2026-09-04T17:10:13.335Z"
+    },
+    "superset-standup": {
+      "source": "superset-sh/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/superset-sh/skills.git",
+      "skillPath": "skills/superset-standup/SKILL.md",
+      "skillFolderHash": "f1d947f0ec3c4bd479fb98c6e06987ed4600883f",
+      "installedAt": "2026-09-04T17:10:13.336Z",
+      "updatedAt": "2026-09-04T17:10:13.336Z"
     }
   },
   "dismissed": {

@@ -6,7 +6,7 @@
 [user]
 	name = Justin Levine
 	email = 20596508+jal-co@users.noreply.github.com
-	signingkey = 2E9C31E5276833A6
+	signingkey = 31F78E11C8E925AD
 [core]
 	excludesfile = /Users/justin/.config/git/.gitignore_global
 	editor = code
@@ -19,3 +19,11 @@
 	defaultBranch = main
 [credential]
 	helper = osxkeychain
+[gpg]
+	program = /opt/homebrew/bin/gpg
+[credential "https://origin.cursor.com/git"]
+	helper =
+	helper = !/Users/justin/.local/bin/origin credential-helper
+[credential "https://origin.cursor.com"]
+	helper =
+	helper = !/Users/justin/.local/bin/origin credential-helper

@@ -1,4 +1,11 @@
 {
+  "buffer_font_fallbacks": [
+    "Fira Code",
+    "Menlo",
+    "Monaco",
+    "Courier New",
+    "monospace"
+  ],
   "agent": {
     "dock": "right",
     "favorite_models": [],
@@ -49,13 +56,13 @@
     "dark": "Colored Zed Icons Theme Dark",
   },
   "theme": {
-    "mode": "system",
-    "light": "Vercel Light",
-    "dark": "Vercel Dark",
+    "mode": "dark",
+    "light": "Ayu Light",
+    "dark": "Ayu Dark",
   },
   "base_keymap": "VSCode",
   "ui_font_size": 16,
-  "buffer_font_family": "GeistMono Nerd Font Mono",
+  "buffer_font_family": "Geist MonoNF",
   "buffer_font_size": 15,
   "tab_size": 2,
   "hard_tabs": false,
@@ -111,7 +118,7 @@
     "enable_keep_preview_on_code_navigation": true,
   },
   "max_tabs": 20,
-  "format_on_save": "on",
+  "format_on_save": "off",
   "remove_trailing_whitespace_on_save": false,
   "ensure_final_newline_on_save": true,
 

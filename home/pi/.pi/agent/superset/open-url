@@ -1,0 +1,6 @@
+#!/bin/sh
+url="$1"
+if [ -n "$SUPERSET_WORKSPACE_ID" ] && command -v superset >/dev/null 2>&1; then
+  superset browser open --workspace "$SUPERSET_WORKSPACE_ID" --url "$url" --quiet >/dev/null 2>&1 && exit 0
+fi
+exec open "$url"
