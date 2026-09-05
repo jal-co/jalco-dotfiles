@@ -15,7 +15,8 @@ Coordinate terminal agents with Superset's workspace, agent, and terminal comman
 1. Run `superset auth whoami --json`.
 2. Run `superset terminals --help` and require `list`, `read`, `send`, and `close`.
 3. If those commands are absent, run `superset update` and recheck. Do not invent or substitute unsupported orchestration commands.
-4. Resolve the workspace, host, and terminal-capable agent before dispatching:
+4. When developing inside the Superset monorepo, use `bun run --cwd packages/cli dev --` in place of `superset` to exercise the source CLI against the API configured in the root `.env`. To reuse production CLI authentication while testing unreleased source commands, run them from `packages/cli` with `SUPERSET_API_URL=https://api.superset.sh bunx cli-framework dev`.
+5. Resolve the workspace, host, and terminal-capable agent before dispatching:
 
 ```bash
 superset hosts list --json

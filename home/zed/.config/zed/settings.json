@@ -165,22 +165,6 @@
   "file_types": {
     "markdown": ["*.mdx"],
   },
-  "agent_servers": {
-    "OpenCode": {
-      "type": "extension",
-      "favorite_models": [
-        "zai-coding-plan/glm-4.7",
-        "anthropic/claude-opus-4-5",
-        "openai/gpt-5.2",
-        "openai/gpt-5.2-codex",
-        "local/antigravity/gemini-3-flash",
-        "local/antigravity/claude-opus-4-5",
-        "local/antigravity/claude-sonnet-4-5",
-      ],
-      "default_config_options": {},
-      "favorite_config_option_values": {},
-    },
-  },
   "auto_indent_on_paste": false,
   "use_on_type_format": false,
 }
