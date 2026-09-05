@@ -1,13 +1,13 @@
 # PI
 
-**Generated:** 2026-09-05T04:20:27.339Z
+**Generated:** 2026-09-05T19:09:46.471Z
 
 Local inventory: unique skills from both repository roots, Pi single-file extensions, and configured packages. Includes locally installed private and licensed skill names.
 Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inventory only.
 
-## SKILLS (76)
+## SKILLS (80)
 
-`agent-browser`, `background-terminals`, `brandkit`, `building-components`, `emil-animations`, `emil-ask-emil`, `emil-ask-lapse`, `emil-build-a-tool`, `emil-color`, `emil-component-design`, `emil-design-eng`, `emil-design-foundations`, `emil-design-system-docs`, `emil-design-vocabulary`, `emil-engineering-vocabulary`, `emil-forms-and-inputs`, `emil-get-creative`, `emil-marketing-pages`, `emil-performance`, `emil-prototype`, `emil-surfaces`, `emil-touch-and-accessibility`, `emil-typography`, `emil-ui-polish`, `emil-ui-review`, `emil-unslop-code`, `emil-unslop-design`, `emil-unslop-writing`, `emil-writing-skills`, `exa`, `find-skills`, `gh-stack`, `git`, `grep-app`, `growth-ux-audit`, `herdr`, `improve-animations`, `improve`, `interface-craft`, `job-search`, `mastra-work`, `mcp-management`, `neon-postgres`, `pi-skills`, `plain-writing`, `plan-to-linear`, `platform-local-dev`, `platform-settings-sections`, `pr-screenshots`, `preparing-pull-requests`, `react-best-practices`, `real-app`, `repo-ci`, `rfc-xml-style`, `security-ai-keys`, `security-secrets`, `shadcn-ui`, `ship-or-skip`, `show-me`, `superset-10x`, `superset-automate`, `superset-browser`, `superset-computer`, `superset-contribute`, `superset-doctor`, `superset-feedback`, `superset-mcp`, `superset-orchestrate`, `superset-page`, `superset-setup`, `superset-standup`, `thesvg`, `tldraw-offline`, `ux-sound`, `write-like-justin`, `writing-skills`
+`agent-browser`, `background-terminals`, `brandkit`, `building-components`, `emil-animations`, `emil-ask-emil`, `emil-ask-lapse`, `emil-build-a-tool`, `emil-color`, `emil-component-design`, `emil-design-eng`, `emil-design-foundations`, `emil-design-system-docs`, `emil-design-vocabulary`, `emil-engineering-vocabulary`, `emil-forms-and-inputs`, `emil-get-creative`, `emil-marketing-pages`, `emil-performance`, `emil-prototype`, `emil-surfaces`, `emil-touch-and-accessibility`, `emil-typography`, `emil-ui-polish`, `emil-ui-review`, `emil-unslop-code`, `emil-unslop-design`, `emil-unslop-writing`, `emil-writing-skills`, `exa`, `find-skills`, `gh-stack`, `git`, `grep-app`, `growth-ux-audit`, `herdr`, `improve-animations`, `improve`, `interface-craft`, `job-search`, `mastra-work`, `mcp-management`, `neon-postgres`, `pi-skills`, `plain-writing`, `plan-to-linear`, `plannotator-annotate`, `plannotator-last`, `plannotator-review`, `plannotator`, `platform-local-dev`, `platform-settings-sections`, `pr-screenshots`, `preparing-pull-requests`, `react-best-practices`, `real-app`, `repo-ci`, `rfc-xml-style`, `security-ai-keys`, `security-secrets`, `shadcn-ui`, `ship-or-skip`, `show-me`, `superset-10x`, `superset-automate`, `superset-browser`, `superset-computer`, `superset-contribute`, `superset-doctor`, `superset-feedback`, `superset-mcp`, `superset-orchestrate`, `superset-page`, `superset-setup`, `superset-standup`, `thesvg`, `tldraw-offline`, `ux-sound`, `write-like-justin`, `writing-skills`
 
 ## EXTENSIONS (14)
 

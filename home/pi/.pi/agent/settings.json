@@ -18,10 +18,10 @@
     "openai-codex/gpt-6-astra"
   ],
   "enableSkillCommands": true,
-  "extensions": [],
+  "extensions": ["-extensions/plannotator-todo-bridge/index.ts"],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.85.0",
+  "lastChangelogVersion": "0.85.1",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
