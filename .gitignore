@@ -75,6 +75,7 @@ home/pi/.pi/agent/mastra-design.md
 
 # Licensed skill content (installer-gated, not redistributable)
 home/agents/.agents/skills/interface-craft/
+home/pi/.pi/agent/skills/interface-craft
 
 # Personal prompts (resume details, contact info)
 home/pi/.pi/agent/prompts/jobs.md
