@@ -157,6 +157,9 @@ alias lt="eza -T --icons --group-directories-first"
 alias llt="eza -lT --icons --group-directories-first --links"
 alias lf="eza -l --no-user --no-time --no-permissions --icons"
 
+# Pre-PR slop lint (vendored dmmulroy/anti-slop oxlint plugin)
+alias anti-slop="$HOME/dotfiles/tools/anti-slop/bin/anti-slop"
+
 ###############################################
 #                   Navigation
 ###############################################

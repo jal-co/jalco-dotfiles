@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -x "$dir/node_modules/.bin/oxlint" ]; then
+  echo "anti-slop: vendored oxlint missing; run: npm install --prefix $dir" >&2
+  exit 1
+fi
+if [ "$#" -eq 0 ]; then
+  set -- .
+fi
+exec "$dir/node_modules/.bin/oxlint" --config "$dir/oxlint.config.ts" "$@"
