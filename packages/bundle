@@ -60,6 +60,8 @@ brew "librsvg"
 brew "mas"
 # Java-based project management
 brew "maven"
+# High-performance JavaScript/TypeScript linter
+brew "oxlint"
 # Manage multiple Node.js versions
 # Swiss-army knife of markup format conversion
 brew "pandoc"
