@@ -21,21 +21,23 @@ Every request except `GET /` and `/readme` needs the per-launch `token` from tha
 **Each Bash tool call runs in a fresh shell — exported env vars do NOT persist between calls.** A `TLDRAW_TOKEN` you `export` in one call is empty in the next, so the request sends `authorization: Bearer` with no token and 401s. "Export once and reuse" does not work here — re-establish the port and token on every call. Read them together at the top of each call (both stay fixed for the app's lifetime, so re-reading is cheap):
 
 ```bash
-PORT=$(jq -r .port '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(jq -r .token '/Users/justin/Library/Application Support/tldraw/server.json')
+PORT=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).port' '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).token' '/Users/justin/Library/Application Support/tldraw/server.json')
 # use as:  http://localhost:$PORT/...   -H "authorization: Bearer $TOKEN"
 ```
 
 ### Helper: `tq`
 
-A ready-made helper ships with this skill at `"$HOME/skills/tldraw-offline/tq"`. Invoke it as `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A body starting with `{` is sent as JSON; anything else as raw `text/plain`:
+A ready-made helper ships with this skill at `"$HOME/skills/tldraw-offline/tq.mjs"`. Invoke it as `node "$HOME/skills/tldraw-offline/tq.mjs" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A body starting with `{` is sent as JSON; anything else as raw `text/plain`:
 
 ```bash
-sh "$HOME/skills/tldraw-offline/tq" POST /api/search '{"code":"return await api.getDocs()"}'
-sh "$HOME/skills/tldraw-offline/tq" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
-sh "$HOME/skills/tldraw-offline/tq" GET  /api/doc/DOC_ID/script-status
+node "$HOME/skills/tldraw-offline/tq.mjs" POST /api/search '{"code":"return await api.getDocs()"}'
+node "$HOME/skills/tldraw-offline/tq.mjs" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
+node "$HOME/skills/tldraw-offline/tq.mjs" GET  /api/doc/DOC_ID/script-status
 ```
 
-If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]`.
+Prefer it on Windows and in any non-POSIX shell: it uses no shell substitution or pipelines, so the same line runs unchanged in bash, zsh, Git Bash, and PowerShell, whereas the `PORT=$(...)` blocks below assume a POSIX shell.
+
+If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `node "$HOME/skills/tldraw-offline/tq.mjs" <METHOD> <path> [body]`.
 
 ```bash
 curl -s http://localhost:7236/readme
@@ -48,16 +50,18 @@ curl -s http://localhost:7236/readme
 - `POST /api/doc/:id/exec`: run JavaScript with a live tldraw `editor` scoped to one document. Use this for canvas edits.
 - `POST /api/doc/:id/script-workspace`: expose a locally owned document's live script paths for direct durable board-script and asset edits.
 - `GET /api/doc/:id/script-status`: inspect a locally owned document's watcher state for `script/**` edits and find `errorLogPath`.
+- `GET /api/doc/:id/scripts`: list the `/exec` snippets running in the document right now (id, start time, status, code preview) plus the board script's last run outcome. Ask before you write to a board you did not start.
+- `DELETE /api/doc/:id/snippets/:snippetId`: fire a snippet's abort signal, stopping the listeners, timers and animation loops it registered against `signal`. The `snippetId` comes back on the `/exec` response and from `/scripts`. Works on a snippet that already returned — that is the one still holding listeners — and the response's `aborted` reports only whether execution was interrupted. A snippet that ignores its signal runs to completion: this is a stop request, not a kill. It is also not an undo — edits the snippet already made stay on the canvas (a snippet that fails on its own IS rolled back), and its `/exec` call answers `success: false` with an error beginning `Snippet stopped:`.
 
 The code-taking POST endpoints accept raw JavaScript as the request body (`content-type: text/plain`) or a JSON body `{"code": "..."}`, and wrap the code in an async function so top-level `await` works. Prefer raw bodies for shell use.
 
 ## Use this first
 
-Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `node "$HOME/skills/tldraw-offline/tq.mjs" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token first (or use the values already in your context).
-PORT=$(jq -r .port '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(jq -r .token '/Users/justin/Library/Application Support/tldraw/server.json')
+PORT=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).port' '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).token' '/Users/justin/Library/Application Support/tldraw/server.json')
 
 # Pick the target doc by focused window or filename.
 curl -s -X POST http://localhost:$PORT/api/search \
@@ -110,9 +114,12 @@ curl -s -X POST http://localhost:$PORT/api/docs/create \
 
 - `stack-existing-boxes` — Stack existing boxes
 - `group-shapes-with-a-box` — Group shapes with a box
+- `connect-shapes-with-bound-arrows` — Connect shapes with bound arrows
+- `draw-a-diagram-from-mermaid` — Draw a diagram from mermaid
 - `add-durable-behavior-with-a-board-script` — Add durable behavior with a board script
 - `editable-furniture-with-anchored-internals` — Editable furniture with anchored internals
 - `scripts-on-a-shared-board` — Scripts on a shared board
+- `comment-threads-read-reply-resolve` — Comment threads: read, reply, resolve
 - `clickable-card-or-button-ui` — Clickable card or button UI
 - `connection-dependent-behavior` — Connection-dependent behavior
 - `animation-simulation-loop` — Animation / simulation loop
@@ -146,7 +153,35 @@ The `helpers.saveDoc()` call above is only for `ownership: 'local'`. Omit it for
 
 Saving a local doc is your job, not the user's. Whenever a local doc reports `unsavedChanges: true` — including after script-workspace edits, which mark the doc unsaved — save it yourself with a one-line exec snippet: `{"code": "await helpers.saveDoc()"}`. Never ask the user to save or press Cmd+S.
 
-Use `api.getShapes(doc.id)` to inspect existing raw shape records before mutating them; read a label's visible text with `helpers.richTextToPlainText(shape.props.richText)`, not by parsing the rich-text JSON.
+Use `api.getShapes(doc.id)` to inspect existing raw shape records before mutating them; read a label's visible text with `helpers.richTextToPlainText(shape.props.richText)`, not by parsing the rich-text JSON. Draw a labeled container around existing shapes with `helpers.boxShapes`, not a hand-placed rectangle — the `group-shapes-with-a-box` recipe is the worked example.
+
+### Freehand draw shapes
+
+A `draw` shape's `props.segments` hold delta-encoded base64 `path` strings, not point arrays — a segment like `{ type: 'free', points: [...] }` fails validation and crashes `createShape`. Never build `path` strings by hand: compute your points as `{ x, y, z }` objects (`z` is pressure; use `0.5`) and convert them with `compressLegacySegments` from `'tldraw'`. Coordinates are relative to the shape's own `x`/`y`:
+
+```js
+const { createShapeId, compressLegacySegments } = await import('tldraw')
+const points = Array.from({ length: 48 }, (_, i) => {
+	const t = (i / 47) * Math.PI * 2
+	const r = 90 + 8 * Math.sin(5 * t) // wobble makes it read as hand-drawn
+	return { x: r * Math.cos(t), y: r * Math.sin(t), z: 0.5 }
+})
+editor.createShape({
+	id: createShapeId('loop1'),
+	type: 'draw',
+	x: 300,
+	y: 300,
+	props: {
+		segments: compressLegacySegments([{ type: 'free', points }]),
+		isComplete: true,
+		isClosed: true, // closed paths can take fill
+		color: 'blue',
+		fill: 'semi',
+	},
+})
+```
+
+For a closed loop, end the points where they started. Multiple strokes are multiple `draw` shapes (or multiple segments). To read a draw shape's geometry back, decode is not needed — use `editor.getShapePageBounds(id)`.
 
 ## Screenshots
 
@@ -156,7 +191,12 @@ Use `api.getShapes(doc.id)` to inspect existing raw shape records before mutatin
 
 - Create every meaningful connection with `helpers.createArrowBetweenShapes(fromId, toId, options)` so both endpoints have real bindings.
 - Never create a raw arrow shape for a meaningful connection. Raw unbound arrows are only appropriate for explicitly decorative marks.
-- Run `helpers.getLints()` before reporting a diagram complete and address every actionable result. Fetch `/readme` for the `getLints` example and the `meta.lintIgnore` opt-out for intentional decorative arrows.
+- Run `helpers.getLints()` before reporting a diagram complete and address every actionable result. The `connect-shapes-with-bound-arrows` recipe in `api.recipes` is the worked example; fetch `/readme` for the `meta.lintIgnore` opt-out for intentional decorative arrows.
+- For a whole diagram from structure — a flowchart, sequence diagram, state machine, or mindmap — generate it with `helpers.mermaid(source)` rather than placing nodes and arrows by hand; it creates real bound shapes. The `draw-a-diagram-from-mermaid` recipe is the worked example.
+
+## Comments
+
+Comment threads are how people and agents talk about the canvas in context — each thread is anchored to a shape, a point, a region, or the page, so the anchor tells you what the words are about. `api.getComments(doc.id)` (via `/api/search`) returns every live thread with its anchor, plaintext comments, and resolved state; `supported: false` means this board has no comment lane — report that rather than working around it. When a task starts from a comment ("do what the comments say"), read the threads first and use each anchor to find the shapes under discussion. Reply in the thread you acted on and resolve it once its ask is done; post a new thread anchored to what you changed when a note in context serves better than a chat summary. All comment writes go through `/exec` with the `@tldraw/commenting` verbs (`putCommentRecords`, `resolveThread`, …) — never a raw `store.put`, which puts comment records on the user's undo stack. A supported board that holds no threads yet has comments turned off: agent writes are reverted until the board owner enables commenting in the app, so ask the user first. Read the `comment-threads-read-reply-resolve` recipe from `api.recipes` before writing one.
 
 ## Workflow
 
@@ -186,7 +226,7 @@ Use this when a board script draws a board that users should rearrange or restyl
 - Create user-facing furniture with stable ids and `helpers.createShapeIfMissing` / `helpers.createShapesIfMissing`; never delete and redraw it on rerun.
 - Pick one visible anchor per interactive system, such as a track or table felt.
 - Use `helpers.onShapeTranslate(anchorId, ({ dx, dy }) => ... , { signal })` to respond only to that anchor.
-- Move script-owned internals with `helpers.translateShapes(..., dx, dy)` (it runs without recording undo history); wrap other script-owned writes in `editor.run(fn, { history: 'ignore' })`.
+- Move script-owned internals with `helpers.translateShapes(..., dx, dy)` — the handler's dx/dy and the delta it consumes are both page-space, so pass them straight through even when shapes sit in frames or groups. It runs without recording undo history; wrap other script-owned writes in `editor.run(fn, { history: 'ignore' })`.
 - Render per-frame or purely visual writes through `helpers.renderEphemeral(fn)`: they paint without dirtying the document, landing in a save, syncing to LAN participants, or entering undo. `history: 'ignore'` alone still persists every frame, so an animation written that way can never be saved cleanly.
 - Avoid broad `store.listen` / `afterChange` layout handlers that react to every shape; they can treat the script's own writes as new user edits and recurse.
 
@@ -198,11 +238,11 @@ Read the worked `custom-shape-config-js`, `custom-binding-config-js`, and `custo
 
 ## Fast path for static edits
 
-Shown as raw `curl`; `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Shown as raw `curl`; `node "$HOME/skills/tldraw-offline/tq.mjs" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token (or use the values already in your context).
-PORT=$(jq -r .port '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(jq -r .token '/Users/justin/Library/Application Support/tldraw/server.json')
+PORT=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).port' '/Users/justin/Library/Application Support/tldraw/server.json'); TOKEN=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).token' '/Users/justin/Library/Application Support/tldraw/server.json')
 
 # Discover docs.
 curl -s -X POST http://localhost:$PORT/api/search \
@@ -227,3 +267,9 @@ curl -s -X POST http://localhost:$PORT/api/doc/DOC_ID/exec \
 ## Reporting
 
 Keep summaries tight. Include the doc id/name, changed shape ids or script path, and the one verification result. If something fails, quote the server error, digest mismatch, or the relevant `.script-workspace/error.log` line.
+
+## Filing a bug about the app
+
+When the app itself misbehaves — a crash, a broken menu or shortcut, an endpoint that breaks its documented contract — the tracker is https://github.com/tldraw/tldraw-offline/issues. Search the open issues for a duplicate and comment there instead of opening a twin, and file only with the user's go-ahead.
+
+Write the report plain-language and symptom-first. The title is what the user saw ("Cmd-M does not minimize on macOS"), never your diagnosis. Open the body with the repro steps, what happened versus what you expected, the app version (Help > About; on macOS, the tldraw menu), and the OS. Technical analysis — stack traces, suspected causes, server responses — goes below the fold, after the plain-language report.
