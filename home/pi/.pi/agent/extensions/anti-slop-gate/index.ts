@@ -2,6 +2,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { evaluateGate } from "./core.js";
 
 export default function antiSlopGate(pi: ExtensionAPI): void {
+	pi.on("session_start", async (_event, ctx) => {
+		if (ctx.hasUI) ctx.ui.setStatus("anti-slop-gate", "anti-slop ✓");
+	});
 	pi.on("tool_call", async (event, ctx) => {
 		if (event.toolName !== "bash") return;
 		const command = (event.input as { command?: unknown }).command;
