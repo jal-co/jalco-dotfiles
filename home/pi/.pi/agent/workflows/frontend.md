@@ -7,6 +7,10 @@ Read before frontend implementation or browser verification. Use `agent-browser`
 - Agent-run browser testing is a required completion stage for every frontend change and MUST happen after implementation, before human localhost review, after-state pull request screenshots, or delivery
 - Frontend interaction testing MUST use Agent Browser for user-journey verification and Playwright for repeatable browser assertions whenever the changed behavior can be automated
 - MUST report the exact route, journey, assertions, browser errors, failed requests, and result; MUST NOT mark frontend work complete while the Agent Browser pass or applicable Playwright assertions are missing or failing. If Playwright automation does not apply, report why
+- For each changed interaction, take `agent-browser snapshot -i` before acting, perform the action, and run `agent-browser diff snapshot`; report the diff as the interaction evidence instead of asserting success without it
+- Run `agent-browser a11y --selector <changed surface>` on each changed route and report violations in changed UI; fix them or name each one that stands and why
+- For a change that targets rendering or interaction performance, capture `agent-browser vitals` before and after; for React re-render claims, wrap the interaction in `agent-browser react renders start` / `stop` and report the profile
+- Prefer `agent-browser batch` for capture sequences so theme switching, navigation, and screenshots run as one ordered unit
 
 Playwright tests MUST use the repository's installed version when available; otherwise use `/Users/justin/.pi/agent/browser-testing/dia.mjs` without adding a repository dependency.
 
