@@ -13,9 +13,40 @@ Attach visual evidence directly to the issue, pull request, or comment so review
 
 1. Capture the before state before changing existing UI. Capture both light and dark themes when the surface supports them.
 2. Capture the verified after state in the same themes, viewport, crop, content state, and scroll position.
-3. Write brief Markdown that names what each image shows. Keep images visible instead of placing them in a collapsed section.
-4. Upload with the platform workflow below.
-5. Open the published issue, pull request, or comment and verify every image or video renders for reviewers.
+3. Validate every before-and-after pair with `agent-browser diff screenshot --baseline <before.png>` before upload.
+4. Write brief Markdown that names what each image shows. Keep images visible instead of placing them in a collapsed section.
+5. Upload with the platform workflow below.
+6. Open the published issue, pull request, or comment and verify every image or video renders for reviewers.
+
+## Agent Browser capture
+
+When Agent Browser drives the capture, produce each theme pair in one pass and scope the crop to the changed surface instead of cropping images afterward:
+
+```bash
+agent-browser set media light
+agent-browser screenshot ./before-light.png
+agent-browser set media dark
+agent-browser screenshot ./before-dark.png
+```
+
+After implementation, recapture the same routes and states, then validate each pair:
+
+```bash
+agent-browser set media dark
+agent-browser diff screenshot --baseline ./before-dark.png --output ./pair-check-dark.png
+```
+
+A dimension-mismatch result means the viewport, device pixel ratio, or crop drifted; recapture rather than resizing an image. Inspect the reported mismatch regions: changes outside the edited surface are unintended regressions to fix or report, not evidence to upload. The generated red-highlight diff image is a validation artifact; do not attach it to the pull request unless it illustrates a finding. Use `--selector <sel>` on `screenshot` capture and `diff screenshot` for element-scoped pairs, including Storybook's `#storybook-root`.
+
+For a motion or interaction change where timing matters, also record video with matching theme state:
+
+```bash
+agent-browser record start ./interaction.webm
+# perform the interaction
+agent-browser record stop
+```
+
+Recording requires `ffmpeg` on PATH. A recording supplements the required resulting-state screenshot; it never replaces it.
 
 </workflow>
 
