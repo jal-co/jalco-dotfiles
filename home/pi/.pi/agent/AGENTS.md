@@ -26,6 +26,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 - Before diagnosing application code, restart a stale or unreachable development server only when it belongs to this task. Ask before restarting a shared or unrelated service.
 - MUST preserve personal browser tabs, profile, authentication, and window state. Never restart or reconfigure Dia for testing. Keep its debugging endpoint on loopback and use task-owned tabs or an isolated browser.
 - MUST NOT request reviewers or create issues without explicit permission. Never create GitHub issues in Mastra repositories. Publication requires user authorization; creating a PR does not authorize merging it.
+- MUST NOT create, update, reply to, resolve, or delete Linear comments without explicit permission for that specific action. A request to coordinate, implement an issue, or work in Linear does not grant comment permission.
 
 ### Comments
 
