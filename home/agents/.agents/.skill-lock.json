@@ -324,15 +324,6 @@
       "skillFolderHash": "f1d947f0ec3c4bd479fb98c6e06987ed4600883f",
       "installedAt": "2026-09-04T17:10:13.336Z",
       "updatedAt": "2026-09-04T17:10:13.336Z"
-    },
-    "demo-video": {
-      "source": "alirezarezvani/claude-skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/alirezarezvani/claude-skills.git",
-      "skillPath": "engineering/demo-video/skills/demo-video/SKILL.md",
-      "skillFolderHash": "3748833b302eb12c8288ece618de9f550cb02c2c",
-      "installedAt": "2026-09-07T01:14:36.326Z",
-      "updatedAt": "2026-09-07T01:14:36.326Z"
     }
   },
   "dismissed": {
