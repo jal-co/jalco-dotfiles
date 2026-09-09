@@ -48,6 +48,6 @@ The attachment instructions in this section apply only when using Dia. Use the i
 
 ## Human review
 
-- When asking the user to review a running localhost route and `SUPERSET_WORKSPACE_ID` is set, MUST open that exact URL with `~/.pi/agent/superset/open-url <url>` before writing the handoff so it is already showing in the workspace browser pane; outside Superset, MUST include the URL in the handoff and MUST NOT launch the user's browser
+- When asking the user to review a running localhost route, MUST open that exact URL with `~/.pi/agent/superset/open-url <url>` before writing the handoff so it is already showing in Dia, and MUST include the URL in the handoff; MUST NOT open review URLs in the Superset in-app browser pane
 
 - In Mastra repositories, follow `mastra-work`: obtain Justin's localhost approval before pushing, opening a PR, deploying, or marking UI work complete.
