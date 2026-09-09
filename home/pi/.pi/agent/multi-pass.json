@@ -1,0 +1,24 @@
+{
+  "subscriptions": [
+    {
+      "provider": "openai-codex",
+      "index": 2,
+      "label": "work"
+    }
+  ],
+  "pools": [
+    {
+      "name": "codex",
+      "baseProvider": "openai-codex",
+      "members": [
+        "openai-codex",
+        "openai-codex-2"
+      ],
+      "enabled": true,
+      "strategy": "round-robin"
+    }
+  ],
+  "chains": [],
+  "presets": [],
+  "maxRetries": 3
+}
