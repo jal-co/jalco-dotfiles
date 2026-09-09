@@ -52,7 +52,7 @@
     "npm:@ryan_nookpi/pi-extension-codex-fast-mode",
     "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
     "npm:@lll9p/pi-better-compaction",
-    "npm:pi-multi-pass"
+    "npm:pi-codex-multi"
   ],
   "quietStartup": true,
   "showCacheMissNotices": true,
