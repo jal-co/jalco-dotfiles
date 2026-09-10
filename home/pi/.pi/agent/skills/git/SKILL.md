@@ -522,6 +522,8 @@ gh pr merge --squash
 
 When Justin works in `mastra-ai/mastra`, treat the pull request as an internal core-contributor change. The agent MUST NOT require, create, or link a GitHub issue unless Justin asks for one or the task already has one. The linked-issue requirement in `CONTRIBUTING.md` applies to external contributions and MUST NOT block these pull requests.
 
+Every Mastra pull request MUST have a Linear ticket attached (compliance policy, SOC2/HIPAA). Use the task's existing Linear issue; link it through the repository integration and verify the issue shows the pull request, or include the identifier in the branch name and pull request when automatic linking is unavailable. When no Linear issue exists, stop before opening the pull request and ask Justin for one; do not create Linear issues without his explicit permission.
+
 ## Pull request workflow
 
 MUST load and follow `preparing-pull-requests` when preparing, opening, updating, or finalizing a PR. It owns the body format, Justin's voice, no-slop pass, screenshots, diff explanations, and publication checks. For UI work intended for a PR, load it before implementation so the before state is captured in time.
