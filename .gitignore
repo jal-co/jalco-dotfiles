@@ -128,3 +128,6 @@ home/pi/.pi/agent/skills/browser-tools/capture-badges.mjs
 
 # Licensed aiforui skills (installed by npx @aiforui/install, not redistributable)
 home/pi/.pi/agent/skills/emil-*/
+
+# Multi-pass runtime state (cooldowns, ephemeral)
+home/pi/.pi/agent/multi-pass.state.json
