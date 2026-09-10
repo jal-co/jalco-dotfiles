@@ -23,7 +23,7 @@ When delegation is explicitly authorized, load `superset-orchestrate` for Supers
 
 ## Issue identity
 
-When the task has a Linear issue, use its `gitBranchName`, or a lowercase identifier and short slug if unavailable. Record the issue, branch, and checkout in todo metadata when todos exist. Outside Mastra, a task without an issue does not require creating one; every Mastra pull request requires a Linear ticket, so resolve one before implementation when the work is headed for a Mastra PR.
+When the task has a Linear issue, use its `gitBranchName`, or a lowercase identifier and short slug if unavailable. Record the issue, branch, and checkout in todo metadata when todos exist. Outside Mastra, a task without an issue does not require creating one. Every Mastra pull request requires a Linear ticket: before implementation, search Linear for an existing issue covering the work and reuse it; ask Justin only when the search finds none.
 
 After a push or PR creation for issue-linked work, verify the issue shows the branch or PR through the repository integration. If integration linking is unavailable, include the identifier in both branch and PR. See `git` for Mastra's internal-contributor exception and other publication policy.
 
