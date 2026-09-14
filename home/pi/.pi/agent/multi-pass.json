@@ -15,7 +15,7 @@
         "openai-codex-2"
       ],
       "enabled": true,
-      "strategy": "round-robin"
+      "strategy": "quota-first"
     }
   ],
   "chains": [],
