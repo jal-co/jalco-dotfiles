@@ -324,6 +324,24 @@
       "skillFolderHash": "f1d947f0ec3c4bd479fb98c6e06987ed4600883f",
       "installedAt": "2026-09-04T17:10:13.336Z",
       "updatedAt": "2026-09-04T17:10:13.336Z"
+    },
+    "computer-use": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/computer-use/SKILL.md",
+      "skillFolderHash": "fab1436f0d73889492279544eadebc9bcc2694b6",
+      "installedAt": "2026-09-14T12:17:11.776Z",
+      "updatedAt": "2026-09-14T12:17:11.776Z"
+    },
+    "orca-linear": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/orca-linear/SKILL.md",
+      "skillFolderHash": "2b0b3b3d422f0d9cdb88574e955c345ed4370ea8",
+      "installedAt": "2026-09-14T12:17:34.264Z",
+      "updatedAt": "2026-09-14T12:17:34.264Z"
     }
   },
   "dismissed": {
@@ -331,15 +349,15 @@
   },
   "lastSelectedAgents": [
     "amp",
-    "antigravity",
-    "antigravity-cli",
     "cline",
     "codex",
     "cursor",
-    "deepagents",
+    "droid",
     "gemini-cli",
     "github-copilot",
+    "kilo",
     "kimi-code-cli",
+    "opencode",
     "warp",
     "zed",
     "pi"
