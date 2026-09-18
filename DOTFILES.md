@@ -19,11 +19,10 @@ dotfiles/
 │   ├── ghostty/
 │   ├── git/
 │   ├── herdr/
+│   ├── mastracode/
 │   ├── mise/
 │   ├── pi/
 │   ├── starship/
-│   ├── tmux/
-│   ├── vscode/
 │   ├── zed/
 │   └── zsh/
 └── packages/bundle     # Brewfile

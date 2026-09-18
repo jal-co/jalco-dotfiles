@@ -179,7 +179,7 @@
       "skillPath": "skills/make-interfaces-feel-better/SKILL.md",
       "skillFolderHash": "e880ad90e8a0a8384f5cfae2cdd6a854e2de5d89",
       "installedAt": "2026-07-22T18:26:09.041Z",
-      "updatedAt": "2026-07-26T18:32:54.196Z"
+      "updatedAt": "2026-09-14T16:45:16.564Z"
     },
     "component-engineering": {
       "source": "igorwarzocha/opencode-workflows",
@@ -244,96 +244,6 @@
       "installedAt": "2026-09-01T15:37:27.901Z",
       "updatedAt": "2026-09-01T15:37:27.901Z"
     },
-    "superset-10x": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-10x/SKILL.md",
-      "skillFolderHash": "484c8100b39bf99607914bdc4c053f018c6824b3",
-      "installedAt": "2026-09-04T17:10:13.316Z",
-      "updatedAt": "2026-09-04T17:10:13.316Z"
-    },
-    "superset-automate": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-automate/SKILL.md",
-      "skillFolderHash": "d733f5ac5dbd41e541b1803fc1d59a82a4bcbfd5",
-      "installedAt": "2026-09-04T17:10:13.324Z",
-      "updatedAt": "2026-09-04T17:10:13.324Z"
-    },
-    "superset-contribute": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-contribute/SKILL.md",
-      "skillFolderHash": "82a9fb7081001f441704928251303fb521dc09ea",
-      "installedAt": "2026-09-04T17:10:13.327Z",
-      "updatedAt": "2026-09-04T17:10:13.327Z"
-    },
-    "superset-doctor": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-doctor/SKILL.md",
-      "skillFolderHash": "a4f8fcd50ea47fd163ada430c6f6e97bdef36013",
-      "installedAt": "2026-09-04T17:10:13.331Z",
-      "updatedAt": "2026-09-04T17:10:13.331Z"
-    },
-    "superset-feedback": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-feedback/SKILL.md",
-      "skillFolderHash": "4b3a57896263c45c366691d9ef72eb7e1c370d46",
-      "installedAt": "2026-09-04T17:10:13.332Z",
-      "updatedAt": "2026-09-04T17:10:13.332Z"
-    },
-    "superset-mcp": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-mcp/SKILL.md",
-      "skillFolderHash": "0e06409ea136cd3ab919ac7593e6912e7b088ba4",
-      "installedAt": "2026-09-04T17:10:13.333Z",
-      "updatedAt": "2026-09-04T17:10:13.333Z"
-    },
-    "superset-orchestrate": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-orchestrate/SKILL.md",
-      "skillFolderHash": "c01f1d5d1e6eb9cfe6493fb06c58860ae4cffb31",
-      "installedAt": "2026-09-04T17:10:13.334Z",
-      "updatedAt": "2026-09-04T17:10:13.334Z"
-    },
-    "superset-setup": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-setup/SKILL.md",
-      "skillFolderHash": "dcdddc783cf6edbd9a624e56423183d435e56a71",
-      "installedAt": "2026-09-04T17:10:13.335Z",
-      "updatedAt": "2026-09-04T17:10:13.335Z"
-    },
-    "superset-standup": {
-      "source": "superset-sh/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/superset-sh/skills.git",
-      "skillPath": "skills/superset-standup/SKILL.md",
-      "skillFolderHash": "f1d947f0ec3c4bd479fb98c6e06987ed4600883f",
-      "installedAt": "2026-09-04T17:10:13.336Z",
-      "updatedAt": "2026-09-04T17:10:13.336Z"
-    },
-    "computer-use": {
-      "source": "stablyai/orca",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/stablyai/orca.git",
-      "skillPath": "skills/computer-use/SKILL.md",
-      "skillFolderHash": "fab1436f0d73889492279544eadebc9bcc2694b6",
-      "installedAt": "2026-09-14T12:17:11.776Z",
-      "updatedAt": "2026-09-14T12:17:11.776Z"
-    },
     "orca-linear": {
       "source": "stablyai/orca",
       "sourceType": "github",
@@ -342,6 +252,60 @@
       "skillFolderHash": "2b0b3b3d422f0d9cdb88574e955c345ed4370ea8",
       "installedAt": "2026-09-14T12:17:34.264Z",
       "updatedAt": "2026-09-14T12:17:34.264Z"
+    },
+    "orca-cli": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/orca-cli/SKILL.md",
+      "skillFolderHash": "0c90a5b8b422a93ca806af6df3b65445ab5b2072",
+      "installedAt": "2026-09-14T12:20:35.332Z",
+      "updatedAt": "2026-09-14T12:20:35.332Z"
+    },
+    "orchestration": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/orchestration/SKILL.md",
+      "skillFolderHash": "ebd864919dd8cab9d7049fc624c9afeebce2767c",
+      "installedAt": "2026-09-14T12:22:26.044Z",
+      "updatedAt": "2026-09-14T12:22:26.044Z"
+    },
+    "break": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
+      "skillPath": "skills/break/SKILL.md",
+      "skillFolderHash": "7a748aa03499cc6974278099154358596c3635c9",
+      "installedAt": "2026-09-14T16:45:23.798Z",
+      "updatedAt": "2026-09-14T16:45:23.798Z"
+    },
+    "transitions-dev": {
+      "source": "Jakubantalik/transitions.dev",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Jakubantalik/transitions.dev.git",
+      "skillPath": "skills/transitions-dev/SKILL.md",
+      "skillFolderHash": "26c67bda945b1397fb48dfbaee9d03696ca5854b",
+      "installedAt": "2026-09-14T18:08:31.851Z",
+      "updatedAt": "2026-09-14T18:08:31.851Z"
+    },
+    "transitions-polish": {
+      "source": "Jakubantalik/transitions.dev",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Jakubantalik/transitions.dev.git",
+      "skillPath": "skills/transitions-polish/SKILL.md",
+      "skillFolderHash": "afd053fa85269d70d7e76f56321d7eb5bebde212",
+      "installedAt": "2026-09-14T18:08:31.854Z",
+      "updatedAt": "2026-09-14T18:08:31.854Z"
+    },
+    "storybook-story-writing": {
+      "source": "thebushidocollective/han",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/thebushidocollective/han.git",
+      "skillPath": "plugins/tools/storybook/skills/storybook-story-writing/SKILL.md",
+      "skillFolderHash": "1e8ba921f37b5dde7d68b1b395459d3b634df378",
+      "installedAt": "2026-09-17T14:58:56.404Z",
+      "updatedAt": "2026-09-17T14:58:56.404Z"
     }
   },
   "dismissed": {

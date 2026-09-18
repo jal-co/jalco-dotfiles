@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { browserEnvironment, validateBatch, validateBrowserArgs, validateSession } from './policy.mjs'
+
+const args = process.argv.slice(2)
+const env = browserEnvironment()
+
+function run(command, options = {}) {
+  const result = spawnSync('agent-browser', command, { env, encoding: 'utf8', ...options })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw new Error(result.stderr || `Agent Browser exited with ${result.status}`)
+  return (result.stdout || '').trim()
+}
+
+try {
+  const command = args[0]
+  if (command === 'review') {
+    if (args.length !== 2) throw new Error('Usage: task-browser review <http(s)-url>')
+    const url = new URL(args[1])
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      throw new Error('Review requires an HTTP(S) URL without credentials')
+    }
+    if (process.platform !== 'darwin') throw new Error('Background review opening is only supported on macOS; share the URL instead')
+    const result = spawnSync('/usr/bin/open', ['-g', url.href], { stdio: 'inherit' })
+    if (result.error) throw result.error
+    process.exit(result.status ?? 1)
+  }
+  const explicitSession = args.indexOf('--session')
+  const session = validateSession((explicitSession >= 0 ? args[explicitSession + 1] : env.AGENT_BROWSER_SESSION) || run(['session', 'id', '--scope', 'worktree', '--prefix', 'task-ui']))
+  env.AGENT_BROWSER_SESSION = session
+  env.AGENT_BROWSER_RESTORE = session
+  const artifacts = join(tmpdir(), 'agent-browser-artifacts', session)
+  mkdirSync(artifacts, { recursive: true, mode: 0o700 })
+  env.AGENT_BROWSER_SCREENSHOT_DIR ||= artifacts
+  if (args.length === 1 && (command === 'session' || command === 'artifacts')) {
+    console.log(command === 'session' ? session : artifacts)
+    process.exit(0)
+  }
+  if (command === 'start') {
+    if (args.length !== 2) throw new Error('Usage: task-browser start <url>')
+    validateBrowserArgs(['open', args[1]])
+    run(['open', args[1]], { stdio: 'inherit' })
+    run(['set', 'viewport', '1440', '1000'], { stdio: 'inherit' })
+    run(['set', 'media', env.AGENT_BROWSER_COLOR_SCHEME || 'dark'], { stdio: 'inherit' })
+    process.exit(0)
+  }
+  if (command === 'ready') {
+    run(['wait', '--load', 'networkidle'], { stdio: 'inherit' })
+    run(['eval', '--stdin'], {
+      input: `(async () => {
+        await document.fonts.ready;
+        await Promise.all(Array.from(document.images).filter(image => !image.complete).map(image => image.decode().catch(() => undefined)));
+        return { url: location.href, title: document.title, width: innerWidth, height: innerHeight, devicePixelRatio };
+      })()`,
+      stdio: ['pipe', 'inherit', 'inherit'],
+    })
+    process.exit(0)
+  }
+  if (command === 'video-mp4') {
+    if (!args[1] || args.length > 3) throw new Error('Usage: task-browser video-mp4 <input.webm> [output.mp4]')
+    const output = args[2] || args[1].replace(/\.webm$/, '') + '.mp4'
+    const result = spawnSync('ffmpeg', ['-y', '-i', args[1], '-an', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output], { stdio: 'inherit' })
+    if (result.error) throw result.error
+    process.exit(result.status ?? 1)
+  }
+  const action = validateBrowserArgs(args)
+  let input
+  if (action === 'batch') {
+    const batchArgs = args.slice(args.indexOf('batch') + 1)
+    const payloads = batchArgs.filter(arg => arg !== '--bail')
+    input = validateBatch(payloads.length ? `[${payloads.join(',')}]` : readFileSync(0, 'utf8'))
+    args.splice(args.indexOf('batch') + 1, batchArgs.length, ...(batchArgs.includes('--bail') ? ['--bail'] : []))
+  }
+  const result = spawnSync('agent-browser', args, {
+    env,
+    stdio: input === undefined ? 'inherit' : ['pipe', 'inherit', 'inherit'],
+    input,
+  })
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
+} catch (error) {
+  console.error(error.message)
+  process.exit(1)
+}

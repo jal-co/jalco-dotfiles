@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="${JEV_AGENT_BROWSER_HOME:-$HOME/.local/share/jev-agent-browser}"
+python="${JEV_AGENT_BROWSER_PYTHON:-python3}"
+mkdir -p "$root"
+"$python" -m venv "$root/venv"
+"$root/venv/bin/pip" install --upgrade "git+https://github.com/jal-co/jev-agent-browser.git"
+printf '%s\n' "$root/venv/bin/jev-agent-browser"
