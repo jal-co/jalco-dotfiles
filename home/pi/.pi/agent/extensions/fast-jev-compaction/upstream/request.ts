@@ -1,7 +1,37 @@
+import { Type } from 'typebox';
+import { Parse } from 'typebox/value';
 import type { JevAnswer, JevQuestions, JevResponse, JevState } from './types.js';
 
 export const SYSTEM_ONE_URL = 'https://api.typesafe.ai/v1/systemone';
 export const DEFAULT_MODEL = 'jev-latest';
+
+const noulAnswerSchema = Type.Object({
+  type: Type.Optional(Type.Literal('noul')),
+  noul: Type.Number(),
+});
+
+const choiceAnswerSchema = Type.Object({
+  type: Type.Optional(Type.Literal('choice')),
+  choice: Type.String(),
+  confidence: Type.Number(),
+  probabilities: Type.Record(Type.String(), Type.Number()),
+});
+
+const scoreAnswerSchema = Type.Object({
+  type: Type.Optional(Type.Literal('score')),
+  score: Type.Number(),
+  confidence: Type.Number(),
+  probabilities: Type.Record(Type.String(), Type.Number()),
+});
+
+const responseSchema = Type.Object({
+  model: Type.Optional(Type.String()),
+  answers: Type.Record(Type.String(), Type.Union([noulAnswerSchema, choiceAnswerSchema, scoreAnswerSchema])),
+  usage: Type.Optional(Type.Object({
+    input_tokens: Type.Optional(Type.Number()),
+    output_tokens: Type.Optional(Type.Number()),
+  })),
+});
 
 export interface JevRequest {
   url: string;
@@ -48,16 +78,11 @@ export function parseJevResponse(
   } catch {
     throw new Error('Jev returned malformed JSON');
   }
-  if (
-    parsed === null ||
-    typeof parsed !== 'object' ||
-    !('answers' in parsed) ||
-    parsed.answers === null ||
-    typeof parsed.answers !== 'object'
-  ) {
+  try {
+    return Parse(responseSchema, parsed);
+  } catch {
     throw new Error('Jev response is missing answers');
   }
-  return parsed as JevResponse;
 }
 
 export function noulAnswer(
@@ -65,12 +90,7 @@ export function noulAnswer(
   name: string,
 ): number {
   const answer = answers[name];
-  if (
-    !answer ||
-    !('noul' in answer) ||
-    typeof answer.noul !== 'number' ||
-    !Number.isFinite(answer.noul)
-  ) {
+  if (!answer || !('noul' in answer) || !Number.isFinite(answer.noul)) {
     throw new Error(`Invalid Jev answer for ${name}`);
   }
   return answer.noul;
