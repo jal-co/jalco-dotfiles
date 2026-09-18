@@ -1,10 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-function continuationPrompt(summary: string): string {
+function continuationPrompt(): string {
 	return `Compaction completed. Continue the existing task without waiting for another user prompt.
-
-Compaction summary:
-${summary}
 
 Recover only from bounded, current sources:
 1. Call get_goal when a goal is active.
@@ -21,10 +18,9 @@ export default function continueAfterCompaction(pi: ExtensionAPI): void {
 
 	pi.on("session_compact", (event) => {
 		if (event.willRetry) return;
-		const summary = event.compactionEntry.summary?.trim() || "No compaction summary was saved.";
 		const timer = setTimeout(() => {
 			pendingTimers.delete(timer);
-			pi.sendUserMessage(continuationPrompt(summary), { deliverAs: "followUp" });
+			pi.sendUserMessage(continuationPrompt(), { deliverAs: "followUp" });
 		}, 0);
 		pendingTimers.add(timer);
 	});
