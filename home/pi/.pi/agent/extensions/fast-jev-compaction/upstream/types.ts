@@ -1,9 +1,11 @@
 export type Role = 'user' | 'assistant';
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type JsonObject = { [key: string]: JsonValue };
 
 export interface ToolUse {
   tool_use_id: string;
   tool: string;
-  input: Record<string, unknown>;
+  input: JsonObject;
   text?: string;
   isError?: boolean;
 }
@@ -25,7 +27,7 @@ export interface ToolCall {
   id: string;
   tool_use_id: string;
   tool: string;
-  input: Record<string, unknown>;
+  input: JsonObject;
   callIndex: number;
   resultIndex: number;
   resultChars: number;
@@ -111,7 +113,7 @@ export interface CompactResult {
   };
 }
 
-export type JevState = string | object;
+export type JevState = string | CompactionState;
 
 export interface NoulQuestion {
   type: 'noul';
@@ -165,7 +167,6 @@ export interface JevResponse {
     input_tokens?: number;
     output_tokens?: number;
   };
-  [key: string]: unknown;
 }
 
 export interface JevAsker {

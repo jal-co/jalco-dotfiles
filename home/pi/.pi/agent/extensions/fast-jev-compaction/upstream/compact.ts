@@ -26,7 +26,7 @@ export const DEFAULT_OPTIONS: ResolvedCompactOptions = {
 const REQUEST_OVERHEAD_TOKENS = 20;
 
 function finite(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return value === undefined || !Number.isFinite(value) ? fallback : value;
 }
 
 export function resolveOptions(options: CompactOptions = {}): ResolvedCompactOptions {
@@ -245,7 +245,7 @@ export async function compact(
   const candidates = calls.filter((call) => !call.pinned);
   const charsBefore = messages.reduce((sum, message) => sum + messageChars(message), 0);
 
-  let fitted: { tokens: number; stage: string } = { tokens: 0, stage: '' };
+  let fitted = { tokens: 0, stage: '' };
   let batches: ToolCall[][] = [];
   const answers = new Map<string, CallAnswer>();
   if (candidates.length > 0) {

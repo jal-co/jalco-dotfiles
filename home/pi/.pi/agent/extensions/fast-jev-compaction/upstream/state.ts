@@ -2,6 +2,7 @@ import type {
   CompactionState,
   FittedState,
   HistoryEntry,
+  JsonObject,
   Message,
   ResolvedCompactOptions,
   ToolCall,
@@ -80,7 +81,7 @@ export function collectToolCalls(
   return calls;
 }
 
-function inputText(input: Record<string, unknown>, limit: number): string {
+function inputText(input: JsonObject, limit: number): string {
   let json = '';
   try {
     json = JSON.stringify(input);
@@ -97,7 +98,7 @@ function resultNote(call: ToolCall): string {
 function compactCall(call: ToolCall): string {
   const input = Object.entries(call.input)
     .map(([key, value]) => {
-      const text = typeof value === 'string' ? value : inputText({ [key]: value }, 200);
+      const text = inputText({ [key]: value }, 200);
       return `${key}=${text.replace(/\s+/g, ' ')}`;
     })
     .join(' ');
@@ -111,9 +112,12 @@ function mergeCallRuns(history: readonly HistoryEntry[], pinned: (e: HistoryEntr
   for (const entry of history) {
     const previous = merged[merged.length - 1];
     const foldable = (e: HistoryEntry): boolean =>
-      !pinned(e) && e.text.length === 0 && typeof e.tool_calls?.[0] === 'string';
+      !pinned(e) && e.text.length === 0 && e.tool_calls?.every(call => call === String(call)) === true;
     if (previous && foldable(previous) && foldable(entry) && previous.role === entry.role) {
-      previous.tool_calls = [...(previous.tool_calls as string[]), ...(entry.tool_calls as string[])];
+      previous.tool_calls = [
+        ...(previous.tool_calls ?? []).map(String),
+        ...(entry.tool_calls ?? []).map(String),
+      ];
       continue;
     }
     merged.push({ ...entry });
