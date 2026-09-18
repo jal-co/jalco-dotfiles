@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
 import { Parse } from "typebox/value";
 import { serverResponseSchema, type ServerData, type ServerRequest, type ServerResponse } from "./protocol.js";
+import { browserEnvironment } from "../../browser-testing/policy.mjs";
 
 interface PendingRequest {
 	resolve: (value: ServerData) => void;
@@ -58,7 +59,7 @@ export class JevClient {
 	private start(): void {
 		if (this.child) return;
 		this.stderr = "";
-		const child = spawn(this.command, [], { cwd: this.cwd, env: process.env, stdio: "pipe" });
+		const child = spawn(this.command, [], { cwd: this.cwd, env: browserEnvironment(), stdio: "pipe" });
 		this.child = child;
 		this.lines = createInterface({ input: child.stdout });
 		this.lines.on("line", line => this.handleLine(line));

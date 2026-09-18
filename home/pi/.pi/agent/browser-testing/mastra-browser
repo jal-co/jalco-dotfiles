@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+browser="$(cd "$(dirname "$0")" && pwd)/task-browser"
+agent-browser() { "$browser" "$@"; }
+session="$(agent-browser session)"
+artifact_root="${AGENT_BROWSER_ARTIFACT_ROOT:-${TMPDIR:-/tmp}/agent-browser-artifacts}"
+artifact_dir="${artifact_root%/}/${session}"
+auth_state="${AGENT_BROWSER_MASTRA_AUTH_STATE:-$HOME/.agent-browser/auth/mastra-platform.json}"
+mkdir -p "$artifact_dir"
+
+export AGENT_BROWSER_SESSION="$session"
+export AGENT_BROWSER_RESTORE="$session"
+export AGENT_BROWSER_COLOR_SCHEME="${AGENT_BROWSER_COLOR_SCHEME:-dark}"
+export AGENT_BROWSER_SCREENSHOT_DIR="${AGENT_BROWSER_SCREENSHOT_DIR:-$artifact_dir}"
+export AGENT_BROWSER_SCREENSHOT_FORMAT="${AGENT_BROWSER_SCREENSHOT_FORMAT:-png}"
+
+command="${1:-}"
+if [[ -z "$command" ]]; then
+  printf 'usage: mastra-browser <start|ready|auth-load|auth-save|artifacts|session|video-mp4|agent-browser command>\n' >&2
+  exit 2
+fi
+shift
+
+case "$command" in
+  start)
+    url="${1:?usage: mastra-browser start <url>}"
+    restore_filename="${session}-${session}.json"
+    if agent-browser state list --json | jq -e --arg filename "$restore_filename" '.data.files[]? | select(.filename == $filename)' >/dev/null; then
+      agent-browser open "$url"
+    elif [[ -s "$auth_state" ]]; then
+      agent-browser --state "$auth_state" open "$url"
+    else
+      agent-browser open "$url"
+    fi
+    agent-browser set viewport 1440 1000
+    agent-browser set media "$AGENT_BROWSER_COLOR_SCHEME"
+    printf 'session=%s\nartifacts=%s\nauth_seed=%s\n' "$session" "$artifact_dir" "$auth_state"
+    ;;
+  auth-load)
+    [[ -s "$auth_state" ]] || { printf 'missing auth seed: %s\n' "$auth_state" >&2; exit 1; }
+    agent-browser state load "$auth_state"
+    ;;
+  auth-save)
+    mkdir -p "$(dirname "$auth_state")"
+    tmp="${auth_state}.tmp.$$"
+    agent-browser state save "$tmp"
+    chmod 600 "$tmp"
+    mv "$tmp" "$auth_state"
+    printf '%s\n' "$auth_state"
+    ;;
+  auth-import-dia)
+    printf 'Personal-browser auth import is disabled. Supply a scoped auth-state file or complete login in an isolated session.\n' >&2
+    exit 1
+    ;;
+  artifacts)
+    printf '%s\n' "$artifact_dir"
+    ;;
+  session)
+    printf '%s\n' "$session"
+    ;;
+  *)
+    agent-browser "$command" "$@"
+    ;;
+esac
