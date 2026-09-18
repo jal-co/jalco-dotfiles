@@ -26,6 +26,9 @@
       "url": "https://mcp.granola.ai/mcp",
       "auth": "oauth"
     },
+    "figma": {
+      "url": "http://127.0.0.1:3845/mcp"
+    },
     "exa": {
       "command": "npx",
       "args": [
