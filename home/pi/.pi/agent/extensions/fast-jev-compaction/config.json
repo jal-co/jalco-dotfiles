@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "model": "jev-latest",
+  "keepThreshold": 0.5,
+  "preserveRecentMessages": 0,
+  "maxStateTokens": 25000,
+  "maxRequestTokens": 30000,
+  "truncateHeadChars": 300,
+  "minReductionRatio": 0.25,
+  "notify": true
+}
