@@ -1,0 +1,90 @@
+{
+  "SessionStart": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "AgentStart": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "PreToolUse": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "PermissionRequest": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "PermissionResult": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "AgentEnd": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "Stop": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "Interrupt": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ],
+  "SessionEnd": [
+    {
+      "type": "command",
+      "command": "if [ -f '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -r '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ] && [ -x '/Users/justin/.orca/agent-hooks/mastracode-hook.sh' ]; then /bin/sh '/Users/justin/.orca/agent-hooks/mastracode-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+      "timeout": 10000,
+      "description": "Report agent status to Orca"
+    }
+  ]
+}

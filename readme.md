@@ -33,11 +33,10 @@ dotfiles/
     ├── ghostty/.config/ghostty/
     ├── git/.config/git/
     ├── herdr/.config/herdr/
+    ├── mastracode/.mastracode/ and Library/Application Support/mastracode/
     ├── mise/.config/mise/
     ├── pi/.pi/
     ├── starship/.config/
-    ├── tmux/.config/tmux/
-    ├── vscode/Library/Application Support/Code/User/
     ├── zed/.config/zed/
     └── zsh/
 ```
@@ -72,7 +71,7 @@ stow -n -v -d home -t "$HOME" pi agents
 Copy `.jdotignore.example` to the gitignored `.jdotignore` and list package names to skip:
 
 ```text
-vscode
+fastfetch
 zed
 ```
 
@@ -101,7 +100,7 @@ A fresh clone does not contain the complete live environment. Private skills, li
 
 Private skills include `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`, and `platform-settings-sections`. Personal design rules also remain local. `home/pi/PI.md` records the generating machine's inventory, including local-only skill names; it is not an installation manifest.
 
-Secrets such as `auth.json` and `home/zsh/.zshrc.local`, sessions, caches, dependency directories, compiled helpers, and retired skills are gitignored. Tmux plugins are also ignored and must be installed through TPM. See [`.gitignore`](.gitignore) for the exact exclusions.
+Secrets such as `auth.json` and `home/zsh/.zshrc.local`, sessions, caches, dependency directories, compiled helpers, and retired skills are gitignored. See [`.gitignore`](.gitignore) for the exact exclusions.
 
 ## Acknowledgments
 

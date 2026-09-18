@@ -1,14 +1,17 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { evaluateGate } from "./core.js";
 
 export default function antiSlopGate(pi: ExtensionAPI): void {
 	pi.on("session_start", async (_event, ctx) => {
-		if (ctx.hasUI) ctx.ui.setStatus("anti-slop-gate", "anti-slop ✓");
+		if (!ctx.hasUI) return;
+		ctx.ui.setStatus(
+			"anti-slop-gate",
+			`${ctx.ui.theme.fg("success", "")} ${ctx.ui.theme.fg("dim", "anti-slop")}`,
+		);
 	});
 	pi.on("tool_call", async (event, ctx) => {
-		if (event.toolName !== "bash") return;
-		const command = (event.input as { command?: unknown }).command;
-		if (typeof command !== "string") return;
+		if (!isToolCallEventType("bash", event)) return;
+		const command = event.input.command;
 		const exec = async (file: string, args: string[]) => {
 			const result = await pi.exec(file, args, { timeout: 120000 });
 			return { stdout: result.stdout, stderr: result.stderr, code: result.code ?? 0 };

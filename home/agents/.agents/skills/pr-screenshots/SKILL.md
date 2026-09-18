@@ -38,15 +38,16 @@ agent-browser diff screenshot --baseline ./before-dark.png --output ./pair-check
 
 A dimension-mismatch result means the viewport, device pixel ratio, or crop drifted; recapture rather than resizing an image. Inspect the reported mismatch regions: changes outside the edited surface are unintended regressions to fix or report, not evidence to upload. The generated red-highlight diff image is a validation artifact; do not attach it to the pull request unless it illustrates a finding. Use `--selector <sel>` on `screenshot` capture and `diff screenshot` for element-scoped pairs, including Storybook's `#storybook-root`.
 
-For a motion or interaction change where timing matters, also record video with matching theme state:
+A motion, transition, drag-and-drop, multi-step interaction, loading animation, or timing-sensitive feedback change MUST include a short video with matching theme and viewport state:
 
 ```bash
 agent-browser record start ./interaction.webm
-# perform the interaction
+# perform one focused interaction
 agent-browser record stop
+ffmpeg -y -i ./interaction.webm -an -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart ./interaction.mp4
 ```
 
-Recording requires `ffmpeg` on PATH. A recording supplements the required resulting-state screenshot; it never replaces it.
+Start from a settled initial state and stop after the final state settles. Keep the interaction focused enough to review without scrubbing. Upload the MP4 for consistent playback. A recording supplements the required resulting-state screenshot; it never replaces it.
 
 </workflow>
 
@@ -135,6 +136,7 @@ Use `HttpClient` for binary uploads. Use a new filename when replacing an attach
 - Playground UI captures contain only `#storybook-root`, with no Storybook or browser chrome.
 - Every image has specific alt text.
 - Uploaded media comes from the locally verified state.
+- Motion and timing changes include a focused MP4 plus a resulting-state screenshot.
 - The published body keeps images visible.
 - Every attachment renders at the published URL.
 

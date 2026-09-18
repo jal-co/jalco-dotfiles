@@ -41,6 +41,8 @@ AGENTS.md
 
 # Secrets & auth
 home/pi/.pi/agent/auth.json
+home/pi/.pi/agent/compact-adviser.json
+home/pi/.pi/agent/compact-adviser-requests.jsonl
 
 # MCP caches (regenerated at runtime)
 home/pi/.pi/agent/mcp-cache.json

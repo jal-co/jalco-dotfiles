@@ -52,7 +52,17 @@
     "npm:@ryan_nookpi/pi-extension-codex-fast-mode",
     "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
     "npm:@lll9p/pi-better-compaction",
-    "npm:pi-codex-multi"
+    "npm:pi-codex-multi",
+    {
+      "source": "git:github.com/DietrichGebert/ponytail",
+      "extensions": [
+        "+pi-extension/index.js"
+      ],
+      "skills": [
+        "+skills/ponytail-review/SKILL.md"
+      ]
+    },
+    "npm:compact-adviser"
   ],
   "quietStartup": true,
   "showCacheMissNotices": true,
