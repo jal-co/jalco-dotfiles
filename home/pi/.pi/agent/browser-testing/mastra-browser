@@ -26,7 +26,10 @@ shift
 case "$command" in
   start)
     url="${1:?usage: mastra-browser start <url>}"
-    if [[ -s "$auth_state" ]]; then
+    restore_filename="${session}-${session}.json"
+    if agent-browser state list --json | jq -e --arg filename "$restore_filename" '.data.files[]? | select(.filename == $filename)' >/dev/null; then
+      agent-browser open "$url"
+    elif [[ -s "$auth_state" ]]; then
       agent-browser --state "$auth_state" open "$url"
     else
       agent-browser open "$url"
