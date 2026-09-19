@@ -18,7 +18,7 @@ type StatusColor = "accent" | "dim" | "error" | "muted" | "success" | "warning";
 type Colorize = (color: StatusColor, text: string) => string;
 export type BusyIndicatorMode = "default" | "dot" | "none" | "pulse" | "spinner";
 
-export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize): { frames: string[]; intervalMs: number } {
+export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize) {
 	if (mode === "none") return { frames: [], intervalMs: 0 };
 	if (mode === "dot") return { frames: [colorize("accent", "●")], intervalMs: 0 };
 	if (mode === "pulse") {
@@ -104,11 +104,13 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 				ctx.ui.notify(`Footer indicator: ${mode}`, "info");
 				return;
 			}
-			if (!["dot", "none", "pulse", "spinner", "reset"].includes(nextMode)) {
+			if (nextMode === "reset") mode = "default";
+			else if (nextMode === "dot" || nextMode === "none" || nextMode === "pulse" || nextMode === "spinner") {
+				mode = nextMode;
+			} else {
 				ctx.ui.notify("Usage: /footer-indicator [dot|pulse|none|spinner|reset]", "error");
 				return;
 			}
-			mode = nextMode === "reset" ? "default" : (nextMode as BusyIndicatorMode);
 			setBusy(busy);
 			ctx.ui.notify(`Footer indicator: ${mode}`, "info");
 		},
