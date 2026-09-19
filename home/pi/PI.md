@@ -13,7 +13,7 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 
 `codex-micro-reporter`, `confirm-destructive`, `continue-after-compaction`, `counter-model-reviewer`, `custom-header`, `footer-cleanup`, `git-interceptor`, `herdr-agent-state`, `orca-agent-status`, `orca-prefill`, `orca-titlebar-spinner`, `provider-status`, `time-tracker`, `titlebar-spinner`, `tool-reference-alias-fix`
 
-## PACKAGES (29)
+## PACKAGES (27)
 
 - `npm:@juanibiapina/pi-extension-settings`
 - `npm:@howaboua/pi-howaboua-extensions-primitives-sdk`
@@ -40,7 +40,5 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `npm:@jalco/pi-herdr-worktree`
 - `npm:pi-web-access`
 - `npm:@ryan_nookpi/pi-extension-codex-fast-mode`
-- `git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055`
-- `npm:@lll9p/pi-better-compaction`
 - `npm:pi-codex-multi`
-- `[object Object]`
+- `git:github.com/DietrichGebert/ponytail`
