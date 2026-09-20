@@ -93,7 +93,7 @@ A change to animation, transitions, drag and drop, multi-step interaction, loadi
 
 ```bash
 ARTIFACTS="$("$BROWSER" artifacts)"
-"$BROWSER" record start "$ARTIFACTS/interaction.webm"
+"$BROWSER" record start "$ARTIFACTS/interaction.webm" --cursor --contact-sheet
 "$BROWSER" wait 400
 # perform one focused interaction
 "$BROWSER" wait 700
@@ -101,7 +101,7 @@ ARTIFACTS="$("$BROWSER" artifacts)"
 "$BROWSER" video-mp4 "$ARTIFACTS/interaction.webm" "$ARTIFACTS/interaction.mp4"
 ```
 
-Start recording from a settled initial state. Show one focused interaction, add only enough pause to make cause and result legible, and stop after the final state settles. The MP4 MUST use H.264 with `yuv420p` for review compatibility. Also verify the interaction with reduced motion enabled and report the result. Video supplements assertions and screenshots; it does not replace them.
+Start recording from a settled initial state. Show one focused interaction, add only enough pause to make cause and result legible, and stop after the final state settles. Inspect the generated contact sheet for brief intermediate states that before-and-after screenshots miss. The MP4 MUST use H.264 with `yuv420p` for review compatibility. Also verify the interaction with reduced motion enabled and report the result. Video supplements assertions, contact sheets, and screenshots; it does not replace them.
 
 ## Local authoring
 
