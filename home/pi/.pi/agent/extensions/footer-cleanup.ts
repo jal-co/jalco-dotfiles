@@ -1,4 +1,5 @@
 import type { ExtensionAPI, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
 
 const HIDDEN_STATUS_KEYS = new Set([
 	"pi-agentation",
@@ -17,6 +18,15 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 type StatusColor = "accent" | "dim" | "error" | "muted" | "success" | "warning";
 type Colorize = (color: StatusColor, text: string) => string;
 export type BusyIndicatorMode = "default" | "dot" | "none" | "pulse" | "spinner";
+
+export function loadBusyIndicatorMode(agentDir?: string): BusyIndicatorMode {
+	const value = getSetting("footer-cleanup", "busyIndicator", "default", { scope: "global", agentDir });
+	return value === "dot" || value === "none" || value === "pulse" || value === "spinner" ? value : "default";
+}
+
+export function saveBusyIndicatorMode(mode: BusyIndicatorMode, agentDir?: string): void {
+	setSetting("footer-cleanup", "busyIndicator", mode, { scope: "global", agentDir });
+}
 
 export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize) {
 	if (mode === "none") return { frames: [], intervalMs: 0 };
@@ -51,7 +61,7 @@ export function formatPonytailStatus(value: string, colorize: Colorize): string 
 
 export default function footerCleanup(pi: ExtensionAPI): void {
 	let latestUI: ExtensionUIContext | undefined;
-	let mode: BusyIndicatorMode = "default";
+	let mode = loadBusyIndicatorMode();
 	let busy = false;
 	let frameIndex = 0;
 	let timer: ReturnType<typeof setInterval> | undefined;
@@ -104,20 +114,29 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 				ctx.ui.notify(`Footer indicator: ${mode}`, "info");
 				return;
 			}
-			if (nextMode === "reset") mode = "default";
+			let next: BusyIndicatorMode;
+			if (nextMode === "reset") next = "default";
 			else if (nextMode === "dot" || nextMode === "none" || nextMode === "pulse" || nextMode === "spinner") {
-				mode = nextMode;
+				next = nextMode;
 			} else {
 				ctx.ui.notify("Usage: /footer-indicator [dot|pulse|none|spinner|reset]", "error");
 				return;
 			}
+			try {
+				saveBusyIndicatorMode(next);
+			} catch (error) {
+				ctx.ui.notify(`Could not save footer indicator: ${error instanceof Error ? error.message : String(error)}`, "error");
+				return;
+			}
+			mode = next;
 			setBusy(busy);
-			ctx.ui.notify(`Footer indicator: ${mode}`, "info");
+			ctx.ui.notify(`Footer indicator saved: ${mode}`, "info");
 		},
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
+		mode = loadBusyIndicatorMode();
 		latestUI = ctx.ui;
 		if (!wrappedContexts.has(ctx.ui)) {
 			const ui = ctx.ui;
