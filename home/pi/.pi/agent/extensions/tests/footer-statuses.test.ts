@@ -13,7 +13,7 @@ import { formatProviderIcon, formatTokens } from "../lib/footer-format.ts";
 
 const colorize = (color: string, text: string) => `[${color}]${text}`;
 
-test("builds switchable footer indicators", () => {
+test("builds switchable working indicators", () => {
 	assert.deepEqual(getBusyIndicator("default", colorize), { frames: ["[accent]"], intervalMs: 0 });
 	assert.deepEqual(getBusyIndicator("dot", colorize), { frames: ["[accent]●"], intervalMs: 0 });
 	assert.equal(getBusyIndicator("pulse", colorize).frames.length, 4);
@@ -21,7 +21,7 @@ test("builds switchable footer indicators", () => {
 	assert.deepEqual(getBusyIndicator("none", colorize), { frames: [], intervalMs: 0 });
 });
 
-test("saves the footer indicator across extension reloads", () => {
+test("saves the working indicator across extension reloads", () => {
 	const agentDir = mkdtempSync(join(tmpdir(), "footer-cleanup-"));
 	const settingsPath = join(agentDir, "settings-extensions.json");
 	try {
