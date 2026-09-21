@@ -62,9 +62,6 @@ export function formatPonytailStatus(value: string, colorize: Colorize): string 
 export default function footerCleanup(pi: ExtensionAPI): void {
 	let latestUI: ExtensionUIContext | undefined;
 	let mode = loadBusyIndicatorMode();
-	let busy = false;
-	let frameIndex = 0;
-	let timer: ReturnType<typeof setInterval> | undefined;
 
 	function clearStatuses(): void {
 		if (!latestUI) return;
@@ -75,43 +72,16 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		setTimeout(clearStatuses, 0);
 	}
 
-	function stopTimer(): void {
-		if (timer) clearInterval(timer);
-		timer = undefined;
-	}
-
-	function renderBusy(): void {
-		const ui = latestUI;
-		if (!ui || !busy) return;
-		const indicator = getBusyIndicator(mode, (color, text) => ui.theme.fg(color, text));
-		ui.setStatus("busy", indicator.frames[frameIndex % indicator.frames.length]);
-		frameIndex++;
-	}
-
-	function setBusy(active: boolean): void {
-		stopTimer();
-		busy = active;
-		frameIndex = 0;
-		const ui = latestUI;
-		if (!ui) return;
-		const indicator = getBusyIndicator(mode, (color, text) => ui.theme.fg(color, text));
-		if (!active || indicator.frames.length === 0) {
-			ui.setStatus("busy", undefined);
-			return;
-		}
-		renderBusy();
-		if (indicator.frames.length > 1) {
-			timer = setInterval(renderBusy, indicator.intervalMs);
-			timer.unref();
-		}
+	function applyWorkingIndicator(ui: ExtensionUIContext): void {
+		ui.setWorkingIndicator(getBusyIndicator(mode, (color, text) => ui.theme.fg(color, text)));
 	}
 
 	pi.registerCommand("footer-indicator", {
-		description: "Set the footer busy indicator: dot, pulse, none, spinner, or reset.",
+		description: "Set the working indicator: dot, pulse, none, spinner, or reset.",
 		handler: async (args, ctx) => {
 			const nextMode = args.trim().toLowerCase();
 			if (!nextMode) {
-				ctx.ui.notify(`Footer indicator: ${mode}`, "info");
+				ctx.ui.notify(`Working indicator: ${mode}`, "info");
 				return;
 			}
 			let next: BusyIndicatorMode;
@@ -125,12 +95,12 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 			try {
 				saveBusyIndicatorMode(next);
 			} catch (error) {
-				ctx.ui.notify(`Could not save footer indicator: ${error instanceof Error ? error.message : String(error)}`, "error");
+				ctx.ui.notify(`Could not save working indicator: ${error instanceof Error ? error.message : String(error)}`, "error");
 				return;
 			}
 			mode = next;
-			setBusy(busy);
-			ctx.ui.notify(`Footer indicator saved: ${mode}`, "info");
+			applyWorkingIndicator(ctx.ui);
+			ctx.ui.notify(`Working indicator saved: ${mode}`, "info");
 		},
 	});
 
@@ -155,23 +125,16 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 			wrappedContexts.add(ctx.ui);
 		}
 		clearStatuses();
-		setBusy(false);
+		applyWorkingIndicator(ctx.ui);
 		setTimeout(clearStatuses, 250);
 	});
 
-	pi.on("agent_start", () => {
-		deferClear();
-		setBusy(true);
-	});
+	pi.on("agent_start", deferClear);
 	pi.on("tool_execution_end", deferClear);
-	pi.on("agent_settled", () => {
-		deferClear();
-		setBusy(false);
-	});
+	pi.on("agent_settled", deferClear);
 	pi.events.on("pi-mcp-adapter/status/v1", deferClear);
 	pi.on("session_shutdown", async () => {
 		clearStatuses();
-		setBusy(false);
 		latestUI = undefined;
 	});
 }
