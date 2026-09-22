@@ -4,15 +4,13 @@
 
 ## Reject closed worktrees
 
-Before any repository mutation, inspect the current Orca worktree with `orca worktree current --json` and refresh the remote default branch when network access is available. Treat the current worktree as closed when any of these conditions is true:
+Before any repository mutation, inspect the current Orca worktree with `orca worktree current --json` and refresh the remote default branch when network access is available. Treat the current worktree as closed only when Orca reports `workspaceStatus: completed` or `isArchived: true`, or its linked pull request is merged.
 
-- Orca reports `workspaceStatus: completed` or `isArchived: true`.
-- Its linked pull request is merged.
-- It is a non-default branch whose HEAD is already contained in the remote default branch.
+A non-default branch whose HEAD is contained in the remote default branch MUST NOT be treated as closed on that fact alone. New task branches begin at the default branch and remain valid before their first commit. When the current open worktree's linked issue, branch, path, or stated purpose matches the task, use it directly and do not create a replacement worktree or Pi session.
 
 A closed worktree MUST NOT be edited, reopened, or reused for new work. If a task starts there, create a fresh Orca worktree from the remote default branch, fork the current Pi session into that checkout, focus the replacement terminal, and stop work in the original session. Leave the closed worktree and original session unchanged. A failed or unavailable remote check MUST NOT be interpreted as proof that a worktree is open.
 
-The repository's default-branch checkout is a launch point, not a task worktree. Read-only investigation MAY stay there, but bounded implementation MUST receive its own worktree and Pi session through the same handoff.
+The repository's default-branch checkout is a launch point, not a task worktree. Read-only investigation MAY stay there, but bounded implementation MUST receive its own worktree and Pi session through the same handoff. Exception: when `git remote` prints nothing and no other agent is working in the checkout, implement directly in the default-branch checkout. A local-only repository has nothing to publish or protect, so the handoff only adds an empty checkout.
 
 For the handoff, capture `PI_SESSION_ID`, create the worktree without an agent, stop task-owned background terminals that must not continue against the old checkout, then run `orca terminal create --worktree path:<created-path> --command "pi --fork <session-id> 'Continue the current task in this new worktree.'" --focus --json`. Verify that Orca returned a terminal handle before ending the original turn. This forks the conversation into cwd-bound Pi state for the new checkout; a running Pi process MUST NOT be treated as movable between working directories.
 
@@ -23,9 +21,9 @@ Every new Orca worktree MUST use the worktree that spawned it as its immediate p
 ## Resolve before creating
 
 1. Identify the target repository from the task and current checkout. Ask if it is ambiguous. Read-only investigation may stay in the current checkout.
-2. Run `printenv ORCA_WORKTREE_ID` before any creation. If set and the current worktree belongs to the target repository, work there directly only when the closed-worktree checks above pass and it is the open worktree for this task. Do not switch, remove, or repurpose its branch. This exception skips creation only; isolation, issue linkage, and protection of unmerged work still apply.
+2. Run `printenv ORCA_WORKTREE_ID` before any creation. If set and the current worktree belongs to the target repository, work there directly when the closed-worktree checks above pass and its linked issue, branch, path, or stated purpose matches the task. A matching issue or task identity takes precedence over branch-divergence heuristics. Do not switch, remove, or repurpose its branch. This exception skips creation only; isolation, issue linkage, and protection of unmerged work still apply.
 3. If the target differs from the current worktree, do not edit the wrong repository. Resolve a matching Orca worktree for that repository and execute there in the current session. Worktree creation does not authorize launching an agent except for the replacement-session handoff defined above.
-4. Inspect the target repository's worktrees. Reuse only an open worktree for the same task; otherwise create one dedicated worktree before editing. Separate issues need separate worktrees unless Justin groups them into one change. Concurrent agents and processes MUST NOT share a working tree.
+4. Inspect the target repository's worktrees. Reuse an open worktree for the same task. Otherwise reuse an unclaimed worktree: no linked issue or PR, HEAD equal to the default branch, `git status --porcelain` empty, and no agent terminal running in it. Create a dedicated worktree only when neither exists. Separate issues need separate worktrees unless Justin groups them into one change. Concurrent agents and processes MUST NOT share a working tree.
 
 ## Choose the workspace manager
 
