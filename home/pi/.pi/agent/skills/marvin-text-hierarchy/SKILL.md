@@ -4,7 +4,7 @@ description: Audit and fix typography in Mastra product interfaces against the s
 ---
 
 <overview>
-The role tree and rules live in `mastra-ui-contract`, section 4 ("Text roles"). This skill is the procedure for auditing existing code against them. Load `mastra-ui-contract` first. Its roles are the only vocabulary, and the code in `packages/playground-ui/theme/typography.css` is authoritative over both files.
+The role tree and rules live in `mastra-ui-contract`, section 5 ("Text roles"). This skill is the procedure for auditing existing code against them. Load `mastra-ui-contract` first. Its roles are the only vocabulary, and the code in `packages/playground-ui/theme/typography.css` is authoritative over both files.
 </overview>
 
 <workflow>

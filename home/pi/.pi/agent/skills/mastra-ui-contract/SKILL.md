@@ -60,7 +60,29 @@ When the look is wrong:
 
 Arbitrary values (`text-[13px]`, `bg-[#111]`, `h-[29px]`) are never correct in product code. A token for the value exists, or the missing token is a design-system question.
 
-## 2. Page layout
+## 2. App shell and page frame
+
+Every app and every page uses the same two layers. Never build either by hand.
+
+```tsx
+import { AppShell, MainCard } from '@mastra/playground-ui/new/layout/app-shell';
+import { SidebarNew } from '@mastra/playground-ui/new/sidebar';
+import { PageLayout } from '@mastra/playground-ui/components/PageLayout';
+
+<SidebarNew.Provider>
+  <AppShell sidebar={<AppSidebar />} mobileHeader={<MobileHeader />}>
+    <MainCard>
+      <Outlet />            {/* each route renders exactly one <PageLayout> */}
+    </MainCard>
+  </AppShell>
+</SidebarNew.Provider>
+```
+
+- **The app shell** is `AppShell` with a `SidebarNew` sidebar and `MainCard` around the routes, mounted once at the router level. `AppShell` owns the spacing around the card. `MainCard` is unreleased (after `57.0.0`); on the released package, keep the app's existing card and swap it when the upgrade lands. Studio (#24697), Factory (#24806), and Mastra Code web (#24718) all use this.
+- **The sidebar** is `SidebarNew` and its parts: `SidebarNew.Header` or `.CommandHeader`, `.Brand`, `.Nav`, `.Sections` (preferred, data-driven) or `.NavSection` > `.NavList` > `.NavLink`, `.NavStack` for drill-in views, `.Footer`, and `.Trigger` / `.MobileTrigger`. Never use `MainSidebar` in new code, and never import `MainSidebar.*` parts next to `SidebarNew`, because every part has a `SidebarNew.*` name. Agent Builder's `MainSidebar` and Factory's `MainSidebar.Nav*` calls are legacy.
+- **Every route renders one `PageLayout`.** It is the only thing that renders the header row, breadcrumbs, header actions, toolbar, and scroll owner. Never write a page wrapper, header bar, or local width container around or instead of it, and never render a second `PageLayout` for a loading, error, or empty branch; switch the body inside one `PageLayout` instead.
+
+## 3. Page layout
 
 Pick width first, then the header. They are separate choices: `header` works on every variant.
 
@@ -146,7 +168,7 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
 
 Release status: `narrow`, `header`, the full-height `narrow` body, `MainCard`, and `EmptyState tone` are unreleased (#24806, #24817, #24838, #24799). In Studio, use them. Outside Studio on the released package, use the `container` variant with `PageHeader` as the body's first child and `ErrorState` for errors. Never recreate `max-w-5xl mx-auto` locally.
 
-## 3. Controls
+## 4. Controls
 
 ### Text entry
 
@@ -204,7 +226,7 @@ Otherwise (Cancel, Back, pagination, secondary)                -> variant="defau
 - A disclosure (chevron, collapsible) appears only when the hidden body says more than the visible line. Text that fits its line wraps instead.
 - An element never owns its width in a flow context such as a chat column or card list. The container sets it.
 
-## 4. Text roles
+## 5. Text roles
 
 Pick text by role, never by size. The role carries size, line-height, weight, and tracking together. A hand-picked size breaks the pairing and stops following when the scale is retuned.
 
@@ -256,6 +278,8 @@ Badge, count pill, keycap?                         -> meta
 - [ ] The body's first element sets `mt-6` below the header and `pb-16` at the end
 - [ ] Lists are `DataList`, settings are `SettingsGroup` > `SettingsContainer` > `SettingsRow`, and cards are not nested around rims
 - [ ] Status hues sit on icons; boxed messages are `Notice`
+- [ ] The app uses `AppShell` + `SidebarNew` + `MainCard`; no `MainSidebar` in new code
+- [ ] The route renders exactly one `PageLayout`, and no state branch renders another
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] No section has a description line under its title
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
