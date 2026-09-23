@@ -128,7 +128,7 @@ A `narrow` page is one `max-w-5xl` column, so page edges and titles line up acro
 - Page content MUST NOT render a title block: no `<h1>`, no `Txt variant="heading"` title, no `sr-only` h1, and no custom shell with a title prop. A settings section name, a connection name (with `PageHeader.Icon`), and a wizard name are page titles. A wizard's step title labels the step's control instead, so the page keeps one `h1`.
 - `PageHeader` (`@mastra/playground-ui/components/PageHeader`) is the only page header. Every `narrow` page and every dashboard has one, passed through `header`. Indexes and workspaces have none, and their breadcrumbs name them. The Agent Builder index pages currently add one to `container`. Never use `MainHeader`, `EntityHeader`, or a hand-built heading row on a new page. The 7 Studio pages still using them (datasets, workflow entity header, experiment panels) are legacy; do not copy them.
 - Use the compound API only. The props form (`<PageHeader title="…" description="…" />`) is legacy; nothing uses it, and new code must not start.
-- `PageHeader` parts: `.Title`, `.Description` (one sentence of user task), `.Meta beside` for a version or status `Badge`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
+- `PageHeader` parts: `.Title`, `.Description` (one sentence of user task), `.Meta beside` for a version `Badge` or a `Status`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
 - A "Back to X" button becomes a `breadcrumbs` trail (`X › Current`).
 - **The breadcrumb bar holds navigation and reference links, never actions.** Its left side is the breadcrumbs. Its right side (`headerActions`) may hold `Button variant="ghost" size="sm"` links that take the user somewhere to read, such as Docs or API endpoints, plus the shell's collapsed-sidebar trigger and search. Anything that creates, changes, runs, or deletes is an action and goes on the page's own row, because the bar is shared chrome, not part of the page:
   - `container` index: `<ActionRow.End>`, after view options, with the primary action last.
@@ -240,7 +240,8 @@ Otherwise (Cancel, Back, pagination, secondary)                -> variant="defau
 
 ### Status and color
 
-- `Badge` is for status, counts, versions, and priority, with `variant` for hue and `emphasis="muted"` inside dense rows. Priority and severity are a badge, not a colored row, so every item keeps one shape.
+- **Status is `Status` from `StatusIndicators`, never a `Badge`.** Anything that says what state an entity or run is in (Active, Draft, Failing, Running, Success, Failed, Pending, Healthy, Deploying) is `<Status presentation={{ label, tone, description }} />`. `tone` is `success`, `progress`, `error`, `idle`, or `neutral`; the dot carries the hue, which keeps status off the text (see the icon rule below), and `description` is the tooltip that explains the state. Define presentations once per domain as a `Record<Status, StatusPresentation>` map. The default label is `meta`, which fits cards and headers; inside a `DataList` cell or any 13px row, pass the label through the slot at row size: `<Status presentation={p}><Txt as="span" variant="body-sm">{p.label}</Txt></Status>`.
+- `Badge` is for things that are not states: counts, versions (`v2.1.0`), type tags (`App`), scope (`Project`), and priority. Use `variant` for hue and `emphasis="muted"` in dense rows. Priority and severity are a badge, not a colored row, so every item keeps one shape.
 - `Notice` (`info`, `warning`, `destructive`, `success`, `note`) is the only boxed message. Never style a `div` as a callout. The `notice-*-fg` inks belong inside a `Notice` only; on a plain background they turn near-white.
 - A status hue goes on the icon, not the sentence. `warning` and `positive` fall to about 3:1 on white, which passes for an icon and fails for text. A message with no icon uses `text-error`, the only status ink above 4.5:1 in both themes.
 - Status tokens have no digit: `warning`, `positive`, `negative` (#24680). `warning1` and friends are being removed, and a misspelled token renders nothing without an error, so copy names from `theme.css`.
@@ -298,6 +299,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] `narrow` pages have a compound `PageHeader` in `header`; no `MainHeader`, `EntityHeader`, or hand-built title; content sets no width and renders no `h1`
 - [ ] The body's first element sets `mt-6` below the header and `pb-16` at the end
 - [ ] Lists are `DataList`, settings are `SettingsGroup` > `SettingsContainer` > `SettingsRow`, and cards are not nested around rims
+- [ ] Entity and run states use `Status`, not `Badge`; badges only hold counts, versions, tags, scope, or priority
 - [ ] Status hues sit on icons; boxed messages are `Notice`
 - [ ] The app uses `AppShell` + `SidebarNew` + `MainCard`; no `MainSidebar` in new code
 - [ ] The route renders exactly one `PageLayout`, and no state branch renders another
