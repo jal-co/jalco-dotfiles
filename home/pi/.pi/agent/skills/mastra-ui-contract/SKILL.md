@@ -130,11 +130,11 @@ A `narrow` page is one `max-w-5xl` column, so page edges and titles line up acro
 - Use the compound API only. The props form (`<PageHeader title="…" description="…" />`) is legacy; nothing uses it, and new code must not start.
 - `PageHeader` parts: `.Title`, `.Description` (one sentence of user task), `.Meta beside` for a version or status `Badge`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
 - A "Back to X" button becomes a `breadcrumbs` trail (`X › Current`).
-- **The breadcrumb bar is navigation only.** It holds the breadcrumbs and, when the sidebar is collapsed, the shell's sidebar trigger and search. Page actions never go there, because the bar is shared chrome, not part of the page. Put each page action on the page's own row:
-  - `container` index: the end of the `actionRow`, `<ActionRow.End>`, after view options, with the primary action last.
+- **The breadcrumb bar holds navigation and reference links, never actions.** Its left side is the breadcrumbs. Its right side (`headerActions`) may hold `Button variant="ghost" size="sm"` links that take the user somewhere to read, such as Docs or API endpoints, plus the shell's collapsed-sidebar trigger and search. Anything that creates, changes, runs, or deletes is an action and goes on the page's own row, because the bar is shared chrome, not part of the page:
+  - `container` index: `<ActionRow.End>`, after view options, with the primary action last.
   - `fit` workspace: the right end of the routed tab row.
   - `narrow` page or dashboard: `PageHeader.Action`.
-  `headerActions` is for shell controls only (Factory's collapsed-sidebar search). Studio's `HeaderCreateAction` in `headerActions` is legacy; do not copy it.
+  Studio's `HeaderCreateAction` ("New X" in `headerActions`) is legacy; do not copy it.
 - **Breadcrumbs:** pass one breadcrumb element to `PageLayout`'s `breadcrumbs` prop. Never render crumbs anywhere else on the page. In Studio, never assemble `Breadcrumb` and `Crumb` by hand; use the existing helper so icons and labels match the sidebar:
   ```tsx
   import { PageBreadcrumbs } from '@/components/ui/page-breadcrumbs';
@@ -303,7 +303,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] The route renders exactly one `PageLayout`, and no state branch renders another
 - [ ] A page with a title passes a compound `PageHeader` to `header`; nothing else renders an `h1`
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
-- [ ] No page action sits in the breadcrumb bar; actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
+- [ ] The breadcrumb bar holds only breadcrumbs and reference links (Docs, API endpoints); actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
 - [ ] No section has a description line under its title
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
