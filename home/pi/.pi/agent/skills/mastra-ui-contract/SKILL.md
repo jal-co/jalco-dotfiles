@@ -68,6 +68,7 @@ Every app and every page uses the same two layers. Never build either by hand.
 import { AppShell, MainCard } from '@mastra/playground-ui/new/layout/app-shell';
 import { SidebarNew } from '@mastra/playground-ui/new/sidebar';
 import { PageLayout } from '@mastra/playground-ui/components/PageLayout';
+import { PageHeader } from '@mastra/playground-ui/components/PageHeader';
 
 <SidebarNew.Provider>
   <AppShell sidebar={<AppSidebar />} mobileHeader={<MobileHeader />}>
@@ -76,10 +77,25 @@ import { PageLayout } from '@mastra/playground-ui/components/PageLayout';
     </MainCard>
   </AppShell>
 </SidebarNew.Provider>
+
+// a route
+<PageLayout
+  variant="narrow"
+  breadcrumbs={<PageBreadcrumbs crumbs={[navCrumb('/mcps'), mcpServerCrumb]} />}
+  header={
+    <PageHeader>
+      <PageHeader.Title>Linear issue tracker</PageHeader.Title>
+      <PageHeader.Description>Reads and writes Linear issues for agents in this project.</PageHeader.Description>
+    </PageHeader>
+  }
+>
+  {body}
+</PageLayout>
 ```
 
 - **The app shell** is `AppShell` with a `SidebarNew` sidebar and `MainCard` around the routes, mounted once at the router level. `AppShell` owns the spacing around the card. `MainCard` is unreleased (after `57.0.0`); on the released package, keep the app's existing card and swap it when the upgrade lands. Studio (#24697), Factory (#24806), and Mastra Code web (#24718) all use this.
 - **The sidebar** is `SidebarNew` and its parts: `SidebarNew.Header` or `.CommandHeader`, `.Brand`, `.Nav`, `.Sections` (preferred, data-driven) or `.NavSection` > `.NavList` > `.NavLink`, `.NavStack` for drill-in views, `.Footer`, and `.Trigger` / `.MobileTrigger`. Never use `MainSidebar` in new code, and never import `MainSidebar.*` parts next to `SidebarNew`, because every part has a `SidebarNew.*` name. Agent Builder's `MainSidebar` and Factory's `MainSidebar.Nav*` calls are legacy.
+- **The page title is `PageHeader`, passed to `PageLayout`'s `header` slot.** It is the page's only `h1`. Never render a title, `<h1>`, or `MainHeader` / `EntityHeader` in the body. Which pages get one is decided in section 3: `narrow` pages and dashboards do; indexes and one-entity workspaces rely on their breadcrumbs.
 - **Every route renders one `PageLayout`.** It is the only thing that renders the header row, breadcrumbs, header actions, toolbar, and scroll owner. Never write a page wrapper, header bar, or local width container around or instead of it, and never render a second `PageLayout` for a loading, error, or empty branch; switch the body inside one `PageLayout` instead.
 
 ## 3. Page layout
@@ -280,6 +296,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] Status hues sit on icons; boxed messages are `Notice`
 - [ ] The app uses `AppShell` + `SidebarNew` + `MainCard`; no `MainSidebar` in new code
 - [ ] The route renders exactly one `PageLayout`, and no state branch renders another
+- [ ] A page with a title passes a compound `PageHeader` to `header`; nothing else renders an `h1`
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] No section has a description line under its title
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
