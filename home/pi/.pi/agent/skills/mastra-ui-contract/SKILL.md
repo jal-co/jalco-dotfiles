@@ -91,7 +91,19 @@ A `narrow` page is one `max-w-5xl` column, so page edges and titles line up acro
 - `PageHeader` (`@mastra/playground-ui/components/PageHeader`) is the only page header. Every `narrow` page and every dashboard has one, passed through `header`. Indexes and workspaces have none, and their breadcrumbs name them. The Agent Builder index pages currently add one to `container`. Never use `MainHeader`, `EntityHeader`, or a hand-built heading row on a new page. The 7 Studio pages still using them (datasets, workflow entity header, experiment panels) are legacy; do not copy them.
 - Use the compound API only. The props form (`<PageHeader title="…" description="…" />`) is legacy; nothing uses it, and new code must not start.
 - `PageHeader` parts: `.Title`, `.Description` (one sentence of user task), `.Meta beside` for a version or status `Badge`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
-- A "Back to X" button becomes a `breadcrumbs` trail (`X › Current`). Breadcrumbs go in `breadcrumbs`, and header buttons go in `headerActions` as `Button variant="ghost" size="sm"`.
+- A "Back to X" button becomes a `breadcrumbs` trail (`X › Current`). Header buttons go in `headerActions` as `Button variant="ghost" size="sm"`.
+- **Breadcrumbs:** pass one breadcrumb element to `PageLayout`'s `breadcrumbs` prop. Never render crumbs anywhere else on the page. In Studio, never assemble `Breadcrumb` and `Crumb` by hand; use the existing helper so icons and labels match the sidebar:
+  ```tsx
+  import { PageBreadcrumbs } from '@/components/ui/page-breadcrumbs';
+  import { agentCrumb, navCrumb } from '@/domains/navigation/crumbs';
+
+  <PageLayout breadcrumbs={<PageBreadcrumbs crumbs={[navCrumb('/agents'), agentCrumb]} />} />
+  ```
+  - The first crumb is a section from the nav registry: `navCrumb('/agents')`. It takes its label and icon from the sidebar item and throws on an unknown URL.
+  - An entity crumb is a predefined `CrumbDef` (`agentCrumb`, `workflowCrumb`, `toolCrumb`, `datasetCrumb`, …) that renders the entity's name and an icon-only switcher. Add a new one to `crumbs.ts` next to the others; do not inline it in a page.
+  - Deeper crumbs are plain defs: `{ id: 'versions', label: 'Versions' }`. Use `decodeRouteParam` or `truncateItemIdCrumb` for route IDs.
+  - The last crumb is the current page and never links; `PageBreadcrumbs` handles that.
+  - Outside Studio (Factory, Platform), compose `Breadcrumb` and `Crumb` the way `PageBreadcrumbs` does: `<Breadcrumb label="Breadcrumb" className="min-w-0 flex-1 overflow-hidden">`, parent crumbs as `<Crumb as={Link} to=…>`, and the last as `<Crumb as="span" isCurrent>`.
 - Sub-views of one entity are routed tabs under the breadcrumbs, `TabList variant="pill-ghost"`, as on the agent and workflow pages. Do not use header buttons that jump to a global page.
 - On a `container` index page, search, filters, and toggles go in `actionRow` as `<ActionRow><ActionRow.Start/><ActionRow.End/></ActionRow>`: search and filters in `Start`, view options and the primary action in `End`.
 - `SettingsLayout` is replaced by `narrow` + `PageHeader`. Do not add it to new pages. Studio's `/settings` still uses it and will migrate.
