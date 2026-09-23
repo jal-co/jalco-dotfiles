@@ -99,6 +99,17 @@ A `narrow` page is one `max-w-5xl` column, so page edges and titles line up acro
 
   <PageLayout breadcrumbs={<PageBreadcrumbs crumbs={[navCrumb('/agents'), agentCrumb]} />} />
   ```
+  - **One crumb per level from the origin.** Build the trail from the route, not from what feels useful: start at the sidebar section the page lives under, then add one crumb for each level below it down to the current page. A trail with only the section crumb is correct only on the section's own index page. Every page below it has at least two crumbs, and the missing second crumb is the most common mistake.
+
+    ```text
+    /agents                      [navCrumb('/agents')]
+    /agents/:id                  [navCrumb('/agents'), agentCrumb]
+    /scorers/create              [navCrumb('/scorers'), { id: 'create-scorer', label: 'Create scorer' }]
+    /datasets/:id/versions       [navCrumb('/datasets'), datasetCrumb, { id: 'dataset-versions', label: 'Versions' }]
+    /experiments/review-queue    [navCrumb('/experiments'), navCrumb('/experiments/review-queue')]
+    ```
+
+    Before finishing a page, count its route segments below the section and check the trail has that many crumbs after the section crumb. Tabs of one entity (`/agents/:id/traces`) are the exception: the tab bar names the view, so the trail stops at the entity.
   - The first crumb is a section from the nav registry: `navCrumb('/agents')`. It takes its label and icon from the sidebar item and throws on an unknown URL.
   - An entity crumb is a predefined `CrumbDef` (`agentCrumb`, `workflowCrumb`, `toolCrumb`, `datasetCrumb`, …) that renders the entity's name and an icon-only switcher. Add a new one to `crumbs.ts` next to the others; do not inline it in a page.
   - Deeper crumbs are plain defs: `{ id: 'versions', label: 'Versions' }`. Use `decodeRouteParam` or `truncateItemIdCrumb` for route IDs.
@@ -245,6 +256,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] The body's first element sets `mt-6` below the header and `pb-16` at the end
 - [ ] Lists are `DataList`, settings are `SettingsGroup` > `SettingsContainer` > `SettingsRow`, and cards are not nested around rims
 - [ ] Status hues sit on icons; boxed messages are `Notice`
+- [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] No section has a description line under its title
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
