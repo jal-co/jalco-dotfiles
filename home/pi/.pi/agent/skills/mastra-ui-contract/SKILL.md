@@ -128,7 +128,7 @@ A `narrow` page is one `max-w-5xl` column, so page edges and titles line up acro
 - Page content MUST NOT render a title block: no `<h1>`, no `Txt variant="heading"` title, no `sr-only` h1, and no custom shell with a title prop. A settings section name, a connection name (with `PageHeader.Icon`), and a wizard name are page titles. A wizard's step title labels the step's control instead, so the page keeps one `h1`.
 - `PageHeader` (`@mastra/playground-ui/components/PageHeader`) is the only page header. Every `narrow` page and every dashboard has one, passed through `header`. Indexes and workspaces have none, and their breadcrumbs name them. The Agent Builder index pages currently add one to `container`. Never use `MainHeader`, `EntityHeader`, or a hand-built heading row on a new page. The 7 Studio pages still using them (datasets, workflow entity header, experiment panels) are legacy; do not copy them.
 - Use the compound API only. The props form (`<PageHeader title="…" description="…" />`) is legacy; nothing uses it, and new code must not start.
-- `PageHeader` parts: `.Title`, `.Description` (one sentence of user task), `.Meta beside` for a version `Badge` or a `Status`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
+- `PageHeader` parts: `.Title`, `.Description` (only when it passes the "write only what is needed" test; otherwise use an info icon in `.Meta beside`), `.Meta beside` for a version `Badge` or a `Status`, `.Icon`, and `.Action` (top-aligned, never re-aligned with classes). Pass loading through `PageHeader.Title isLoading`, not a skeleton of your own.
 - A "Back to X" button becomes a `breadcrumbs` trail (`X › Current`).
 - **The breadcrumb bar holds navigation and reference links, never actions.** Its left side is the breadcrumbs. Its right side (`headerActions`) may hold `Button variant="ghost" size="sm"` links that take the user somewhere to read, such as Docs or API endpoints, plus the shell's collapsed-sidebar trigger and search. Anything that creates, changes, runs, or deletes is an action and goes on the page's own row, because the bar is shared chrome, not part of the page:
   - `container` index: `<ActionRow.End>`, after view options, with the primary action last.
@@ -177,7 +177,10 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
 ```
 
 - **Settings group**: `SettingsGroup` > `SettingsHeader` (`SettingsTitle`, optional `accessory` and `action`) > `SettingsContainer` > `SettingsRow label description` with the control as its child. Factory wraps the header in `SettingsSubsection` to add a scope badge; reuse that wrapper there, without its `description`.
-- **No section descriptions.** A section is its title and its content. Never put a description line under a section title (`SettingsDescription`, `CardDescription`, or a caption after an in-page section label). Explanation belongs to the thing it explains: a row's `description`, a field's `helpText`, or the page's `PageHeader.Description`. A line under the title repeats the rows below it, and every section that has one pushes its content further down. `SettingsRow` takes `htmlFor` for a bare control, `tone="destructive"`, and `viewOnly`. A control that should span the row's field (a model `Combobox`) gets `w-full` at the call site, because triggers are content-sized.
+- **Write only what is needed.** Every line of explanatory text must tell the user something the label, title, or control does not: a consequence, a constraint, a schedule or unit, or why something is disabled or view-only. A line that restates the label ("Theme: Color scheme for the interface") or introduces a section or page ("Preferences for you and defaults for this project") is deleted, not moved. Page, section, and row descriptions are therefore absent by default, and a section is its title and content.
+- **When an explanation is needed, it goes in an info icon with a hover tooltip, not inline text.** Place the icon right after the thing it explains: a row label, a field label, a radio or checkbox label, a card title, or the page title (`PageHeader.Meta beside`). It is an `Info` icon at `Icon size="xs"` in a focusable trigger with an `aria-label` ("About run failures"), `quietTextHover`, and a `TooltipContent` under 240px. Two things stay inline because the user must see them without hovering: validation errors (`errorMsg`) and the consequence of a destructive action, which belongs in its confirmation dialog rather than the row.
+  - There is no shared info-tip component yet; Studio hand-rolls it in 7 places. Until one exists, copy `request-context-label.tsx`, and propose the shared component rather than adding an eighth variant.
+  - `SettingsRow` and `FieldBlock.Label` have no info slot. Pass the icon inside `label`; on a required field the asterisk then lands after the icon. Both are known gaps.
 - **Lists**: `DataList` owns the row hover (one gliding highlight shared with menus), sorting (`DataList.SortableTopCell`), and row links. Never paint `hover:bg-*` on a row or hand-roll a grid list. Filters go through `FilterBar`, not a row of selects.
 - **Cards**: a `Card` takes the same radius as `DataList`. Tabs inside a card header are `TabList variant="pill-ghost" size="sm"`, and each `TabContent` is `flush`. Do not stack several cards for what is one object with modes; use tabs inside one card. Do not wrap a `DataList` or a field in a `Card`, because each already has its own rim.
 - **Sections without a surface**: space them with `gap-*` on the parent (`gap-6` default, larger for a dashboard). A section needs a label, not a box.
@@ -262,7 +265,7 @@ Prose or a description paragraph?                  -> body (muted when it explai
 Table cell, menu item, field value, dense list?    -> body-sm
 Field label, control label, nav item?              -> label
 Column header?                                     -> column
-Helper text, validation, row or option description, secondary line? -> caption, muted
+Validation, secondary line? -> caption, muted (helper text and descriptions go in an info tooltip)
 Badge, count pill, keycap?                         -> meta
 ```
 
@@ -306,7 +309,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] A page with a title passes a compound `PageHeader` to `header`; nothing else renders an `h1`
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] The breadcrumb bar holds only breadcrumbs and reference links (Docs, API endpoints); actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
-- [ ] No section has a description line under its title
+- [ ] No description restates a label or introduces a page or section; needed explanations are info-icon tooltips, and only validation errors stay inline
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
 - [ ] No deprecated API appears in the diff
