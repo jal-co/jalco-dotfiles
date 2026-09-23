@@ -110,7 +110,8 @@ A labelled region of a dashboard or feed (Pipeline, Today)? -> <section> with an
 Nothing to show, or a failure?        -> EmptyState variant="fill"
 ```
 
-- **Settings group**: `SettingsGroup` > `SettingsHeader` (`SettingsTitle`, optional `accessory` and `action`, `SettingsDescription`) > `SettingsContainer` > `SettingsRow label description` with the control as its child. Factory wraps the header in `SettingsSubsection` to add a scope badge; reuse that wrapper there. `SettingsRow` takes `htmlFor` for a bare control, `tone="destructive"`, and `viewOnly`. A control that should span the row's field (a model `Combobox`) gets `w-full` at the call site, because triggers are content-sized.
+- **Settings group**: `SettingsGroup` > `SettingsHeader` (`SettingsTitle`, optional `accessory` and `action`) > `SettingsContainer` > `SettingsRow label description` with the control as its child. Factory wraps the header in `SettingsSubsection` to add a scope badge; reuse that wrapper there, without its `description`.
+- **No section descriptions.** A section is its title and its content. Never put a description line under a section title (`SettingsDescription`, `CardDescription`, or a caption after an in-page section label). Explanation belongs to the thing it explains: a row's `description`, a field's `helpText`, or the page's `PageHeader.Description`. A line under the title repeats the rows below it, and every section that has one pushes its content further down. `SettingsRow` takes `htmlFor` for a bare control, `tone="destructive"`, and `viewOnly`. A control that should span the row's field (a model `Combobox`) gets `w-full` at the call site, because triggers are content-sized.
 - **Lists**: `DataList` owns the row hover (one gliding highlight shared with menus), sorting (`DataList.SortableTopCell`), and row links. Never paint `hover:bg-*` on a row or hand-roll a grid list. Filters go through `FilterBar`, not a row of selects.
 - **Cards**: a `Card` takes the same radius as `DataList`. Tabs inside a card header are `TabList variant="pill-ghost" size="sm"`, and each `TabContent` is `flush`. Do not stack several cards for what is one object with modes; use tabs inside one card. Do not wrap a `DataList` or a field in a `Card`, because each already has its own rim.
 - **Sections without a surface**: space them with `gap-*` on the parent (`gap-6` default, larger for a dashboard). A section needs a label, not a box.
@@ -229,6 +230,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] The body's first element sets `mt-6` below the header and `pb-16` at the end
 - [ ] Lists are `DataList`, settings are `SettingsGroup` > `SettingsContainer` > `SettingsRow`, and cards are not nested around rims
 - [ ] Status hues sit on icons; boxed messages are `Notice`
+- [ ] No section has a description line under its title
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
 - [ ] No deprecated API appears in the diff
 - [ ] Anything this contract could not express was raised with Justin, not styled around
