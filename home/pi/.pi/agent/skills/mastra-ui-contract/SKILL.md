@@ -115,6 +115,9 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
 - **Lists**: `DataList` owns the row hover (one gliding highlight shared with menus), sorting (`DataList.SortableTopCell`), and row links. Never paint `hover:bg-*` on a row or hand-roll a grid list. Filters go through `FilterBar`, not a row of selects.
 - **Cards**: a `Card` takes the same radius as `DataList`. Tabs inside a card header are `TabList variant="pill-ghost" size="sm"`, and each `TabContent` is `flush`. Do not stack several cards for what is one object with modes; use tabs inside one card. Do not wrap a `DataList` or a field in a `Card`, because each already has its own rim.
 - **Sections without a surface**: space them with `gap-*` on the parent (`gap-6` default, larger for a dashboard). A section needs a label, not a box.
+- **States never move the frame.** Loading, empty, error, and ready share the same breadcrumbs, `PageHeader`, header actions, `actionRow`, and routed tabs. Only the body changes. When one of these disappears in a state, everything below it jumps. On error, keep the `PageHeader`, with the route's ID as the title when the name failed to load; never drop to an `sr-only` `h1`.
+- **Static structure renders while data loads.** Section titles, row and field labels, card headers, tab lists, KPI labels, and column headers are known before the request returns, so they render immediately. Only data-driven parts load: a `Skeleton` sized to the control it replaces, `MetricsKpiCard.Loading` for a value, `DataListSkeleton` with the same `columns` and the expected row count, and a disabled picker that reads "Loading models…". Never replace a whole section with one generic block; the ready content will not match its height.
+- **An empty state does not repeat the header's primary action.** Its description points to that action instead.
 - Empty and error states are `EmptyState variant="fill"` (`tone="error"` for failures), and loading is `Spinner fill`. The `narrow` body fills the page height, so they center below the header. Never pass an icon size or color; `EmptyState` fixes the icon at 32px.
 - Spacing around the app card belongs to `AppShell`, and the card surface is `MainCard`.
 
@@ -231,6 +234,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] Lists are `DataList`, settings are `SettingsGroup` > `SettingsContainer` > `SettingsRow`, and cards are not nested around rims
 - [ ] Status hues sit on icons; boxed messages are `Notice`
 - [ ] No section has a description line under its title
+- [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
 - [ ] No deprecated API appears in the diff
 - [ ] Anything this contract could not express was raised with Justin, not styled around
