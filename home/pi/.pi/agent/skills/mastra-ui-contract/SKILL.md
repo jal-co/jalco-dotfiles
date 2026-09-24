@@ -235,7 +235,7 @@ A create or edit form has two zones, decided from `/proto/contract` (Create page
   <TextFieldBlock name="name" label="Name" required placeholder="Support triage" />   {/* free text: stacked, full width */}
   <TextareaFieldBlock name="instructions" label="Instructions" required placeholder="You triage support tickets…" />
   <SettingsContainer>                                                                    {/* choices: rows */}
-    <SettingsRow label="Model"><Combobox className="w-72" … /></SettingsRow>
+    <SettingsRow label="Model" required errorMsg={errors.model}><Combobox className="w-72" … /></SettingsRow>
     <SettingsRow label="Memory"><Combobox options={withDescriptions} className="w-56" … /></SettingsRow>
     <SettingsRow label="Tools"><Combobox multiple className="w-56" … /></SettingsRow>
   </SettingsContainer>
@@ -250,7 +250,7 @@ A create or edit form has two zones, decided from `/proto/contract` (Create page
 - **Choices are rows**: every picker, select, switch, or multi-select goes in one `SettingsContainer` as `SettingsRow`s, label left and control right, the same anatomy as a settings page. A create form and its edit page then look identical, and choices stay compact instead of expanding into radio lists. Options that need explaining carry `Combobox` descriptions; multi-select is `Combobox multiple`.
 - **Actions follow the fields**, left-aligned, primary first, with no divider above them. Buttons follow `mastra-ui-copy` (the submit is the verb alone).
 - Fields are `gap-6` apart and labels sit 8px above controls; both come from `FieldBlock` and the parent `gap`, never local margins. No section labels inside a form of under 8 fields.
-- Known gaps: `SettingsRow` has no `required` marker, and an error under a row's control renders right-aligned. Until `SettingsRow` gains both, keep required choices in the rows and validate on submit.
+- Required choices use `SettingsRow required`, and validation uses `SettingsRow errorMsg` with `htmlFor`; the control points at the message with `aria-describedby={fieldErrorId(id)}` (unreleased; before the release that ships it, keep the message in local state and validate on submit). `Combobox` has no `error` prop yet, so its trigger does not turn red.
 - Rejected: one column with radios and checkboxes (radio lists grow with each option and hide option meaning in tooltips; option names alone did not tell Thread and Observational memory apart), and grouped cards per section (two framed cards around 5 fields added chrome without adding structure).
 
 ### Actions
