@@ -185,7 +185,7 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
 - **Cards**: a `Card` takes the same radius as `DataList`. Tabs inside a card header are `TabList variant="pill-ghost" size="sm"`, and each `TabContent` is `flush`. Do not stack several cards for what is one object with modes; use tabs inside one card. Do not wrap a `DataList` or a field in a `Card`, because each already has its own rim.
 - **Sections without a surface**: space them with `gap-*` on the parent (`gap-6` default, larger for a dashboard). A section needs a label, not a box.
 - **States never move the frame.** Loading, empty, error, and ready share the same breadcrumbs, `PageHeader`, header actions, `actionRow`, and routed tabs. Only the body changes. When one of these disappears in a state, everything below it jumps. On error, keep the `PageHeader`, with the route's ID as the title when the name failed to load; never drop to an `sr-only` `h1`.
-- **Static structure renders while data loads.** Section titles, row and field labels, card headers, tab lists, KPI labels, and column headers are known before the request returns, so they render immediately. Only data-driven parts load: a `Skeleton` sized to the control it replaces, `MetricsKpiCard.Loading` for a value, `DataListSkeleton` with the same `columns` and the expected row count, and a disabled picker that reads "Loading models…". Never replace a whole section with one generic block; the ready content will not match its height.
+- **Static structure renders while data loads.** Section titles, row and field labels, card headers, tab lists, KPI labels, and column headers are known before the request returns, so they render immediately. Only data-driven parts load: a `Skeleton` sized to the control it replaces, `MetricsKpiCard.Loading` for a value, `DataListSkeleton` with the same `columns` and the expected row count, and a disabled picker that reads "Loading models". Never replace a whole section with one generic block; the ready content will not match its height.
 - **An empty state does not repeat the header's primary action.** Its description points to that action instead.
 - Empty and error states are `EmptyState variant="fill"` (`tone="error"` for failures), and loading is `Spinner fill`. The `narrow` body fills the page height, so they center below the header. Never pass an icon size or color; `EmptyState` fixes the icon at 32px.
 - Spacing around the app card belongs to `AppShell`, and the card surface is `MainCard`.
@@ -234,7 +234,7 @@ A create or edit form has two zones, decided from `/proto/contract` (Create page
 ```tsx
 <form noValidate onSubmit={submit} className="flex max-w-160 flex-col gap-6">
   <TextFieldBlock name="name" label="Name" required placeholder="Support triage" />   {/* free text: stacked, full width */}
-  <TextareaFieldBlock name="instructions" label="Instructions" required placeholder="You triage support tickets…" />
+  <TextareaFieldBlock name="instructions" label="Instructions" required placeholder="You triage support tickets." />
   <SettingsContainer>                                                                    {/* choices: rows */}
     <SettingsRow label="Model" required errorMsg={errors.model}><Combobox className="w-72" … /></SettingsRow>
     <SettingsRow label="Memory"><Combobox options={withDescriptions} className="w-56" … /></SettingsRow>
