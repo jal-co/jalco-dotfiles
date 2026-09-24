@@ -226,6 +226,33 @@ Otherwise, one of a short fixed list                            -> Select
 - `SelectTrigger` and `Combobox` use the `default` variant, the same field surface as `Input`, so a select and a text field in one row read as the same kind of thing. `ghost` is only for dense toolbars and inline pickers. `primary` is not valid on a field, because a field is not a call to action.
 - `Tabs` use `pill-ghost` for page sub-views and card headers, where the surrounding surface already frames them. Use `pill` for a mode switch inside a panel body.
 
+### Forms
+
+A create or edit form has two zones, decided from `/proto/contract` (Create page, variant B):
+
+```tsx
+<form noValidate onSubmit={submit} className="flex max-w-160 flex-col gap-6">
+  <TextFieldBlock name="name" label="Name" required placeholder="Support triage" />   {/* free text: stacked, full width */}
+  <TextareaFieldBlock name="instructions" label="Instructions" required placeholder="You triage support tickets…" />
+  <SettingsContainer>                                                                    {/* choices: rows */}
+    <SettingsRow label="Model"><Combobox className="w-72" … /></SettingsRow>
+    <SettingsRow label="Memory"><Combobox options={withDescriptions} className="w-56" … /></SettingsRow>
+    <SettingsRow label="Tools"><Combobox multiple className="w-56" … /></SettingsRow>
+  </SettingsContainer>
+  <div className="flex gap-2">
+    <Button type="submit" variant="primary">Create</Button>
+    <Button type="button">Cancel</Button>
+  </div>
+</form>
+```
+
+- **Free text is stacked**: every text input and textarea is a `*FieldBlock`, full width, label above, in the order the user fills them. Free text needs width, and a row would squeeze it into the right half.
+- **Choices are rows**: every picker, select, switch, or multi-select goes in one `SettingsContainer` as `SettingsRow`s, label left and control right, the same anatomy as a settings page. A create form and its edit page then look identical, and choices stay compact instead of expanding into radio lists. Options that need explaining carry `Combobox` descriptions; multi-select is `Combobox multiple`.
+- **Actions follow the fields**, left-aligned, primary first, with no divider above them. Buttons follow `mastra-ui-copy` (the submit is the verb alone).
+- Fields are `gap-6` apart and labels sit 8px above controls; both come from `FieldBlock` and the parent `gap`, never local margins. No section labels inside a form of under 8 fields.
+- Known gaps: `SettingsRow` has no `required` marker, and an error under a row's control renders right-aligned. Until `SettingsRow` gains both, keep required choices in the rows and validate on submit.
+- Rejected: one column with radios and checkboxes (radio lists grow with each option and hide option meaning in tooltips; option names alone did not tell Thread and Observational memory apart), and grouped cards per section (two framed cards around 5 fields added chrome without adding structure).
+
 ### Actions
 
 ```text
@@ -311,6 +338,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] The breadcrumb bar holds only breadcrumbs and reference links (Docs, API endpoints); actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
 - [ ] Options that need explaining use `Combobox` descriptions
+- [ ] Forms stack free text, put choices in `SettingsRow`s, and end with left-aligned actions, primary first
 - [ ] Every visible string passes the `mastra-ui-copy` checklist
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
