@@ -208,7 +208,8 @@ Does the user filter a list on this page?
 
 - Prefer the `*FieldBlock` version. It wires `label`, `helpText`, `errorMsg`, `required`, and `aria-describedby` together, and hand-wiring those is how a field loses its accessible error. Use a bare `Input` only when something else already labels it: a `SettingsRow` with `htmlFor`, a table cell with `aria-label`, or an `InputGroup`.
 - `variant` is `default`. `unstyled` is only for a field inside a component that already draws the surface, such as a composer or chat textarea. `filled` is a deprecated alias for `default`. `outline` no longer exists.
-- Validation uses `error` plus `errorMsg`. Never recolor the border yourself.
+- Validation uses `error` plus `errorMsg`. Never recolor the border yourself. An error carries three signals: the red rim (`error`), the alert icon, and the message; `FieldBlock.ErrorMsg` draws the icon (#24987).
+- **Validate late, clear early.** Show a field's error on submit (or on blur after the first submit), never while the user types a first attempt. Once a field shows an error, re-validate it on change so the error clears the moment the input is fixed. The shift an error causes is then one the user triggered, which is allowed; the no-shift rule covers page states, not validation.
 - Never use `type="number"` with the browser spinner. For incrementing, compose `InputGroup` with minus and plus `InputGroupButton`s.
 
 ### Choices
@@ -250,7 +251,7 @@ A create or edit form has two zones, decided from `/proto/contract` (Create page
 - **Choices are rows**: every picker, select, switch, or multi-select goes in one `SettingsContainer` as `SettingsRow`s, label left and control right, the same anatomy as a settings page. A create form and its edit page then look identical, and choices stay compact instead of expanding into radio lists. Options that need explaining carry `Combobox` descriptions; multi-select is `Combobox multiple`.
 - **Actions follow the fields**, left-aligned, primary first, with no divider above them. Buttons follow `mastra-ui-copy` (the submit is the verb alone).
 - Fields are `gap-6` apart and labels sit 8px above controls; both come from `FieldBlock` and the parent `gap`, never local margins. No section labels inside a form of under 8 fields.
-- Required choices use `SettingsRow required`, and validation uses `SettingsRow errorMsg` with `htmlFor`; the control points at the message with `aria-describedby={fieldErrorId(id)}` (unreleased; before the release that ships it, keep the message in local state and validate on submit). `Combobox` has no `error` prop yet, so its trigger does not turn red.
+- Required choices use `SettingsRow required`, and validation uses `SettingsRow errorMsg` with `htmlFor`; the control points at the message with `aria-describedby={fieldErrorId(id)}` (unreleased; before the release that ships it, keep the message in local state and validate on submit). Inside a row, put the message on the row, not on the control, so it renders once.
 - Rejected: one column with radios and checkboxes (radio lists grow with each option and hide option meaning in tooltips; option names alone did not tell Thread and Observational memory apart), and grouped cards per section (two framed cards around 5 fields added chrome without adding structure).
 
 ### Actions
