@@ -74,7 +74,7 @@ Validation errors and destructive consequences are the only explanations that st
 | Validation | How to fix the input, not that it is wrong | `Give the agent a name, for example “Support triage”.` Never `Invalid input` or `This field is required`. |
 | Toast | Past tense, object first, no period | `API key created`, `Thread cloned`, `Settings saved` |
 | Progress | The -ing verb, no ellipsis | `Deploying`, `Linking branches`, `Loading models`, `Creating` (never `Loading...` or `Loading…`) |
-| Placeholder | A realistic example of good input, or `Search {things}…`. Never a question, never instructions, never a restated label. | Name `Support triage`; Instructions `You triage support tickets. Label each one by product area and urgency, reply in a short, friendly tone, and never promise refunds.`; `Search agents…`; picker `Choose a model…` |
+| Placeholder | A realistic example of good input, or `Search {things}`. Never a question, never instructions, never a restated label. | Name `Support triage`; Instructions `You triage support tickets. Label each one by product area and urgency, reply in a short, friendly tone, and never promise refunds.`; `Search agents`; picker `Choose a model` |
 
 A destructive confirmation is a title that asks (`Delete production-agent?`), a description that names the consequence and, only for permanent actions, `This cannot be undone.`, and a confirm button with the verb alone (`Delete`). The title already names the object.
 
@@ -88,7 +88,7 @@ A placeholder never replaces the label and never carries anything the user needs
 | Errors | Start with `Couldn’t` |
 | Irreversible actions | `This cannot be undone.`, on permanent actions only |
 | Terms | deploy · repository · API key · environment variable · docs · organization · canceled |
-| Ellipses | The single character `…`, never `...`. Use it for truncation (CSS `truncate`) and in `Search {things}…` and `Choose {thing}…` placeholders. Never on an action in progress: `Loading`, not `Loading…`. |
+| Ellipses | Only where text is shortened: CSS truncation (`truncate`) and abbreviated values such as IDs (`dpl_8f3a…`). Always the single character `…`, never `...`. Never on progress (`Loading`, not `Loading…`), placeholders (`Search agents`), or pickers (`Choose a model`). |
 | Apostrophes and quotes | Curly: `’`, `“ ”`. Type them in the source string. |
 | Dashes | No em dashes |
 | Exclamation marks | None |
@@ -123,7 +123,7 @@ Quantities and moments are shown in a short form that scans, with the exact valu
 - [ ] At most one page description; no section, row, or field descriptions
 - [ ] Each surviving explanation is in its one place from the placement table
 - [ ] Every string follows its surface pattern: verb-alone buttons, `Couldn’t` errors, past-tense toasts, -ing progress
-- [ ] No ellipsis on progress text; `…` (not `...`) only for truncation and search or picker placeholders; no em dashes or exclamation marks; curly apostrophes and quotes
+- [ ] `…` (never `...`) appears only where text is shortened: truncation and abbreviated IDs; never on progress, placeholders, or pickers; no em dashes or exclamation marks; curly apostrophes and quotes
 - [ ] Sentence case; periods only on full sentences
 - [ ] Terms match the list: deploy, repository, API key, environment variable, docs, organization, canceled
 - [ ] Quantities to scan use `CompactNumber` and every moment in time uses `RelativeTimestamp`, each with the exact value on hover; IDs, names, short counts, durations, and labels do not
