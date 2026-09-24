@@ -1,6 +1,6 @@
 ---
 name: mastra-ui-copy
-description: The words on screen in Mastra product UI - page descriptions, row and field text, tooltips, placeholders, button labels, empty and error states, and tone. Use with mastra-ui-contract whenever a Mastra UI change adds or edits visible text, or when reviewing copy. Triggers include "copy", "microcopy", "button label", "description", "tooltip text", "placeholder", "empty state text", "error message", "too much text", "repetitive", "meta text", "sounds like AI", and any Mastra UI work that writes words.
+description: The words on screen in Mastra product UI - page descriptions, row and field text, tooltips, placeholders, button labels, empty and error states, and tone. Use with mastra-ui-contract whenever a Mastra UI change adds or edits visible text, numbers, or timestamps, or when reviewing copy. Triggers include "copy", "microcopy", "button label", "description", "tooltip text", "placeholder", "empty state text", "error message", "too much text", "repetitive", "meta text", "sounds like AI", and any Mastra UI work that writes words.
 ---
 
 <overview>
@@ -64,13 +64,35 @@ Validation errors and destructive consequences are the only explanations that st
 
 Free-text fields whose expected content is not obvious get a short, realistic example of good input, not a restated label and not instructions: Name `Support triage`; Instructions `You triage support tickets. Label each one by product area and urgency, reply in a short, friendly tone, and never promise refunds.` A placeholder never replaces the label and never carries anything the user needs after typing starts, because it disappears then. Pickers use a verb (`Choose a model…`) or a state (`Loading models…`).
 
-## 5. Empty and error states
+## 5. Numbers and times
+
+Quantities and moments are shown in a short form that scans, with the exact value one hover away. Both components are unreleased (#24979, #25001) and ship after `@mastra/playground-ui` 58.0.0; before that, use the existing formatting in the surface and swap when they land.
+
+### CompactNumber
+
+- **Use for** KPI totals, chart axis ticks, dense metric cells, and money meant to scan fast.
+- **Never use for** IDs, model names, anything that is not a quantity, or counts that are already short (under 4 digits and readable). Those render as-is.
+- Surface: about 3 significant digits, compact: `12310` shows `12.3K`, `6000` shows `6K`.
+- Money: keep cents when the amount is small (`$4.37`); at 3 or more dollar digits, round to the dollar (`$128.40` shows `$128`).
+- Hover: the exact input with separators (`12,310`, `$1,284.17`), always, through the existing `Tooltip`. The component owns the tooltip; never add a second one.
+- Proportional type, not mono.
+- Pass the raw number plus an optional currency and locale. Never pass a pre-formatted string, because the tooltip needs the exact value.
+
+### RelativeTimestamp
+
+- **Use for** every displayed moment in time: deploys, activity, logs, created and updated.
+- **Never use for** durations or ranges that are not a point in time (`3.4s`, `p95 latency`), or for labels. In "Last updated 3m", only `3m` is the component; the label stays proportional text.
+- Surface: relative and monospace: `3m`, `1h`, `1d`, `2w`.
+- Hover: the precise time since (counting up), the viewer's local time, and UTC. The component owns this content through the existing `Tooltip`.
+- Pass a real `Date` or ISO string, plus an optional `className`. Never pass a pre-formatted string.
+
+## 6. Empty and error states
 
 - Say what happened and what to do next, with the real names and values: `Failed to load agents` / `The Mastra server at localhost:4111 returned 503 Service Unavailable.` Never `Something went wrong` or `Oops`.
 - An empty state explains the absence in one sentence and points to the way out. It does not repeat the header's primary action as a second button; the description points to it instead.
 - Validation errors say how to fix the input: `Give the agent a name, for example "Support triage".` Never `Invalid input` or `This field is required`.
 
-## 6. Tone
+## 7. Tone
 
 Plain, specific, and quiet. The interface states facts; it does not sell, apologize, or cheer. Never use exclamation marks, `please`, `simply`, `just`, `easily`, `seamlessly`, `powerful`, `unlock`, `get started with`, or `Oops`. Never use em dashes. Use numbers and names instead of adjectives (`3 environments`, not `several environments`). Run `emil-unslop-writing` over every sentence you write.
 
@@ -83,5 +105,6 @@ Plain, specific, and quiet. The interface states facts; it does not sell, apolog
 - [ ] No label or button repeats the page title's object; submit buttons are a verb
 - [ ] Free-text fields have an example placeholder
 - [ ] Errors and empty states name what happened and what to do, with real values
+- [ ] Quantities to scan use `CompactNumber` and every moment in time uses `RelativeTimestamp`, each with the exact value on hover; IDs, names, short counts, durations, and labels do not
 - [ ] Sentence case, `…` not `...`, no exclamation marks, no em dashes, no marketing words
 </quality-checklist>
