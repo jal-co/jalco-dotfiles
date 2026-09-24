@@ -188,7 +188,7 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
     | Memory: No memory, "Each run starts fresh." | cut | the name says it |
     | Notifications: Run failures, "Emails the owners when a run fails" | cut | the toggle's label is enough |
     | Input: "JSON matching the input schema" | cut | the validation error says it when it matters |
-    | Observational memory: "Uses an extra model call every 30k tokens." | keep | hidden cost |
+    | Observational memory: "Adds a model call every 30k tokens." | keep, as the option's `description` in the Memory `Combobox` menu | hidden cost, shown at the moment of choosing |
     | Temperature: "Higher values make output more varied." | keep | the setting's meaning is not obvious |
     | Signing key: "Only organization owners can rotate it." | keep | explains why it is view-only |
     | Connect: which transport to use | keep | a choice users get wrong |
@@ -221,6 +221,7 @@ Does the user filter a list on this page?
 
 - Prefer the `*FieldBlock` version. It wires `label`, `helpText`, `errorMsg`, `required`, and `aria-describedby` together, and hand-wiring those is how a field loses its accessible error. Use a bare `Input` only when something else already labels it: a `SettingsRow` with `htmlFor`, a table cell with `aria-label`, or an `InputGroup`.
 - `variant` is `default`. `unstyled` is only for a field inside a component that already draws the surface, such as a composer or chat textarea. `filled` is a deprecated alias for `default`. `outline` no longer exists.
+- **Free-text fields show an example as the placeholder.** Every text input and textarea where the expected content is not obvious gets a placeholder that is a short, realistic example of good input, not a restated label and not instructions: Name `Support triage`; Instructions `You triage support tickets. Label each one by product area and urgency, reply in a short, friendly tone, and never promise refunds.` A placeholder never replaces the label, and never carries anything the user needs after typing starts, because it disappears then. Pickers use a verb placeholder (`Choose a model…`), or a state (`Loading models…`) while options load.
 - Validation uses `error` plus `errorMsg`. Never recolor the border yourself.
 - Never use `type="number"` with the browser spinner. For incrementing, compose `InputGroup` with minus and plus `InputGroupButton`s.
 
@@ -235,6 +236,7 @@ One of many options, or options that need search?               -> Combobox
 Otherwise, one of a short fixed list                            -> Select
 ```
 
+- **Options that need explaining go in a picker, with the explanation inside the menu.** Use `Combobox` with each option's `description`; it renders as a second line under the option name, visible only while the user is choosing, and the closed field shows just the name. Never explain options with one tooltip on the field label (it cannot explain each option), with tooltips inside an open menu, or with always-visible lines under radio buttons. Radios and checkboxes are for options whose names explain themselves.
 - `SelectTrigger` and `Combobox` use the `default` variant, the same field surface as `Input`, so a select and a text field in one row read as the same kind of thing. `ghost` is only for dense toolbars and inline pickers. `primary` is not valid on a field, because a field is not a call to action.
 - `Tabs` use `pill-ghost` for page sub-views and card headers, where the surrounding surface already frames them. Use `pill` for a mode switch inside a panel body.
 
@@ -322,6 +324,7 @@ Badge, count pill, keycap?                         -> meta
 - [ ] A page with a title passes a compound `PageHeader` to `header`; nothing else renders an `h1`
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] The breadcrumb bar holds only breadcrumbs and reference links (Docs, API endpoints); actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
+- [ ] Free-text fields have an example placeholder; options that need explaining use `Combobox` descriptions
 - [ ] At most one page description in `PageHeader`; no section, row, or field descriptions; needed explanations are info-icon tooltips, and only validation errors stay inline
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
