@@ -33,7 +33,7 @@ Release status: Studio builds `playground-ui` from the workspace, so everything 
 1. Find the closest existing page in the same product area and open it. Note its shell, layout variant, header, toolbar, and control sizes. Use it as the reference.
 2. Choose the page frame with the layout tree.
 3. Choose each control with the control trees.
-4. Assign every piece of text a role with the text tree.
+4. Assign every piece of text a role with the text tree, and write it with `mastra-ui-copy`.
 5. Put `className` only on layout, per the restyling rules.
 6. If no tree branch fits, stop and propose a design-system change to Justin. Do not work around it.
 7. Walk the checklist, then verify the route in a browser at desktop and mobile widths.
@@ -177,22 +177,9 @@ Nothing to show, or a failure?        -> EmptyState variant="fill"
 ```
 
 - **Settings group**: `SettingsGroup` > `SettingsHeader` (`SettingsTitle`, optional `accessory` and `action`) > `SettingsContainer` > `SettingsRow label description` with the control as its child. Factory wraps the header in `SettingsSubsection` to add a scope badge; reuse that wrapper there, without its `description`.
-- **Write only what is needed.** Every line of explanatory text must tell the user something the label, title, or control does not: a consequence, a constraint, a schedule or unit, or why something is disabled or view-only. A line that restates a label ("Theme: Color scheme for the interface") or introduces a section is deleted, not moved. Section, row, and field descriptions are absent by default, and a section is its title and content. The one exception is the page: `PageHeader.Description` may hold one sentence saying what the page is for, because it orients the user once at the top instead of repeating on every block.
-- **When an explanation is needed, it goes in an info icon with a hover tooltip, not inline text.** Place the icon right after the thing it explains: a row label, a field label, a radio or checkbox label, or a card title. Page-level context goes in `PageHeader.Description`, not an icon. It is an `Info` icon at `Icon size="xs"` in a focusable trigger with an `aria-label` ("About run failures"), `quietTextHover`, and a `TooltipContent` under 240px. Two things stay inline because the user must see them without hovering: validation errors (`errorMsg`) and the consequence of a destructive action, which belongs in its confirmation dialog rather than the row.
-  - **The bar for a tooltip:** add one only when a user who never opens it would make a wrong or costly choice. Reassurance, and descriptions of an item whose name already says what it does, fail the bar and are deleted, not moved into a tooltip. Default to none.
-
-    | Candidate | Verdict | Why |
-    | --- | --- | --- |
-    | Model: "You can change the model after creating the agent." | cut | reassurance; the user picks either way |
-    | Tools: Web search, "Searches the public web" | cut | the name says it |
-    | Memory: No memory, "Each run starts fresh." | cut | the name says it |
-    | Notifications: Run failures, "Emails the owners when a run fails" | cut | the toggle's label is enough |
-    | Input: "JSON matching the input schema" | cut | the validation error says it when it matters |
-    | Observational memory: "Adds a model call every 30k tokens." | keep, as the option's `description` in the Memory `Combobox` menu | hidden cost, shown at the moment of choosing |
-    | Temperature: "Higher values make output more varied." | keep | the setting's meaning is not obvious |
-    | Signing key: "Only organization owners can rotate it." | keep | explains why it is view-only |
-    | Connect: which transport to use | keep | a choice users get wrong |
-  - There is no shared info-tip component yet; Studio hand-rolls it in 7 places. Until one exists, copy `request-context-label.tsx`, and propose the shared component rather than adding an eighth variant.
+- **Words follow `mastra-ui-copy`.** It decides whether a description, tooltip, placeholder, or button label is allowed and what it says. This file only covers the components that render them:
+  - Page context is `PageHeader.Description`. Rows, fields, and sections have no description lines.
+  - An explanation is an info icon: an `Info` icon at `Icon size="xs"` in a focusable `TooltipTrigger` with an `aria-label` ("About run failures"), `quietTextHover`, and a `TooltipContent` under 240px, placed right after the label it explains. There is no shared info-tip component yet; Studio hand-rolls it in 7 places. Until one exists, copy `request-context-label.tsx`, and propose the shared component rather than adding an eighth variant.
   - `SettingsRow` and `FieldBlock.Label` have no info slot. Pass the icon inside `label`; on a required field the asterisk then lands after the icon. Both are known gaps.
 - **Lists**: `DataList` owns the row hover (one gliding highlight shared with menus), sorting (`DataList.SortableTopCell`), and row links. Never paint `hover:bg-*` on a row or hand-roll a grid list. Filters go through `FilterBar`, not a row of selects.
 - **Cards**: a `Card` takes the same radius as `DataList`. Tabs inside a card header are `TabList variant="pill-ghost" size="sm"`, and each `TabContent` is `flush`. Do not stack several cards for what is one object with modes; use tabs inside one card. Do not wrap a `DataList` or a field in a `Card`, because each already has its own rim.
@@ -221,7 +208,6 @@ Does the user filter a list on this page?
 
 - Prefer the `*FieldBlock` version. It wires `label`, `helpText`, `errorMsg`, `required`, and `aria-describedby` together, and hand-wiring those is how a field loses its accessible error. Use a bare `Input` only when something else already labels it: a `SettingsRow` with `htmlFor`, a table cell with `aria-label`, or an `InputGroup`.
 - `variant` is `default`. `unstyled` is only for a field inside a component that already draws the surface, such as a composer or chat textarea. `filled` is a deprecated alias for `default`. `outline` no longer exists.
-- **Free-text fields show an example as the placeholder.** Every text input and textarea where the expected content is not obvious gets a placeholder that is a short, realistic example of good input, not a restated label and not instructions: Name `Support triage`; Instructions `You triage support tickets. Label each one by product area and urgency, reply in a short, friendly tone, and never promise refunds.` A placeholder never replaces the label, and never carries anything the user needs after typing starts, because it disappears then. Pickers use a verb placeholder (`Choose a model…`), or a state (`Loading models…`) while options load.
 - Validation uses `error` plus `errorMsg`. Never recolor the border yourself.
 - Never use `type="number"` with the browser spinner. For incrementing, compose `InputGroup` with minus and plus `InputGroupButton`s.
 
@@ -324,8 +310,8 @@ Badge, count pill, keycap?                         -> meta
 - [ ] A page with a title passes a compound `PageHeader` to `header`; nothing else renders an `h1`
 - [ ] The breadcrumb trail has the section crumb plus one crumb per route level below it
 - [ ] The breadcrumb bar holds only breadcrumbs and reference links (Docs, API endpoints); actions live in `ActionRow.End`, the tab row, or `PageHeader.Action`
-- [ ] Free-text fields have an example placeholder; options that need explaining use `Combobox` descriptions
-- [ ] At most one page description in `PageHeader`; no section, row, or field descriptions; needed explanations are info-icon tooltips, and only validation errors stay inline
+- [ ] Options that need explaining use `Combobox` descriptions
+- [ ] Every visible string passes the `mastra-ui-copy` checklist
 - [ ] Switching between loading, empty, error, and ready does not move the header, toolbar, tabs, or section titles
 - [ ] Empty, error, and loading states use `EmptyState variant="fill"` / `Spinner fill`
 - [ ] No deprecated API appears in the diff

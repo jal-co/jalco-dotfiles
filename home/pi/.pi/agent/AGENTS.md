@@ -73,7 +73,7 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
 | Orca worktrees, terminals, or embedded browser | `orca-cli`. The embedded browser does not replace frontend verification. |
-| Mastra work | `mastra-work`; before UI edits also load `mastra-ui-contract` and read `~/.pi/agent/mastra-design.md`. Every added or changed control, layout, and text element follows the contract. Load `mastra-control-migration` when editing a component under `playground-ui/src/ds/`. Human localhost approval remains required before UI publication. |
+| Mastra work | `mastra-work`; before UI edits also load `mastra-ui-contract` and `mastra-ui-copy` and read `~/.pi/agent/mastra-design.md`. Every added or changed control, layout, and text element follows the contract. Load `mastra-control-migration` when editing a component under `playground-ui/src/ds/`. Human localhost approval remains required before UI publication. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
 | Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, which loads both `plain-writing` and `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
 | Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and `rfc-xml-style`. |
