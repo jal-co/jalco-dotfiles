@@ -180,7 +180,7 @@ const noStatusBadge = defineRule({
 		type: "problem",
 		docs: { description: "State in rows and lists renders as Status; only the page's own state beside its title is a Badge." },
 		messages: {
-			badge: "A `Badge` with an `indicator` is showing state in a row or list. Use `Status` from `@mastra/playground-ui/components/StatusIndicators`; only the page's own state in `PageHeader.Meta beside` is a `Badge`.",
+			badge: "A `Badge` with an `indicator` is showing state in a row or list. Runtime state (a server, deploy, agent, or run) is `Status` from `@mastra/playground-ui/components/StatusIndicators`; a setting or record (Enabled, license, pending request) is a `Badge` without `indicator`.",
 		},
 	},
 	createOnce(context) {
