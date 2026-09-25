@@ -14,8 +14,7 @@ export default defineConfig({
       files: ["**/playground-ui/src/ds/**"],
       rules: {
         "mastra-ui/no-raw-h1": "off",
-        "shadcn/no-arbitrary-values": "off",
-        "shadcn/no-raw-colors": "off"
+        "mastra-ui/no-font-mono": "off"
       }
     }
   ],
@@ -31,6 +30,7 @@ export default defineConfig({
     "mastra-ui/inline-code": "error",
     "mastra-ui/no-legacy-page-frame": "error",
     "mastra-ui/no-number-input": "error",
+    "mastra-ui/no-font-mono": "error",
     "shadcn/no-arbitrary-values": "error",
     "shadcn/no-raw-colors": "error",
     "shadcn/no-restyle": [
@@ -40,17 +40,27 @@ export default defineConfig({
         "contracts": [
           {
             "pattern": "^Txt$",
-            "allow": ["layout", "truncate", "line-clamp-*", "break-*", "wrap-*", "whitespace-*", "text-pretty", "text-balance", "text-left", "text-center", "text-right", "tabular-nums", "uppercase"]
+            "allow": ["layout", "truncate", "line-clamp-*", "break-*", "wrap-*", "whitespace-*", "text-pretty", "text-balance", "text-left", "text-center", "text-right", "tabular-nums", "hover:text-*", "group-hover:text-*", "text-foreground/*", "text-muted-foreground/*"]
           },
           { "pattern": "^Skeleton$", "allow": ["layout", "rounded-*"] }
         ],
         "message": {
           "color": "\"{{className}}\" restyles <{{component}}>. On <Txt>, set ink with tone=\"ink\" | \"muted\" | \"faint\"; on other components, use a variant: {{variants|none defined}}.",
           "typography": "\"{{className}}\" restyles <{{component}}>. Pick a Txt variant (text role) or a {{component}} variant: {{variants|none defined}}.",
-          "spacing": "\"{{className}}\" changes <{{component}}> padding. Use a size ({{sizes|none defined}}), or put the surface and padding on a plain wrapper and margin or gap on the parent.",
-          "default": "\"{{className}}\" restyles <{{component}}>, which comes from @mastra/playground-ui. Use a variant ({{variants|none defined}}); if none fits, put the surface on a plain wrapper or raise it with the design system."
+          "spacing": "\"{{className}}\" changes <{{component}}> padding. Use a size ({{sizes|none defined}}); space around it with margin here or gap on the parent.",
+          "default": "\"{{className}}\" restyles <{{component}}>, which comes from @mastra/playground-ui. Use a variant ({{variants|none defined}}), a different design-system component, or composed parts. If none fits, stop and propose the variant; never paint a surface on a wrapper around it."
         }
       }
     ]
-  }
+  },
+  overrides: [
+    {
+      files: ["**/playground-ui/src/ds/**"],
+      rules: {
+        "mastra-ui/no-raw-h1": "off",
+        "mastra-ui/text-by-role": "off",
+        "mastra-ui/no-locale-format-in-jsx": "off"
+      }
+    }
+  ]
 });

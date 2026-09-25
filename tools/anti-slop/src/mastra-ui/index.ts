@@ -13,6 +13,10 @@ const RELATIVE_TIME_FORMATTERS = new Set([
 const LOCALE_FORMATTERS = new Set(["toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
 const FUNCTION_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"]);
 const CLASS_FUNCTIONS = new Set(["cn", "clsx", "cx", "twMerge", "twJoin", "classNames"]);
+const ROLE_CLASS = /(^|\s)text-(display|heading|subheading|body|body-sm|label|column|caption|meta)(?=\s|$)/;
+const ROLE_OVERRIDE = /(^|\s)(leading-\S+|tracking-\S+|font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black))(?=\s|$)/;
+const FONT_MONO = /(^|\s|:)font-mono(?=\s|$)/;
+const LEGACY_FRAMES = new Set(["PageShell", "PageFrame", "SettingsLayout", "MainHeader", "EntityHeader"]);
 const RAW_TEXT_SIZE = /(^|\s|:)text-(xs|sm|base|lg|xl|[2-9]xl)(?=\s|$)/;
 const THREE_DOTS = /\.\.\.(?!\w)/;
 const VAGUE_ERROR = /^\s*(Failed to|Something went wrong|Oops)\b/i;
@@ -207,6 +211,7 @@ const textByRole = defineRule({
 		docs: { description: "Text picks a role through Txt, never a raw size class." },
 		messages: {
 			size: "`{{size}}` picks text by size. Use `<Txt variant=…>` for the text's role; the role carries size, line-height, weight, and tracking together.",
+			override: "`{{name}}` overrides the text role next to it. The role already sets line-height, weight, and tracking; pick a different role instead.",
 		},
 	},
 	createOnce(context) {
@@ -215,11 +220,16 @@ const textByRole = defineRule({
 				if (node.name.type !== "JSXIdentifier" || node.name.name !== "className") return;
 				const opening = node.parent;
 				const name = opening ? elementName(opening) : undefined;
-				if (!name || name[0] !== name[0].toLowerCase()) return;
+				const plain = name !== undefined && name[0] === name[0].toLowerCase();
 				for (const value of classStrings(node.value)) {
-					const match = RAW_TEXT_SIZE.exec(value);
-					if (match) {
-						context.report({ node, messageId: "size", data: { size: `text-${match[2]}` } });
+					const size = plain ? RAW_TEXT_SIZE.exec(value) : null;
+					if (size) {
+						context.report({ node, messageId: "size", data: { size: `text-${size[2]}` } });
+						return;
+					}
+					const override = ROLE_CLASS.test(value) ? ROLE_OVERRIDE.exec(value) : null;
+					if (override) {
+						context.report({ node, messageId: "override", data: { name: override[2] } });
 						return;
 					}
 				}
@@ -268,14 +278,16 @@ const noLegacyPageFrame = defineRule({
 	meta: {
 		type: "problem",
 		docs: { description: "Pages use playground-ui PageLayout, not the legacy PageShell or PageFrame." },
-		messages: { frame: "`{{name}}` is the legacy page frame. Render playground-ui `PageLayout` with `PageHeader` in its `header` slot." },
+		messages: {
+			frame: "`{{name}}` is a legacy page frame or header. Render playground-ui `PageLayout` with `PageHeader` in its `header` slot (`narrow` for settings).",
+		},
 	},
 	createOnce(context) {
 		return {
 			ImportDeclaration(node) {
 				for (const specifier of node.specifiers) {
 					const name = specifier.local.name;
-					if (name === "PageShell" || name === "PageFrame") context.report({ node: specifier, messageId: "frame", data: { name } });
+					if (LEGACY_FRAMES.has(name)) context.report({ node: specifier, messageId: "frame", data: { name } });
 				}
 			},
 		};
@@ -301,6 +313,24 @@ const noNumberInput = defineRule({
 	},
 });
 
+const noFontMono = defineRule({
+	meta: {
+		type: "suggestion",
+		docs: { description: "Mono comes from the design system, never the font-mono class." },
+		messages: {
+			mono: "Drop `font-mono`. Identifiers, absolute times, and durations use `<Txt font=\"mono\">`; moments use `RelativeTimestamp`; code uses `InlineCode` or `CodeBlock`. Everything else is the body face.",
+		},
+	},
+	createOnce(context) {
+		return {
+			JSXAttribute(node) {
+				if (node.name.type !== "JSXIdentifier" || node.name.name !== "className") return;
+				if (classStrings(node.value).some((value) => FONT_MONO.test(value))) context.report({ node, messageId: "mono" });
+			},
+		};
+	},
+});
+
 const mastraUiPlugin = eslintCompatPlugin({
 	meta: { name: "mastra-ui" },
 	rules: {
@@ -315,6 +345,7 @@ const mastraUiPlugin = eslintCompatPlugin({
 		"inline-code": inlineCode,
 		"no-legacy-page-frame": noLegacyPageFrame,
 		"no-number-input": noNumberInput,
+		"no-font-mono": noFontMono,
 	},
 });
 
