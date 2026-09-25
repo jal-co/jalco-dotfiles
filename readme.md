@@ -98,7 +98,7 @@ Keep shared installs in one root so updates do not recreate divergent copies. Re
 
 A fresh clone does not contain the complete live environment. Private skills, licensed Emil skills, and Interface Craft require separate local provisioning. Symlinks to absent local-only skills can remain unresolved until those skills are installed. Do not force-add their contents to Git.
 
-Private skills include `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`, and `platform-settings-sections`. Personal design rules also remain local. `home/pi/PI.md` records the generating machine's inventory, including local-only skill names; it is not an installation manifest.
+Private skills include `write-like-justin`, `job-search`, `real-app`, and `plan-to-linear`. Personal design rules also remain local. `home/pi/PI.md` records the generating machine's inventory, including local-only skill names; it is not an installation manifest.
 
 Secrets such as `auth.json` and `home/zsh/.zshrc.local`, sessions, caches, dependency directories, compiled helpers, and retired skills are gitignored. See [`.gitignore`](.gitignore) for the exact exclusions.
 
