@@ -52,15 +52,5 @@ export default defineConfig({
         }
       }
     ]
-  },
-  overrides: [
-    {
-      files: ["**/playground-ui/src/ds/**"],
-      rules: {
-        "mastra-ui/no-raw-h1": "off",
-        "mastra-ui/text-by-role": "off",
-        "mastra-ui/no-locale-format-in-jsx": "off"
-      }
-    }
-  ]
+  }
 });
