@@ -44,6 +44,25 @@ function attributeString(node: Node, name: string): string | undefined {
 	return undefined;
 }
 
+function insidePageHeaderMeta(node: Node): boolean {
+	let current = node.parent;
+	while (current) {
+		if (current.type === "JSXElement") {
+			const name = current.openingElement.name;
+			if (
+				name.type === "JSXMemberExpression" &&
+				name.object.type === "JSXIdentifier" &&
+				name.object.name === "PageHeader" &&
+				name.property.name === "Meta"
+			) {
+				return true;
+			}
+		}
+		current = current.parent;
+	}
+	return false;
+}
+
 function isToastCall(node: Node | null): boolean {
 	if (node?.type !== "CallExpression") return false;
 	const callee = node.callee;
@@ -159,13 +178,16 @@ const noRawH1 = defineRule({
 const noStatusBadge = defineRule({
 	meta: {
 		type: "problem",
-		docs: { description: "Entity and run state renders as Status, never as a Badge." },
-		messages: { badge: "A `Badge` with an `indicator` is showing state. Use `Status` from `@mastra/playground-ui/components/StatusIndicators`." },
+		docs: { description: "State in rows and lists renders as Status; only the page's own state beside its title is a Badge." },
+		messages: {
+			badge: "A `Badge` with an `indicator` is showing state in a row or list. Use `Status` from `@mastra/playground-ui/components/StatusIndicators`; only the page's own state in `PageHeader.Meta beside` is a `Badge`.",
+		},
 	},
 	createOnce(context) {
 		return {
 			JSXOpeningElement(node) {
-				if (elementName(node) === "Badge" && hasAttribute(node, "indicator")) context.report({ node, messageId: "badge" });
+				if (elementName(node) !== "Badge" || !hasAttribute(node, "indicator") || insidePageHeaderMeta(node)) return;
+				context.report({ node, messageId: "badge" });
 			},
 		};
 	},
