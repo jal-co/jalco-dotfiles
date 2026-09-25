@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -x "$dir/node_modules/.bin/oxlint" ]; then
+  echo "shadcn-lint: dependencies missing; run: npm install --prefix $dir" >&2
+  exit 1
+fi
+target="${1:-.}"
+if [[ "$target" == -* ]]; then
+  root="$PWD"
+else
+  root="$(git -C "$(dirname "$target")" rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+cd "$root"
+if [ "$#" -eq 0 ]; then
+  set -- .
+fi
+exec "$dir/node_modules/.bin/oxlint" --config "$dir/shadcn-lint.config.ts" "$@"
