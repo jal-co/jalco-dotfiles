@@ -33,7 +33,13 @@ export default defineConfig({
             "allow": ["layout", "truncate", "line-clamp-*", "break-*", "wrap-*", "whitespace-*", "text-pretty", "text-balance", "text-left", "text-center", "text-right", "tabular-nums", "uppercase"]
           },
           { "pattern": "^Skeleton$", "allow": ["layout", "rounded-*"] }
-        ]
+        ],
+        "message": {
+          "color": "\"{{className}}\" restyles <{{component}}>. On <Txt>, set ink with tone=\"ink\" | \"muted\" | \"faint\"; on other components, use a variant: {{variants|none defined}}.",
+          "typography": "\"{{className}}\" restyles <{{component}}>. Pick a Txt variant (text role) or a {{component}} variant: {{variants|none defined}}.",
+          "spacing": "\"{{className}}\" changes <{{component}}> padding. Use a size ({{sizes|none defined}}), or put the surface and padding on a plain wrapper and margin or gap on the parent.",
+          "default": "\"{{className}}\" restyles <{{component}}>, which comes from @mastra/playground-ui. Use a variant ({{variants|none defined}}); if none fits, put the surface on a plain wrapper or raise it with the design system."
+        }
       }
     ]
   }
