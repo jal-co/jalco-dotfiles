@@ -9,6 +9,16 @@ export default defineConfig({
       note: "Mastra UI contract: design-system components take layout classes only."
     }
   },
+  overrides: [
+    {
+      files: ["**/playground-ui/src/ds/**"],
+      rules: {
+        "mastra-ui/no-raw-h1": "off",
+        "shadcn/no-arbitrary-values": "off",
+        "shadcn/no-raw-colors": "off"
+      }
+    }
+  ],
   rules: {
     "mastra-ui/no-relative-time-formatters": "error",
     "mastra-ui/no-three-dot-ellipsis": "error",
