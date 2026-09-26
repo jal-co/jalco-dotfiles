@@ -199,20 +199,17 @@ const section = p => {
   return `<section><header><h2>${esc(p.story)}</h2><span class=chip>${p.theme}</span><span class=pct>${p.label}</span><code>${p.id}</code><a href="${baseUrl}/?path=/story/${p.id}">main</a><a href="${branchUrl}/?path=/story/${p.id}">branch</a></header><div class=grid style="${p.mode === 'new' || (p.crop.w / dpr) * baseScale(p.crop) * 0.55 > 492 ? '' : `grid-template-columns:repeat(3,minmax(0,${Math.round((p.crop.w / dpr) * baseScale(p.crop))}px))`}">${cells}</div>${zoom}</section>`;
 };
 
-const cards = [
-  ...themes.map(t => `<div class=card><span>${t} changed</span><b>${counts[t].changed}</b><em>of ${counts[t].captured} stories${counts[t].errors ? `, ${counts[t].errors} not captured` : ''}</em></div>`),
-  stories.some(s => s.isNew) ? `<div class=card><span>new stories</span><b>${stories.filter(s => s.isNew).length}</b><em>branch only</em></div>` : '',
-].join('');
+const counts_line = [
+  ...themes.map(t => `${counts[t].changed} ${t}`),
+  ...(stories.some(s => s.isNew) ? [`${stories.filter(s => s.isNew).length} new`] : []),
+].join(' · ');
 
 writeFileSync(
   join(out, 'report.html'),
   `<!doctype html><meta charset=utf-8><title>${esc(title)} visual diff</title><style>
 :root{--bg:#08090a;--surface:#0e0f12;--border:rgba(255,255,255,.08);--text:#f7f8f8;--soft:#c7c9d1;--muted:#6f727c;--accent:#7170ff;--mono:ui-monospace,"SF Mono",Menlo,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Inter",sans-serif}
-.cover{padding:72px 48px 40px}.eyebrow{font:13px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-h1{font-size:56px;letter-spacing:-.03em;margin:12px 0}.refs{font:15px var(--mono);color:var(--muted)}.refs b{color:var(--accent);font-weight:400}
-.cards{display:flex;gap:16px;margin-top:32px}.card{flex:0 1 260px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 22px;display:flex;flex-direction:column}
-.card span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.card b{font-size:40px;letter-spacing:-.03em}.card em{font-style:normal;color:var(--soft);font-size:13px}
+.top{display:flex;gap:16px;align-items:baseline;padding:16px 48px;font-size:14px}.top span{font:12px var(--mono);color:var(--muted)}
 section{padding:28px 48px;border-top:1px solid var(--border)}
 header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}h2{font-size:20px;margin:0;letter-spacing:-.01em}
 .chip{font-size:12px;color:var(--soft);border:1px solid var(--border);border-radius:999px;padding:2px 10px;text-transform:capitalize}
@@ -224,7 +221,7 @@ figure{margin:0;min-width:0}
 figcaption{font:12px var(--mono);color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}section{break-inside:avoid;padding:16px 24px}}
 </style>
-<div class=cover><div class=eyebrow>Visual diff</div><h1>${esc(title)}</h1><div class=refs>${esc(baseLabel)} <b>→</b> ${esc(branchLabel)}</div><div class=cards>${cards}</div></div>
+<div class=top><b>${esc(title)}</b><span>${counts_line}</span><span>${esc(baseLabel)} → ${esc(branchLabel)}</span></div>
 ${pages.map(section).join('\n')}`,
 );
 console.log(`${pages.length} sections from ${stories.length} stories -> ${join(out, 'report.html')}`);
