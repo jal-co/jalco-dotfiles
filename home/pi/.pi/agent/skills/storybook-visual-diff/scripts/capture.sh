@@ -12,7 +12,7 @@ dims() { sips -g pixelWidth -g pixelHeight "$1" 2>/dev/null | awk '/pixel/{print
 run_shard() {
   local k=$1 ses="task-ui-vdiff-$THEME-$1" out="$OUT/.shard-$THEME-$1.tsv"
   : > "$out"
-  $TB --session "$ses" set viewport 1280 800 >/dev/null 2>&1
+  $TB --session "$ses" set viewport 1280 800 2 >/dev/null 2>&1
   awk -v n="$SHARDS" -v k="$k" 'NF && (NR-1)%n==k' "$IDS" | while read -r id; do
     local q="id=$id&viewMode=story&globals=theme:$THEME" b="$S/b-$THEME-$id.png" a="$S/a-$THEME-$id.png" d="$S/d-$THEME-$id.png"
     if ! grep -qx "$id" "$OUT/.base-ids-$THEME"; then
