@@ -9,7 +9,19 @@ if (!branchUrl) {
   process.exit(1);
 }
 
-const index = await fetch(`${branchUrl}/index.json`).then(r => r.json());
+const index = await fetch(`${branchUrl}/index.json`)
+  .then(r => r.json())
+  .catch(() => ({ entries: {} }));
+const pageUrls = existsSync(join(out, 'pages.tsv'))
+  ? Object.fromEntries(
+      readFileSync(join(out, 'pages.tsv'), 'utf8')
+        .trim()
+        .split('\n')
+        .map(l => l.split('\t'))
+        .map(([id, base, branch]) => [id, { base, branch }]),
+    )
+  : {};
+const links = id => pageUrls[id] ?? { base: `${baseUrl}/?path=/story/${id}`, branch: `${branchUrl}/?path=/story/${id}` };
 const storyName = id => {
   const e = index.entries[id];
   return e ? `${e.title.replace(/\//g, ' / ')} › ${e.name}` : id;
@@ -196,7 +208,7 @@ const section = p => {
   const zoom = p.zoom
     ? `<div class=grid style="grid-template-columns:repeat(2,minmax(0,${Math.round((p.zoom.w / dpr) * 2)}px))">${frame(p.zoom, 'main, zoomed to the change', view(p.base, p.zoom), 2)}${frame(p.zoom, 'branch, zoomed to the change', view(p.branch, p.zoom), 2)}</div>`
     : '';
-  return `<section><header><h2>${esc(p.story)}</h2><span class=chip>${p.theme}</span><span class=pct>${p.label}</span><code>${p.id}</code><a href="${baseUrl}/?path=/story/${p.id}">main</a><a href="${branchUrl}/?path=/story/${p.id}">branch</a></header><div class=grid style="${p.mode === 'new' || (p.crop.w / dpr) * baseScale(p.crop) * 0.55 > 492 ? '' : `grid-template-columns:repeat(3,minmax(0,${Math.round((p.crop.w / dpr) * baseScale(p.crop))}px))`}">${cells}</div>${zoom}</section>`;
+  return `<section><header><h2>${esc(p.story)}</h2><span class=chip>${p.theme}</span><span class=pct>${p.label}</span><code>${p.id}</code><a href="${links(p.id).base}">main</a><a href="${links(p.id).branch}">branch</a></header><div class=grid style="${p.mode === 'new' || (p.crop.w / dpr) * baseScale(p.crop) * 0.55 > 492 ? '' : `grid-template-columns:repeat(3,minmax(0,${Math.round((p.crop.w / dpr) * baseScale(p.crop))}px))`}">${cells}</div>${zoom}</section>`;
 };
 
 const counts_line = [
@@ -214,7 +226,7 @@ section{padding:28px 48px;border-top:1px solid var(--border)}
 header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}h2{font-size:20px;margin:0;letter-spacing:-.01em}
 .chip{font-size:12px;color:var(--soft);border:1px solid var(--border);border-radius:999px;padding:2px 10px;text-transform:capitalize}
 .pct{font:14px var(--mono);color:var(--accent)}code{font:12px var(--mono);color:var(--muted)}a{color:var(--muted);font-size:13px}a:hover{color:var(--text)}
-.grid{display:grid;grid-template-columns:minmax(0,max-content);gap:16px 12px;align-items:start}.grid+.grid{margin-top:16px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px 12px;align-items:start;justify-items:start}.grid+.grid{margin-top:16px}
 figure{margin:0;min-width:0}
 .crop{position:relative;overflow:hidden;background:#000;border:1px solid var(--border);border-radius:10px}
 .crop img{position:absolute;display:block;height:auto;max-width:none}.crop img.blend{mix-blend-mode:difference}
