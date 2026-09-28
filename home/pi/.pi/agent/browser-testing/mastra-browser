@@ -50,7 +50,7 @@ case "$command" in
     mv "$tmp" "$auth_state"
     printf '%s\n' "$auth_state"
     ;;
-  auth-import-dia)
+  auth-import-helium)
     printf 'Personal-browser auth import is disabled. Supply a scoped auth-state file or complete login in an isolated session.\n' >&2
     exit 1
     ;;

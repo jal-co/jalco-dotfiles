@@ -6,7 +6,7 @@ Read before frontend implementation, browser verification, capture, or localhost
 
 <rules>
 
-All browser automation MUST run in isolated headless Chromium, including screenshots, recordings, exploratory journeys, and repeatable tests. MUST NOT attach to personal browsers, import authentication through Dia, use OS mouse/keyboard control, or silently retry in headed mode. This prevents testing from interrupting Justin's work.
+All browser automation MUST run in isolated headless Chromium, including screenshots, recordings, exploratory journeys, and repeatable tests. MUST NOT attach to personal browsers, import authentication through Helium, use OS mouse/keyboard control, or silently retry in headed mode. This prevents testing from interrupting Justin's work.
 
 Agent Browser is the default driver. Jev is optional, off after startup or reload, and enabled only when Justin requests it with `/jev-browser on`. It MUST NOT gate direct Agent Browser commands. `/jev-browser off` disables it again. Headless isolation applies in both modes.
 
@@ -22,7 +22,7 @@ The helper uses the `pi-headless` namespace, derives one worktree-scoped session
 For Mastra authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-browser"`. This helper uses the same isolated launcher and seeds a new session from `~/.agent-browser/auth/mastra-platform.json` when present. If a protected route redirects to login:
 
 1. Run `"$BROWSER" auth-load`, reopen the protected route, and verify authentication.
-2. If the seed is missing or expired, stop and request a scoped state file or human login to the isolated session. MUST NOT obtain it by attaching to Dia or request credentials in chat. A review page opened in the personal browser does not authenticate the automation session.
+2. If the seed is missing or expired, stop and request a scoped state file or human login to the isolated session. MUST NOT obtain it by attaching to Helium or request credentials in chat. A review page opened in the personal browser does not authenticate the automation session.
 3. After the protected route succeeds, run `"$BROWSER" auth-save`. Auth state MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached.
 
 When using optional Jev, first prepare the session with the helper and pass `"$BROWSER" session` as `jev_browser.session`. Verify its results through the same helper. Unsupported actions MAY use direct isolated Agent Browser commands; they MUST NOT trigger desktop control.

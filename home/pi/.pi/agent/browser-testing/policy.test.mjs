@@ -14,7 +14,7 @@ test('launch settings cannot inherit a visible browser or personal attachment', 
     PATH: '/bin', AGENT_BROWSER_SESSION: 'my-task', AGENT_BROWSER_HEADED: 'true',
     AGENT_BROWSER_AUTO_CONNECT: 'true', AGENT_BROWSER_CDP: '9222',
     AGENT_BROWSER_PROFILE: 'Default', AGENT_BROWSER_ARGS: '--user-data-dir=personal',
-    AGENT_BROWSER_PROVIDER: 'ios', AGENT_BROWSER_EXECUTABLE_PATH: '/Applications/Dia',
+    AGENT_BROWSER_PROVIDER: 'ios', AGENT_BROWSER_EXECUTABLE_PATH: '/Applications/Helium.app',
     AGENT_BROWSER_PLUGINS: '[{}]', AGENT_BROWSER_CONFIG: '/tmp/unsafe.json',
     AGENT_BROWSER_NAMESPACE: 'personal', AGENT_BROWSER_ENGINE: 'safari',
   })
@@ -88,7 +88,7 @@ else if (process.env.TEST_FAIL) process.exit(7);
     assert.equal(invoke('task-browser', ['close', '--all']).status, 1)
     assert.equal(invoke('task-browser', ['snapshot'], { env: { ...env, TEST_FAIL: '1' } }).status, 7)
     assert.equal(invoke('mastra-browser', ['start', 'about:blank']).status, 0)
-    assert.equal(invoke('mastra-browser', ['auth-import-dia', 'https://example.com']).status, 1)
+    assert.equal(invoke('mastra-browser', ['auth-import-helium', 'https://example.com']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'javascript:alert(1)']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'https://user:pass@example.com']).status, 1)
   } finally {
