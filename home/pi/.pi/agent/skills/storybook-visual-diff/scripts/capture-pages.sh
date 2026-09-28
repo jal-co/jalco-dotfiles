@@ -12,6 +12,9 @@ shoot() {
   agent-browser --session "$ses" open "$url" >/dev/null 2>&1
   agent-browser --session "$ses" wait --load networkidle >/dev/null 2>&1
   sleep 2
+  case "$(agent-browser --session "$ses" get url 2>/dev/null | tail -1)" in
+    *signin*|*login*|*auth-kit*) [ "${url#*signin}" = "$url" ] && { rm -f "$file"; return 1; } ;;
+  esac
   agent-browser --session "$ses" screenshot "$file" >/dev/null 2>&1
 }
 
@@ -27,9 +30,10 @@ run_shard() {
   agent-browser --session "$ses" set media "$THEME" >/dev/null 2>&1
   awk -F'\t' -v n="$SHARDS" -v k="$k" 'NF>=3 && (NR-1)%n==k' "$PAGES" | while IFS=$'\t' read -r id base branch; do
     local b="$S/b-$THEME-$id.png" a="$S/a-$THEME-$id.png" d="$S/d-$THEME-$id.png"
+    rm -f "$b" "$a" "$d"
     shoot "$ses" "$base" "$b" || true
     shoot "$ses" "$branch" "$a" || true
-    if [ ! -s "$b" ] || [ ! -s "$a" ]; then printf '%s\tbase-error\t0\n' "$id" >> "$out"; continue; fi
+    if [ ! -s "$b" ] || [ ! -s "$a" ]; then printf '%s\tauth-or-capture-error\t0\n' "$id" >> "$out"; continue; fi
     if [ "$(dims "$b")" != "$(dims "$a")" ]; then printf '%s\tsize\t100\n' "$id" >> "$out"; continue; fi
     local r pct
     r=$(agent-browser --session "$ses" diff screenshot --baseline "$b" --output "$d" --threshold "$THRESHOLD" 2>&1)
