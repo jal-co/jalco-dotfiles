@@ -43,6 +43,17 @@ Script the interaction as one shell function and run it against both ports, so b
 
 </interactions>
 
+<apps>
+
+For running apps (Factory, Studio) instead of Storybook, run both versions side by side and use `scripts/capture-pages.sh <pages.tsv> <out> <theme> [shards=4] [threshold=0.02]`. `pages.tsv` has one line per page: `id<TAB>base-url<TAB>branch-url`. Keep it in `<out>` so the report links each entry to both URLs.
+
+- Serve the baseline app from the baseline worktree on its own port against the same backend as the branch, so both render identical data.
+- Authenticated apps: sign in once in a named task session, save that session's `localhost` cookies to a `0600` JSON file (`{"cookies": [...], "origins": []}`), and pass it as `VDIFF_STATE=<file>` so every shard starts signed in. Never read cookies from a personal browser.
+- Pages are captured as full 1440×900 viewports at scale 2. Timestamps, counts and live data show up as small diffs; call them out rather than treating them as regressions.
+- Before starting any backend with placeholder integration credentials, read what it does on boot and on page load. Factory deletes GitHub installations that GitHub answers with 404; block the provider's hosts (for example `NODE_USE_ENV_PROXY=1 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,127.0.0.1,.mastra.ai`) so those calls fail without a 404.
+
+</apps>
+
 <rules>
 
 - Every capture uses `~/.pi/agent/browser-testing/task-browser` with named `task-ui-vdiff-*` sessions. Never use the default session or a personal browser.
