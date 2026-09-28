@@ -206,9 +206,9 @@ const section = p => {
             : frame(p.crop, 'overlay (bright = moved)', view(p.base, p.crop) + view(p.branch, p.crop, '', true)),
         ].join('');
   const zoom = p.zoom
-    ? `<div class=grid style="grid-template-columns:repeat(2,minmax(0,${Math.round((p.zoom.w / dpr) * 2)}px))">${frame(p.zoom, 'main, zoomed to the change', view(p.base, p.zoom), 2)}${frame(p.zoom, 'branch, zoomed to the change', view(p.branch, p.zoom), 2)}</div>`
+    ? `<div class=grid style="grid-template-columns:repeat(2,minmax(0,1fr))">${frame(p.zoom, 'main, zoomed to the change', view(p.base, p.zoom), 2)}${frame(p.zoom, 'branch, zoomed to the change', view(p.branch, p.zoom), 2)}</div>`
     : '';
-  return `<section><header><h2>${esc(p.story)}</h2><span class=chip>${p.theme}</span><span class=pct>${p.label}</span><code>${p.id}</code><a href="${links(p.id).base}">main</a><a href="${links(p.id).branch}">branch</a></header><div class=grid style="${p.mode === 'new' || (p.crop.w / dpr) * baseScale(p.crop) * 0.55 > 492 ? '' : `grid-template-columns:repeat(3,minmax(0,${Math.round((p.crop.w / dpr) * baseScale(p.crop))}px))`}">${cells}</div>${zoom}</section>`;
+  return `<section><header><h2>${esc(p.story)}</h2><span class=chip>${p.theme}</span><span class=pct>${p.label}</span><code>${p.id}</code><a href="${links(p.id).base}">main</a><a href="${links(p.id).branch}">branch</a></header><div class=grid style="${p.mode === 'new' ? '' : (p.crop.w / dpr) * baseScale(p.crop) * 0.55 > 492 ? 'grid-template-columns:repeat(2,minmax(0,1fr))' : `grid-template-columns:repeat(3,minmax(0,${Math.round((p.crop.w / dpr) * baseScale(p.crop))}px))`}">${cells}</div>${zoom}</section>`;
 };
 
 const counts_line = [
