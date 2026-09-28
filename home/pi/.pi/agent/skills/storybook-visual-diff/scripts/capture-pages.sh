@@ -14,6 +14,7 @@ shoot() {
   sleep 2
   case "$(agent-browser --session "$ses" get url 2>/dev/null | tail -1)" in
     *signin*|*login*|*auth-kit*) [ "${url#*signin}" = "$url" ] && { rm -f "$file"; return 1; } ;;
+    chrome-error:*) rm -f "$file"; return 1 ;;
   esac
   agent-browser --session "$ses" screenshot "$file" >/dev/null 2>&1
 }
