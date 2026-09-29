@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
 
 const HIDDEN_STATUS_KEYS = new Set([
@@ -105,6 +105,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
+		ctx.ui.setEditorComponent((tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings, { embedWorkingStatus: false }));
 		mode = loadBusyIndicatorMode();
 		latestUI = ctx.ui;
 		if (!wrappedContexts.has(ctx.ui)) {
