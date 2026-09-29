@@ -38,6 +38,5 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `npm:@plannotator/pi-extension`
 - `npm:@jalco/pi-herdr-worktree`
 - `npm:pi-web-access`
-- `npm:@ryan_nookpi/pi-extension-codex-fast-mode`
-- `npm:pi-codex-multi`
+- `npm:pi-chatgpt-pool`
 - `git:github.com/DietrichGebert/ponytail`
