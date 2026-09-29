@@ -6,7 +6,6 @@ import { formatProviderIcon, formatTokens } from "./lib/footer-format.js";
 export default function providerStatus(pi: ExtensionAPI): void {
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
-		ctx.ui.setWorkingVisible(false);
 		ctx.ui.setFooter((_tui, theme, footerData) => {
 			return {
 				invalidate() {},
