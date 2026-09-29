@@ -4,15 +4,15 @@
     "keepRecentTokens": 48000
   },
   "defaultModel": "gpt-5.6-sol",
-  "defaultProvider": "openai-codex",
+  "defaultProvider": "chatgpt",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
     "anthropic/claude-opus-5-5",
     "anthropic/claude-sonnet-5",
     "anthropic/claude-fable-5-1",
-    "openai-codex/gpt-6-astra",
+    "chatgpt/gpt-6-astra",
     "deepseek/deepseek-flash",
-    "openai-codex/gpt-6-sol"
+    "chatgpt/gpt-6-sol"
   ],
   "enableSkillCommands": true,
   "extensions": [
@@ -20,7 +20,7 @@
   ],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.99.0",
+  "lastChangelogVersion": "0.99.1",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
@@ -45,8 +45,6 @@
     "npm:@plannotator/pi-extension",
     "npm:@jalco/pi-herdr-worktree",
     "npm:pi-web-access",
-    "npm:@ryan_nookpi/pi-extension-codex-fast-mode",
-    "npm:pi-codex-multi",
     {
       "source": "git:github.com/DietrichGebert/ponytail",
       "extensions": [
@@ -56,7 +54,8 @@
         "+skills/ponytail-review/SKILL.md"
       ]
     },
-    "npm:@narumitw/pi-btw"
+    "npm:@narumitw/pi-btw",
+    "npm:pi-chatgpt-pool"
   ],
   "quietStartup": true,
   "showCacheMissNotices": true,
@@ -64,5 +63,6 @@
   "theme": "geist-dark",
   "warnings": {
     "anthropicExtraUsage": false
-  }
+  },
+  "deviceId": "73764b9c-24f9-428a-b66a-94eb83173d65"
 }

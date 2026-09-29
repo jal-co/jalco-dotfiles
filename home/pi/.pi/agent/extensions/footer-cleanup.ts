@@ -6,7 +6,6 @@ const HIDDEN_STATUS_KEYS = new Set([
 	"codex-micro",
 	"mcp",
 	"mcp-auth",
-	"multi-pass",
 	"provider-model",
 	"skills-perms",
 	"time-tracker",
