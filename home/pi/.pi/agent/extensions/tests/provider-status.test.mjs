@@ -27,7 +27,7 @@ test("custom footer leaves the native working indicator visible", async (t) => {
 	assert.equal(setWorkingVisible.mock.callCount(), 0);
 });
 
-test("working status stays above the input rather than inside its border", async (t) => {
+test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 	t.mock.timers.enable({ apis: ["setTimeout"] });
 	const handlers = new Map();
 	const setEditorComponent = t.mock.fn();
@@ -41,10 +41,15 @@ test("working status stays above the input rather than inside its border", async
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
 	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui });
 	const factory = setEditorComponent.mock.calls[0].arguments[0];
-	const editor = factory({ requestRender() {} }, { borderColor: (text) => text }, { matches: () => false });
-	assert.notEqual(editor.embedWorkingStatus, true);
+	const editor = factory({ terminal: { rows: 40 }, requestRender() {} }, { borderColor: (text) => text }, { matches: () => false });
+	assert.equal(editor.embedWorkingStatus, true);
+	editor.setWorkingStatusIndicator({ renderInBorder: () => "⠋ 2s", renderSpinnerInBorder: () => "⠋" });
 	editor.setText("my next prompt");
 	assert.equal(editor.getText(), "my next prompt");
+	const lines = editor.render(48);
+	assert.ok(lines[0].startsWith("╭") && lines[0].includes("⠋ 2s"));
+	assert.equal(lines.length, 4);
+	assert.equal(lines[2], "│" + " ".repeat(46) + "│");
 	await handlers.get("session_shutdown")();
 });
 
@@ -53,7 +58,7 @@ test("wrapped input preserves column widths, cursor, and mouse coordinates", () 
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: (text) => text },
 		{ matches: () => false },
-		{ paddingX: 2, embedWorkingStatus: false },
+		{ paddingX: 2, embedWorkingStatus: true },
 	);
 	editor.setPaddingX(0);
 	assert.equal(editor.getPaddingX(), 2);
@@ -81,7 +86,7 @@ test("autocomplete stays below the frame and retains keyboard selection", async 
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: identity, selectList: { selectedPrefix: identity, selectedText: identity, description: identity, scrollInfo: identity, noMatch: identity } },
 		{ matches: () => false },
-		{ paddingX: 2, embedWorkingStatus: false },
+		{ paddingX: 2, embedWorkingStatus: true },
 	);
 	editor.setAutocompleteProvider({
 		getSuggestions: () => ({ items: [{ value: "hello", label: "hello" }, { value: "help", label: "help" }], prefix: "/" }),
@@ -100,6 +105,15 @@ test("autocomplete stays below the frame and retains keyboard selection", async 
 	editor.handleInput("\x1b[B");
 	editor.handleInput("\r");
 	assert.equal(onSubmit.mock.calls[0].arguments[0], "/help");
+	editor.setText("/");
+	editor.handleInput("\t");
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	const mouseLines = editor.render(48);
+	const mouseBottom = mouseLines.findIndex((line) => line.startsWith("╰"));
+	editor.handleMouse({ type: "click", button: "left", x: 3, y: mouseBottom, width: 48, height: mouseLines.length });
+	assert.equal(onSubmit.mock.callCount(), 1);
+	editor.handleMouse({ type: "click", button: "left", x: 3, y: mouseBottom + 2, width: 48, height: mouseLines.length });
+	assert.equal(editor.getText(), "/help");
 });
 
 test("elapsed timer survives continuation and stops on settle, shutdown, and restart", async (t) => {

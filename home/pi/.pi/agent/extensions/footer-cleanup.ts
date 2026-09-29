@@ -1,5 +1,6 @@
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
+import type { TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
 
 const HIDDEN_STATUS_KEYS = new Set([
 	"pi-agentation",
@@ -16,6 +17,7 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 
 export class FramedEditor extends CustomEditor {
 	private bottomBorder = "";
+	private bottomRow = 0;
 
 	setPaddingX(padding: number): void {
 		super.setPaddingX(Math.max(2, padding));
@@ -35,10 +37,15 @@ export class FramedEditor extends CustomEditor {
 	render(width: number): string[] {
 		const lines = super.render(width);
 		if (width < 5) return lines;
-		const bottom = lines.indexOf(this.bottomBorder);
+		this.bottomRow = lines.indexOf(this.bottomBorder);
 		const side = this.borderColor("│");
-		for (let row = 1; row < bottom; row++) lines[row] = side + lines[row].slice(1, -1) + side;
+		for (let row = 1; row < this.bottomRow; row++) lines[row] = side + lines[row].slice(1, -1) + side;
+		lines.splice(this.bottomRow, 0, side + " ".repeat(width - 2) + side);
 		return lines;
+	}
+
+	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+		return super.handleMouse(event.width >= 5 && event.y > this.bottomRow ? { ...event, y: event.y - 1 } : event);
 	}
 }
 
@@ -154,7 +161,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 		stopWorkingTimer();
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => new FramedEditor(tui, theme, keybindings, { paddingX: 2, embedWorkingStatus: false }));
+		ctx.ui.setEditorComponent((tui, theme, keybindings) => new FramedEditor(tui, theme, keybindings, { paddingX: 2, embedWorkingStatus: true }));
 		mode = loadBusyIndicatorMode();
 		latestUI = ctx.ui;
 		if (!wrappedContexts.has(ctx.ui)) {
