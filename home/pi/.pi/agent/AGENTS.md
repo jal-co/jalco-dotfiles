@@ -27,12 +27,11 @@ Personal defaults across projects. Repository instructions take precedence, near
 - MUST confirm before force pushes, hard resets, recursive deletes, history rewrites, running schema migrations, or dropping data. An implementation request does not authorize destructive operations.
 - MUST NOT expose or commit secrets. Use environment variables, untracked local files, or a secret manager.
 - Keep every change within the request. Preserve unrelated work and report unrelated problems. Avoid speculative abstractions, dependencies, configuration, retries, and fallbacks; handle failures inherent to the requested behavior.
-- Mastra frontend work MUST default to `playground-ui` components. Extend their composable APIs when needed; create a new shared component for demonstrated reuse across multiple locations. MUST NOT change existing component token definitions, values, or assignments, or bypass them with local styling overrides, unless Justin explicitly authorizes that token change. Follow `~/.pi/agent/mastra-design.md`.
 - Check native runtime solutions before adding dependencies. Ask before adding or upgrading animation dependencies. Flag legacy choices without migrating them unless requested.
 - Before diagnosing application code, restart a stale or unreachable development server only when it belongs to this task. Ask before restarting a shared or unrelated service.
 - Browser automation MUST use `$HOME/.pi/agent/browser-testing/task-browser` (or the Mastra wrapper) for isolated headless Agent Browser. MUST NOT attach to personal browsers, import auth from Helium, use desktop input, or fall back to headed testing.
 - MUST preserve personal browser tabs, profile, authentication, window state, and desktop focus. For an opinion or sign-off, MAY open the exact review URL in the background with `task-browser review <url>`; MUST NOT activate the app or automate that review tab. If background opening is unavailable, provide the link.
-- MUST NOT request reviewers or create issues without explicit permission. Never create GitHub issues in Mastra repositories. Publication requires user authorization; creating a PR does not authorize merging it.
+- MUST NOT request reviewers or create issues without explicit permission. Publication requires user authorization; creating a PR does not authorize merging it.
 - MUST NOT create, update, reply to, resolve, or delete Linear comments without explicit permission for that specific action. A request to coordinate, implement an issue, or work in Linear does not grant comment permission.
 
 ### Comments
@@ -73,7 +72,7 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
 | Orca worktrees, terminals, or embedded browser | `orca-cli`. The embedded browser does not replace frontend verification. |
-| Mastra work | `mastra-work`; before UI edits also load `mastra-ui-contract` and `mastra-ui-copy` and read `~/.pi/agent/mastra-design.md`. Every added or changed control, layout, and text element follows the contract. Load `building-playground-components` when creating a component under `playground-ui/src/ds/`, and `mastra-control-migration` when editing an existing one. Human localhost approval remains required before UI publication. |
+| Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
 | Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, which loads both `plain-writing` and `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
 | Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and `rfc-xml-style`. |
