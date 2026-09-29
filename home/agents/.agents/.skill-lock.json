@@ -172,15 +172,6 @@
       "installedAt": "2026-07-22T17:15:27.075Z",
       "updatedAt": "2026-07-22T17:15:27.075Z"
     },
-    "make-interfaces-feel-better": {
-      "source": "jakubkrehel/make-interfaces-feel-better",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/make-interfaces-feel-better.git",
-      "skillPath": "skills/make-interfaces-feel-better/SKILL.md",
-      "skillFolderHash": "e880ad90e8a0a8384f5cfae2cdd6a854e2de5d89",
-      "installedAt": "2026-07-22T18:26:09.041Z",
-      "updatedAt": "2026-09-14T16:45:16.564Z"
-    },
     "component-engineering": {
       "source": "igorwarzocha/opencode-workflows",
       "sourceType": "github",
@@ -270,15 +261,6 @@
       "skillFolderHash": "ebd864919dd8cab9d7049fc624c9afeebce2767c",
       "installedAt": "2026-09-14T12:22:26.044Z",
       "updatedAt": "2026-09-14T12:22:26.044Z"
-    },
-    "break": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/break/SKILL.md",
-      "skillFolderHash": "7a748aa03499cc6974278099154358596c3635c9",
-      "installedAt": "2026-09-14T16:45:23.798Z",
-      "updatedAt": "2026-09-14T16:45:23.798Z"
     },
     "transitions-dev": {
       "source": "Jakubantalik/transitions.dev",
@@ -450,6 +432,15 @@
       "skillFolderHash": "f74624ceadcde459b4fe07fb8a0ea1c1e97967a0",
       "installedAt": "2026-09-28T18:42:21.872Z",
       "updatedAt": "2026-09-28T18:42:21.872Z"
+    },
+    "explain-interface": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
+      "skillPath": "skills/explain-interface/SKILL.md",
+      "skillFolderHash": "1d56e70e250e711690fdf95baa04546d9ad36020",
+      "installedAt": "2026-09-29T15:56:17.532Z",
+      "updatedAt": "2026-09-29T15:56:17.532Z"
     }
   },
   "dismissed": {
