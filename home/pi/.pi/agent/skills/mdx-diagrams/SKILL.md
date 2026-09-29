@@ -34,9 +34,11 @@ Every diagram is one `<Diagram>` call. The component draws the frame, title, pad
 | `{{text}}` | faint | illegible-by-design samples, empty glyphs, inner dashed lines |
 | `!!text!!` | red | the failing or before values in a before/after comparison |
 | `++text++` | green | the improvement or delta in a before/after comparison |
+| `[[[text]]]`, `!!!text!!!`, `+++text+++` | blue, red, or green text on a tinted block | the single cell the reader must see first |
+| ` @mark`, ` @bad`, ` @good` at the end of a line | tinted band across the whole row | the one row that carries the conclusion |
 | `---` alone on a line | full-width dashed separator | under headers, above totals |
 
-Markup characters take no width. Align columns by the visible text only.
+Markup characters and row markers take no width. Align columns by the visible text only. Row markers go after the last column so the source stays aligned.
 
 ## Choose the pattern
 
@@ -55,6 +57,7 @@ What is the reader comparing?
 - Left-align text columns. Right-align number columns, and right-align their headers over them. Use thousands separators and one unit per column (`16m`, `7.8 min`, not both).
 - Titles are 1 to 4 words, written in sentence case in the prop. The component uppercases them.
 - Use at most one accent treatment per diagram. The title is already blue; a second blue meaning makes the reader decode a legend.
+- Fill at most one row and one cell per diagram. A fill says "look here first"; two of them compete.
 - Red and green are only for before/after results: `!!` on what failed or got worse, `++` on the delta. Every red or green value needs a neighbor that says what it is compared with, and never color a row that did not change.
 - Never put readable content in `{{faint}}`. Its contrast is about 2:1; it exists to show text you are not supposed to read.
 - Box-drawing corners and `■ □ ◂ ▸` must be single-width in the site's monospace font. If a glyph renders wider, the right border drifts; swap it for ASCII.

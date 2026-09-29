@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { colors, layout } from "./Diagram.tsx";
+import { layout, segmentStyle } from "./Diagram.tsx";
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -18,9 +18,13 @@ if (!values.title || !input || !output) {
 
 const escape = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const css = (style: Record<string, unknown>) =>
+  Object.entries(style)
+    .map(([key, value]) => `${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${value}`)
+    .join(";");
 const source = input === "-" ? await Bun.stdin.text() : await Bun.file(input).text();
 const rows = layout(values.title, source)
-  .map((line) => line.map((s) => `<span style="color:${colors[s.tone]}">${escape(s.text)}</span>`).join(""))
+  .map((line) => line.map((s) => `<span style="${css(segmentStyle(s))}">${escape(s.text)}</span>`).join(""))
   .join("\n");
 
 const html = `<!doctype html><meta charset="utf-8"><style>

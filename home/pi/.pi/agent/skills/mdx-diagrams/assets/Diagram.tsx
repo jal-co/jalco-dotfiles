@@ -1,11 +1,15 @@
 import type { CSSProperties, ReactNode } from "react";
 
 type Tone = "fg" | "accent" | "muted" | "faint" | "frame" | "bad" | "good";
-type Segment = { text: string; tone: Tone };
+type Fill = "accent" | "bad" | "good";
+type Segment = { text: string; tone: Tone; fill?: Fill };
 type Line = Segment[];
 
 const PAD = 4;
-const MARKUP = /\[\[(.+?)\]\]|\(\((.+?)\)\)|\{\{(.+?)\}\}|!!(.+?)!!|\+\+(.+?)\+\+/g;
+const MARKUP =
+  /\[\[\[(.+?)\]\]\]|!!!(.+?)!!!|\+\+\+(.+?)\+\+\+|\[\[(.+?)\]\]|\(\((.+?)\)\)|\{\{(.+?)\}\}|!!(.+?)!!|\+\+(.+?)\+\+/g;
+const ROW_FILL = /\s+@(mark|bad|good)$/;
+const ROW_FILLS: Record<string, Fill> = { mark: "accent", bad: "bad", good: "good" };
 
 export const colors: Record<Tone, string> = {
   fg: "var(--diagram-fg, #bdb8ae)",
@@ -17,13 +21,25 @@ export const colors: Record<Tone, string> = {
   good: "var(--diagram-good, #57ab5a)",
 };
 
+export function segmentStyle({ tone, fill }: Segment): CSSProperties {
+  if (!fill) return { color: colors[tone] };
+  return {
+    color: colors[tone],
+    background: `color-mix(in srgb, ${colors[fill]} 18%, transparent)`,
+    display: "inline-block",
+  };
+}
+
 function parse(row: string): Line {
   const line: Line = [];
   let last = 0;
   for (const match of row.matchAll(MARKUP)) {
     if (match.index > last) line.push({ text: row.slice(last, match.index), tone: "fg" });
-    const [, accent, muted, faint, bad, good] = match;
-    if (accent !== undefined) line.push({ text: accent, tone: "accent" });
+    const [, accentBlock, badBlock, goodBlock, accent, muted, faint, bad, good] = match;
+    if (accentBlock !== undefined) line.push({ text: accentBlock, tone: "accent", fill: "accent" });
+    else if (badBlock !== undefined) line.push({ text: badBlock, tone: "bad", fill: "bad" });
+    else if (goodBlock !== undefined) line.push({ text: goodBlock, tone: "good", fill: "good" });
+    else if (accent !== undefined) line.push({ text: accent, tone: "accent" });
     else if (muted !== undefined) line.push({ text: muted, tone: "muted" });
     else if (faint !== undefined) line.push({ text: faint, tone: "faint" });
     else if (bad !== undefined) line.push({ text: bad, tone: "bad" });
@@ -49,8 +65,13 @@ function dedent(source: string) {
 
 export function layout(title: string, source: string): Line[] {
   const rows = dedent(source);
-  const body = rows.map((row) => (row === "---" ? null : parse(row)));
-  const contentWidth = Math.max(title.length + 4, ...body.map((line) => (line ? width(line) : 0)));
+  const body = rows.map((row) => {
+    if (row === "---") return null;
+    const marker = row.match(ROW_FILL);
+    if (!marker) return { line: parse(row) };
+    return { line: parse(row.slice(0, marker.index).trimEnd()), fill: ROW_FILLS[marker[1]] };
+  });
+  const contentWidth = Math.max(title.length + 4, ...body.map((row) => (row ? width(row.line) : 0)));
   let inner = contentWidth + PAD * 2;
   if (inner % 2 === 0) inner += 1;
 
@@ -69,13 +90,15 @@ export function layout(title: string, source: string): Line[] {
       frame(gap + "- ".repeat(right) + "+"),
     ],
     blank(),
-    ...body.map((line) =>
-      line
+    ...body.map((row) =>
+      row
         ? [
             frame("|"),
-            { text: " ".repeat(PAD), tone: "fg" as Tone },
-            ...line,
-            { text: " ".repeat(inner - PAD - width(line)), tone: "fg" as Tone },
+            ...[
+              { text: " ".repeat(PAD), tone: "fg" as Tone },
+              ...row.line,
+              { text: " ".repeat(inner - PAD - width(row.line)), tone: "fg" as Tone },
+            ].map((segment) => (row.fill ? { ...segment, fill: row.fill } : segment)),
             frame("|"),
           ]
         : [frame("|" + dashes(inner) + "|")],
@@ -113,7 +136,7 @@ export function Diagram({ title, children }: { title: string; children: string }
             {line.map((segment, i) => (
               <span
                 key={i}
-                style={{ color: colors[segment.tone] }}
+                style={segmentStyle(segment)}
                 aria-hidden={segment.tone === "frame" || undefined}
               >
                 {segment.text}
