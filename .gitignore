@@ -41,12 +41,12 @@ AGENTS.md
 
 # Secrets & auth
 home/pi/.pi/agent/auth.json
+home/pi/.pi/agent/mcp-auth.json
 home/pi/.pi/agent/compact-adviser.json
 home/pi/.pi/agent/compact-adviser-requests.jsonl
 
-# MCP caches (regenerated at runtime)
-home/pi/.pi/agent/mcp-cache.json
-home/pi/.pi/agent/mcp-npx-cache.json
+# MCP plugin downloads
+home/pi/.pi/agent/mcp-plugins/
 
 # Sessions (ephemeral, large)
 home/pi/.pi/agent/sessions/
@@ -86,7 +86,6 @@ home/pi/.pi/agent/prompts/jobs.md
 home/pi/.pi/agent/update-cache.json
 home/pi/.pi/agent/cursor-sdk*.json
 home/pi/.pi/agent/models-store.json
-home/pi/.pi/agent/mcp-onboarding.json
 home/pi/.pi/agent/pi-codex-conversion.json
 home/pi/.pi/agent/run-history.jsonl
 home/pi/.pi/agent/settings.json.bak
@@ -94,7 +93,6 @@ home/pi/.pi/agent/state/
 home/pi/.pi/worktrees/
 home/pi/.pi/web-search-cache/
 home/pi/.pi/agent/trust.json
-home/pi/.pi/agent/mcp-oauth/
 home/pi/.pi/agent/git/
 home/pi/.pi/agent/npm/
 home/pi/.pi/cache/

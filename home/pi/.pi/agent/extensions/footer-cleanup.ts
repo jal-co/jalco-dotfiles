@@ -132,7 +132,6 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 	pi.on("agent_start", deferClear);
 	pi.on("tool_execution_end", deferClear);
 	pi.on("agent_settled", deferClear);
-	pi.events.on("pi-mcp-adapter/status/v1", deferClear);
 	pi.on("session_shutdown", async () => {
 		clearStatuses();
 		latestUI = undefined;

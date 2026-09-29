@@ -1,8 +1,4 @@
 {
-  "settings": {
-    "toolPrefix": "server",
-    "idleTimeout": 10
-  },
   "mcpServers": {
     "blender": {
       "command": "/opt/homebrew/bin/uvx",
@@ -19,12 +15,10 @@
       }
     },
     "natural": {
-      "url": "https://mcp.natural.com",
-      "auth": "oauth"
+      "url": "https://mcp.natural.com"
     },
     "granola": {
-      "url": "https://mcp.granola.ai/mcp",
-      "auth": "oauth"
+      "url": "https://mcp.granola.ai/mcp"
     },
     "figma": {
       "url": "http://127.0.0.1:3845/mcp"
@@ -41,30 +35,22 @@
       "args": [
         "-y",
         "exa-mcp-server"
-      ],
-      "env": {
-        "EXA_API_KEY": "${EXA_API_KEY}"
-      }
+      ]
     },
     "linear": {
-      "url": "https://mcp.linear.app/mcp",
-      "auth": "oauth"
+      "url": "https://mcp.linear.app/mcp"
     },
     "posthog-flags": {
-      "url": "https://mcp.posthog.com/mcp?features=flags",
-      "auth": "oauth"
+      "url": "https://mcp.posthog.com/mcp?features=flags"
     },
     "posthog-read": {
-      "url": "https://mcp.posthog.com/mcp?readonly=true",
-      "auth": "oauth"
+      "url": "https://mcp.posthog.com/mcp?readonly=true"
     },
     "posthog": {
-      "url": "https://mcp.posthog.com/mcp",
-      "auth": "oauth"
+      "url": "https://mcp.posthog.com/mcp"
     },
     "notion": {
-      "url": "https://mcp.notion.com/mcp",
-      "auth": "oauth"
+      "url": "https://mcp.notion.com/mcp"
     },
     "typefully": {
       "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"

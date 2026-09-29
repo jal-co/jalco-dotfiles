@@ -23,7 +23,6 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `npm:@juicesharp/rpiv-args`
 - `npm:pi-annotate`
 - `npm:pi-goal-x`
-- `npm:pi-mcp-adapter`
 - `npm:pi-notify`
 - `npm:pi-tool-display`
 - `npm:pi-updater`

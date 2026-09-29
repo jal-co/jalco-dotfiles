@@ -48,7 +48,6 @@ pi/.pi/agent/
 
 ### Packages
 
-- `pi-mcp-adapter` — MCP adapter/proxy for connecting MCP servers to pi
 - `pi-subagents` — subagent orchestration
 - `pi-goal-x` — goal mode: persistent objectives, `/goal-set`, Sisyphus style, status overlay
 - `context-mode` — context management
@@ -69,7 +68,7 @@ pi/.pi/agent/
 
 ## MCP
 
-[Exa](https://exa.ai) for web search and research, managed with `pi-mcp-adapter`. Servers from Claude Code are also imported via `imports: ["claude-code"]` in `mcp.json`.
+Servers live in `mcp.json` and use pi's built-in MCP support. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`.
 
 ```bash
 # Auth
@@ -147,7 +146,6 @@ Runtime state (`auth.json`, `mcp-cache.json`, `sessions/`), binaries (`bin/`, `j
 ## Acknowledgments
 
 - [pi](https://github.com/badlogic/pi-mono) by [badlogic](https://github.com/badlogic)
-- [pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) by [nicobailon](https://github.com/nicobailon)
 - [pi-annotate](https://github.com/nicobailon/pi-annotate) by [nicobailon](https://github.com/nicobailon)
 - [IgorWarzocha](https://github.com/IgorWarzocha) — pi-rfc-keywords, pi-agent-manager, component-engineering, security skills
 - [impeccable](https://github.com/designcomputer/impeccable) — frontend design skill
