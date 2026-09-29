@@ -7,6 +7,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     title: { type: "string" },
+    accent: { type: "string" },
     font: { type: "string", default: '"JetBrains Mono", "GeistMono Nerd Font", "Geist Mono", ui-monospace, Menlo, monospace' },
   },
 });
@@ -29,7 +30,7 @@ const rows = layout(values.title, source)
 
 const html = `<!doctype html><meta charset="utf-8"><style>
   body { margin: 0; background: #121211; }
-  figure { display: inline-block; margin: 0; padding: 72px 80px; background: #121211; }
+  figure { display: inline-block; margin: 0; padding: 72px 80px; background: #121211;${values.accent ? ` --diagram-accent: ${values.accent};` : ""} }
   pre { margin: 0; font: 16px/1.9 ${values.font}; letter-spacing: 0.02em; }
 </style><figure><pre>${rows}</pre></figure>`;
 
