@@ -71,6 +71,7 @@ bun ~/.pi/agent/skills/mdx-diagrams/assets/export.ts --title "Taste, explained" 
 ```
 
 - Content syntax is identical to the MDX body; pass `-` to read stdin.
+- `--accent '#ffffff'` swaps the accent color (title, `[[ ]]`, `[[[ ]]]`) for this export only.
 - It renders at 2x through the isolated task browser and crops to the figure, so the font is baked into the image. `--font '"Family", monospace'` overrides the default stack (JetBrains Mono, then Geist Mono).
 - Always open the PNG and check it against the Verify list before handing it over. The browser may silently fall back to another monospace font if the requested one is not installed.
 
