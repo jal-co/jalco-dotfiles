@@ -1,5 +1,5 @@
 {
 	"footer-cleanup": {
-		"busyIndicator": "dot"
+		"busyIndicator": "spinner"
 	}
 }
