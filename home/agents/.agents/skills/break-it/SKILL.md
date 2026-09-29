@@ -1,6 +1,6 @@
 ---
 name: break-it
-description: Try to break a feature you just built by feeding the running app worst-case data through its real inputs, such as huge lists, long names, unusual emails, emoji labels, and hostile strings, then report every surface that visibly broke. Use when the user asks to "break it", "try to break this", "stress test", "throw bad data at it", "worst case", "edge cases", "fill it with junk", or "what happens with 500 items". For one component rendered in isolation, use `break` instead.
+description: Try to break a feature you just built by feeding the running app worst-case data through its real inputs, such as huge lists, long names, unusual emails, emoji labels, and hostile strings, then report every surface that visibly broke. Use when the user asks to "break it", "try to break this", "stress test", "throw bad data at it", "worst case", "edge cases", "fill it with junk", or "what happens with 500 items".
 ---
 
 # Break It
