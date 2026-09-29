@@ -22,7 +22,7 @@ Every diagram is one `<Diagram>` call. The component draws the frame, title, pad
 
 1. Search the project for an existing `Diagram` export (`rg "export function Diagram"`). If it exists, use it and skip to Content.
 2. Otherwise copy `assets/Diagram.tsx` from this skill into the project's MDX components folder and register `Diagram` wherever the project maps MDX components (`mdx-components.tsx`, an `MDXProvider`, or the `components` prop). Never add a dependency; the component needs only React.
-3. Override colors with the CSS variables `--diagram-bg`, `--diagram-fg`, `--diagram-muted`, `--diagram-faint`, `--diagram-frame`, `--diagram-accent` when the site has its own palette. Change the defaults in the file only when the project has no tokens.
+3. Override colors with the CSS variables `--diagram-bg`, `--diagram-fg`, `--diagram-muted`, `--diagram-faint`, `--diagram-frame`, `--diagram-accent`, `--diagram-bad`, `--diagram-good` when the site has its own palette. Change the defaults in the file only when the project has no tokens.
 
 ## Content syntax
 
@@ -32,6 +32,8 @@ Every diagram is one `<Diagram>` call. The component draws the frame, title, pad
 | `[[text]]` | accent blue | the one thing to compare, filled glyphs, box corners |
 | `((text))` | muted | column headers, captions under grids |
 | `{{text}}` | faint | illegible-by-design samples, empty glyphs, inner dashed lines |
+| `!!text!!` | red | the failing or before values in a before/after comparison |
+| `++text++` | green | the improvement or delta in a before/after comparison |
 | `---` alone on a line | full-width dashed separator | under headers, above totals |
 
 Markup characters take no width. Align columns by the visible text only.
@@ -53,6 +55,7 @@ What is the reader comparing?
 - Left-align text columns. Right-align number columns, and right-align their headers over them. Use thousands separators and one unit per column (`16m`, `7.8 min`, not both).
 - Titles are 1 to 4 words, written in sentence case in the prop. The component uppercases them.
 - Use at most one accent treatment per diagram. The title is already blue; a second blue meaning makes the reader decode a legend.
+- Red and green are only for before/after results: `!!` on what failed or got worse, `++` on the delta. Every red or green value needs a neighbor that says what it is compared with, and never color a row that did not change.
 - Never put readable content in `{{faint}}`. Its contrast is about 2:1; it exists to show text you are not supposed to read.
 - Box-drawing corners and `■ □ ◂ ▸` must be single-width in the site's monospace font. If a glyph renders wider, the right border drifts; swap it for ASCII.
 

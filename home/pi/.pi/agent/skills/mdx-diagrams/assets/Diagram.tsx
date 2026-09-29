@@ -1,11 +1,11 @@
 import type { CSSProperties, ReactNode } from "react";
 
-type Tone = "fg" | "accent" | "muted" | "faint" | "frame";
+type Tone = "fg" | "accent" | "muted" | "faint" | "frame" | "bad" | "good";
 type Segment = { text: string; tone: Tone };
 type Line = Segment[];
 
 const PAD = 4;
-const MARKUP = /\[\[(.+?)\]\]|\(\((.+?)\)\)|\{\{(.+?)\}\}/g;
+const MARKUP = /\[\[(.+?)\]\]|\(\((.+?)\)\)|\{\{(.+?)\}\}|!!(.+?)!!|\+\+(.+?)\+\+/g;
 
 export const colors: Record<Tone, string> = {
   fg: "var(--diagram-fg, #bdb8ae)",
@@ -13,6 +13,8 @@ export const colors: Record<Tone, string> = {
   muted: "var(--diagram-muted, #8a867f)",
   faint: "var(--diagram-faint, #4e4c48)",
   frame: "var(--diagram-frame, #3a3936)",
+  bad: "var(--diagram-bad, #e5534b)",
+  good: "var(--diagram-good, #57ab5a)",
 };
 
 function parse(row: string): Line {
@@ -20,10 +22,12 @@ function parse(row: string): Line {
   let last = 0;
   for (const match of row.matchAll(MARKUP)) {
     if (match.index > last) line.push({ text: row.slice(last, match.index), tone: "fg" });
-    const [, accent, muted, faint] = match;
+    const [, accent, muted, faint, bad, good] = match;
     if (accent !== undefined) line.push({ text: accent, tone: "accent" });
     else if (muted !== undefined) line.push({ text: muted, tone: "muted" });
-    else line.push({ text: faint, tone: "faint" });
+    else if (faint !== undefined) line.push({ text: faint, tone: "faint" });
+    else if (bad !== undefined) line.push({ text: bad, tone: "bad" });
+    else line.push({ text: good, tone: "good" });
     last = match.index + match[0].length;
   }
   if (last < row.length) line.push({ text: row.slice(last), tone: "fg" });
