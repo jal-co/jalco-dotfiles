@@ -14,6 +14,34 @@ const HIDDEN_STATUS_KEYS = new Set([
 const wrappedContexts = new WeakSet<object>();
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+export class FramedEditor extends CustomEditor {
+	private bottomBorder = "";
+
+	setPaddingX(padding: number): void {
+		super.setPaddingX(Math.max(2, padding));
+	}
+
+	protected renderTopBorder(width: number, hiddenLineCount: number): string {
+		if (width < 5) return super.renderTopBorder(width, hiddenLineCount);
+		return this.borderColor("╭") + super.renderTopBorder(width - 2, hiddenLineCount) + this.borderColor("╮");
+	}
+
+	protected renderBottomBorder(width: number, hiddenLineCount: number): string {
+		if (width < 5) return super.renderBottomBorder(width, hiddenLineCount);
+		this.bottomBorder = this.borderColor("╰") + super.renderBottomBorder(width - 2, hiddenLineCount) + this.borderColor("╯");
+		return this.bottomBorder;
+	}
+
+	render(width: number): string[] {
+		const lines = super.render(width);
+		if (width < 5) return lines;
+		const bottom = lines.indexOf(this.bottomBorder);
+		const side = this.borderColor("│");
+		for (let row = 1; row < bottom; row++) lines[row] = side + lines[row].slice(1, -1) + side;
+		return lines;
+	}
+}
+
 type StatusColor = "accent" | "dim" | "error" | "muted" | "success" | "warning";
 type Colorize = (color: StatusColor, text: string) => string;
 export type BusyIndicatorMode = "default" | "dot" | "none" | "pulse" | "spinner";
@@ -61,6 +89,26 @@ export function formatPonytailStatus(value: string, colorize: Colorize): string 
 export default function footerCleanup(pi: ExtensionAPI): void {
 	let latestUI: ExtensionUIContext | undefined;
 	let mode = loadBusyIndicatorMode();
+	let workingTimer: ReturnType<typeof setInterval> | undefined;
+
+	function stopWorkingTimer(): void {
+		if (workingTimer) clearInterval(workingTimer);
+		workingTimer = undefined;
+		latestUI?.setWorkingMessage();
+	}
+
+	function startWorkingTimer(): void {
+		if (!latestUI || workingTimer) return;
+		const ui = latestUI;
+		const startedAt = Date.now();
+		const update = () => {
+			const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+			ui.setWorkingMessage(seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`);
+		};
+		update();
+		workingTimer = setInterval(update, 1000);
+		workingTimer.unref();
+	}
 
 	function clearStatuses(): void {
 		if (!latestUI) return;
@@ -104,8 +152,9 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		if (!ctx.hasUI) return;
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings, { embedWorkingStatus: false }));
+		if (ctx.mode !== "tui") return;
+		stopWorkingTimer();
+		ctx.ui.setEditorComponent((tui, theme, keybindings) => new FramedEditor(tui, theme, keybindings, { paddingX: 2, embedWorkingStatus: false }));
 		mode = loadBusyIndicatorMode();
 		latestUI = ctx.ui;
 		if (!wrappedContexts.has(ctx.ui)) {
@@ -129,10 +178,17 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		setTimeout(clearStatuses, 250);
 	});
 
-	pi.on("agent_start", deferClear);
+	pi.on("agent_start", () => {
+		startWorkingTimer();
+		deferClear();
+	});
 	pi.on("tool_execution_end", deferClear);
-	pi.on("agent_settled", deferClear);
+	pi.on("agent_settled", () => {
+		stopWorkingTimer();
+		deferClear();
+	});
 	pi.on("session_shutdown", async () => {
+		stopWorkingTimer();
 		clearStatuses();
 		latestUI = undefined;
 	});
