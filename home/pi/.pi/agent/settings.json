@@ -20,7 +20,7 @@
   ],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.87.1",
+  "lastChangelogVersion": "0.99.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
@@ -30,7 +30,6 @@
     "npm:@juicesharp/rpiv-args",
     "npm:pi-annotate",
     "npm:pi-goal-x",
-    "npm:pi-mcp-adapter",
     "npm:pi-notify",
     "npm:pi-tool-display",
     "npm:pi-updater",

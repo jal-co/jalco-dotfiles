@@ -11,8 +11,8 @@ Web search, crawling, code context, and deep research via the Exa MCP server (`e
 
 - **MCP server:** `exa-mcp-server` (npm, stdio transport)
 - **Config:** `~/.pi/agent/mcp.json` → `mcpServers.exa`
-- **Auth:** `EXA_API_KEY` in `~/.zshrc.local`, interpolated via `${EXA_API_KEY}`
-- **Mode:** Proxy (accessed through the `mcp` gateway tool)
+- **Auth:** none configured (free tier). To add a key, set `EXA_API_KEY` in `~/.zshrc.local` and add `"env": { "EXA_API_KEY": "${EXA_API_KEY}" }` to the server entry.
+- **Mode:** Built-in MCP, `codemode` exposure. Tools are `mcp__exa__<tool>`, called from `codemode` scripts.
 
 ## When to Use
 
@@ -24,20 +24,14 @@ Web search, crawling, code context, and deep research via the Exa MCP server (`e
 
 ## Available Tools
 
-Access all tools through the `mcp` gateway:
-
-```
-mcp({ server: "exa" })           # List available tools
-mcp({ search: "exa" })           # Search for exa tools
-mcp({ describe: "tool_name" })   # Show tool details
-```
+Call tools from a `codemode` script. Use `searchTools("exa")` or `describeTool("mcp__exa__<tool>")` to see what the server exposes; `pi mcp list` shows the live list.
 
 ### web_search_exa (default, enabled)
 
 Search the web for any topic. Returns clean text content from top results.
 
 ```
-mcp({ tool: "web_search_exa", args: '{"query": "latest AI agent frameworks", "numResults": 5}' })
+await tools.mcp__exa__web_search_exa({"query": "latest AI agent frameworks", "numResults": 5})
 ```
 
 | Parameter | Required | Description |
@@ -53,7 +47,7 @@ mcp({ tool: "web_search_exa", args: '{"query": "latest AI agent frameworks", "nu
 Find code examples, documentation, and programming solutions from GitHub, Stack Overflow, and docs.
 
 ```
-mcp({ tool: "get_code_context_exa", args: '{"query": "React useState hook examples", "tokensNum": 10000}' })
+await tools.mcp__exa__get_code_context_exa({"query": "React useState hook examples", "tokensNum": 10000})
 ```
 
 | Parameter | Required | Description |
@@ -66,7 +60,7 @@ mcp({ tool: "get_code_context_exa", args: '{"query": "React useState hook exampl
 Get the full content of a specific webpage from a known URL.
 
 ```
-mcp({ tool: "crawling_exa", args: '{"url": "https://example.com/docs"}' })
+await tools.mcp__exa__crawling_exa({"url": "https://example.com/docs"})
 ```
 
 | Parameter | Required | Description |
@@ -114,7 +108,7 @@ Keep calling check until status is `completed`.
 - Verify `EXA_API_KEY` is set: `echo $EXA_API_KEY`
 - Run `source ~/.zshrc.local`
 - Restart Pi
-- Check: `mcp({ server: "exa" })`
+- Check: `pi mcp list`
 
 ### Rate limit errors (429)
 - Free plan has rate limits. Ensure you're using your own API key.
@@ -123,4 +117,4 @@ Keep calling check until status is `completed`.
 ### Tools not appearing
 - Restart Pi after config changes
 - Verify `~/.pi/agent/mcp.json` is valid JSON
-- Try `mcp({ connect: "exa" })` to force reconnect
+- Reconnect from `/mcp`, or run `/mcp reconnect exa`

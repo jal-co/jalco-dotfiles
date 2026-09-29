@@ -244,14 +244,13 @@ Often you want both:
 ## MCP Guidance for Skills
 
 Going forward:
-- prefer Pi MCP support through `pi-mcp-adapter`
+- use Pi's built-in MCP support (see the `mcp-management` skill)
 - configure MCP servers in `~/.pi/agent/mcp.json`
 - put auth in `~/.zshrc.local`
 - use `${VAR}` interpolation in `mcp.json`
 - do **not** recommend MCPorter as the default path
 
 If documenting an MCP-backed workflow, mention:
-- how to install `pi-mcp-adapter`
 - where MCP config lives
 - where auth lives
 - whether the skill is standalone or depends on a live MCP server
@@ -328,14 +327,10 @@ If the task involves an MCP server, prefer creating:
 
 Recommended flow:
 
-1. Install adapter if needed:
-   ```bash
-   pi install npm:pi-mcp-adapter
-   ```
-2. Append auth to `~/.zshrc.local` with `echo 'export ...' >> ~/.zshrc.local`
-3. Run `source ~/.zshrc.local`
-4. Add server config to `~/.pi/agent/mcp.json`
-5. Create a skill documenting:
+1. Append auth to `~/.zshrc.local` with `echo 'export ...' >> ~/.zshrc.local`
+2. Run `source ~/.zshrc.local`
+3. Add server config with `pi mcp add` or in `~/.pi/agent/mcp.json`, then check it with `pi mcp list`
+4. Create a skill documenting:
    - what the MCP server does
    - when to use it
    - required env vars

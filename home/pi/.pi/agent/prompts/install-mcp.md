@@ -1,5 +1,5 @@
 ---
-description: Install and configure an MCP server in Pi using pi-mcp-adapter, ~/.pi/agent/mcp.json, and env-based auth in ~/.zshrc.local
+description: Install and configure an MCP server in Pi using built-in MCP, ~/.pi/agent/mcp.json, and env-based auth in ~/.zshrc.local
 argument-hint: <server-name-or-package>
 ---
 
@@ -21,25 +21,21 @@ Follow this workflow exactly:
      ```bash
      source ~/.zshrc.local
      ```
-3. Ensure Pi is using `pi-mcp-adapter`:
-   - if missing, install with:
-     ```bash
-     pi install npm:pi-mcp-adapter
-     ```
-4. Add or update the MCP server entry in:
-   - `~/.pi/agent/mcp.json`
-5. Use `${VAR}` interpolation in `mcp.json` for any auth/config values from shell env.
-6. Prefer proxy mode by default; only add `directTools` if there is a clear reason.
+3. Add the server with `pi mcp add`, or edit `~/.pi/agent/mcp.json` directly for fields the command does not cover.
+4. Use `${VAR}` interpolation in `mcp.json` for any auth/config values from shell env. For OAuth servers, run `pi mcp login <name>` instead.
+5. Keep the default `codemode` exposure; only set `"exposure": "direct"` if there is a clear reason.
+6. Run `pi mcp list` and fix any errors it reports.
 7. If helpful, create or update a skill documenting:
    - what the MCP server does
    - when to use it
    - required env vars
    - common workflows
    - troubleshooting
-8. Summarize exactly what changed, including file paths.
+8. Tell the user to run `/reload`.
+9. Summarize exactly what changed, including file paths.
 
 Constraints:
-- Do **not** use MCPorter.
+- Do **not** use MCPorter or install `pi-mcp-adapter`; it disables built-in MCP.
 - Do **not** generate standalone CLIs from MCP servers.
 - Do **not** put long-lived secrets directly into `mcp.json` when env vars can be used.
 - Prefer editing `~/.pi/agent/mcp.json` over ad-hoc local config files.
@@ -52,7 +48,7 @@ Useful target files:
 - `~/.pi/agent/skills/pi-skills/SKILL.md`
 
 Expected output:
-- installed/verified `pi-mcp-adapter`
+- `pi mcp list` passing for the new server
 - updated `~/.pi/agent/mcp.json`
 - appended env vars to `~/.zshrc.local` if needed
 - clear final summary with exact paths and next steps
