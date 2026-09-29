@@ -29,6 +29,13 @@
     "figma": {
       "url": "http://127.0.0.1:3845/mcp"
     },
+    "figma-bridge": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gethopp/figma-mcp-bridge"
+      ]
+    },
     "exa": {
       "command": "npx",
       "args": [
@@ -64,6 +71,24 @@
     },
     "paper": {
       "url": "http://127.0.0.1:29979/mcp"
+    },
+    "cloudflare-docs": {
+      "url": "https://docs.mcp.cloudflare.com/mcp"
+    },
+    "cloudflare": {
+      "url": "https://mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-bindings": {
+      "url": "https://bindings.mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-builds": {
+      "url": "https://builds.mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-observability": {
+      "url": "https://observability.mcp.cloudflare.com/mcp"
+    },
+    "metabase": {
+      "url": "https://metabase.mastra.ai/api/metabase-mcp"
     }
   }
 }

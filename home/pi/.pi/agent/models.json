@@ -3,6 +3,38 @@
     "anthropic": {
       "models": [
         {
+          "id": "claude-opus-5-5",
+          "name": "Claude Opus 5.5",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 1000000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 4,
+            "output": 20,
+            "cacheRead": 0.2,
+            "cacheWrite": 5
+          },
+          "promptCache": {
+            "short": 300,
+            "long": 3600
+          },
+          "compat": {
+            "forceAdaptiveThinking": true,
+            "supportsMidConvoEffort": true,
+            "supportsStrictTools": true,
+            "supportsTemperature": false
+          },
+          "thinkingLevelMap": {
+            "off": null,
+            "xhigh": "xhigh",
+            "max": "max"
+          }
+        },
+        {
           "id": "claude-fable-5-1",
           "name": "Claude Fable 5.1",
           "reasoning": true,
