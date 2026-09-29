@@ -8,8 +8,6 @@ Read before frontend implementation, browser verification, capture, or localhost
 
 All browser automation MUST run in isolated headless Chromium, including screenshots, recordings, exploratory journeys, and repeatable tests. MUST NOT attach to personal browsers, import authentication through Helium, use OS mouse/keyboard control, or silently retry in headed mode. This prevents testing from interrupting Justin's work.
 
-Agent Browser is the default driver. Jev is optional, off after startup or reload, and enabled only when Justin requests it with `/jev-browser on`. It MUST NOT gate direct Agent Browser commands. `/jev-browser off` disables it again. Headless isolation applies in both modes.
-
 </rules>
 
 ```bash
@@ -24,8 +22,6 @@ For Mastra authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-
 1. Run `"$BROWSER" auth-load`, reopen the protected route, and verify authentication.
 2. If the seed is missing or expired, stop and request a scoped state file or human login to the isolated session. MUST NOT obtain it by attaching to Helium or request credentials in chat. A review page opened in the personal browser does not authenticate the automation session.
 3. After the protected route succeeds, run `"$BROWSER" auth-save`. Auth state MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached.
-
-When using optional Jev, first prepare the session with the helper and pass `"$BROWSER" session` as `jev_browser.session`. Verify its results through the same helper. Unsupported actions MAY use direct isolated Agent Browser commands; they MUST NOT trigger desktop control.
 
 Playwright assertions MUST use the repository's installed version when available, with headless execution and no `--ui`, `--headed`, `--debug`, `PWDEBUG`, or automatic report opening. Otherwise use `createMastraPage` from `$HOME/.pi/agent/browser-testing/mastra.mjs` for Mastra without adding a repository dependency. That helper always launches isolated headless Chromium with the local auth seed, viewport, and dark color scheme. Assertions belong in repeatable project tests; agents SHOULD NOT manually repeat an already-covered journey on every iteration.
 
