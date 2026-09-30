@@ -12,7 +12,7 @@ export function formatTokens(count: number): string {
 
 export function formatProviderIcon(provider: string, colorize: Colorize): string {
 	if (provider.startsWith("openai") || provider.startsWith("chatgpt")) return colorize("accent", "");
-	if (provider === "anthropic") return colorize("warning", "");
+	if (provider === "anthropic") return "\x1b[38;2;217;119;87m\x1b[39m";
 	return colorize("muted", "");
 }
 
