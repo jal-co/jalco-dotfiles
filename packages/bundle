@@ -127,7 +127,7 @@ cask "figma"
 # Web browser
 cask "firefox@developer-edition"
 cask "font-geist"
-cask "font-geist-mono-nerd-font"
+cask "font-geist-mono"
 # Terminal emulator that uses platform-native UI and GPU acceleration
 cask "ghostty"
 # Web browser
