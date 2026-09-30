@@ -1,6 +1,6 @@
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { mixColors, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { getFrameLabels } from "./lib/footer-format.js";
 
 const HIDDEN_STATUS_KEYS = new Set([
@@ -88,6 +88,20 @@ export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize) {
 	return { frames: [colorize("accent", "")], intervalMs: 0 };
 }
 
+export function formatWorkingMessage(elapsedMs: number, theme: ExtensionUIContext["theme"], animate: boolean): string {
+	const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
+	const elapsed = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+	const label = "Working...";
+	const position = ((Math.max(0, elapsedMs) % 2400) / 2400) * (label.length + 6) - 3;
+	const working = animate
+		? [...label].map((character, index) => {
+			const intensity = Math.max(0, 1 - Math.abs(index - position) / 2);
+			return theme.style(character, { fg: mixColors(theme.colors.muted, theme.colors.text, intensity) });
+		}).join("")
+		: theme.fg("muted", label);
+	return `${working} ${theme.fg("dim", elapsed)}`;
+}
+
 export function formatPonytailStatus(value: string, colorize: Colorize): string {
 	const mode = ["lite", "full", "ultra"].find((candidate) => value.toLowerCase().includes(candidate));
 	if (!mode) return value;
@@ -114,12 +128,15 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		if (!latestUI || workingTimer) return;
 		const ui = latestUI;
 		const startedAt = Date.now();
+		let previousMessage: string | undefined;
 		const update = () => {
-			const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-			ui.setWorkingMessage(seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`);
+			const message = formatWorkingMessage(Date.now() - startedAt, ui.theme, mode === "spinner" || mode === "pulse");
+			if (message === previousMessage) return;
+			previousMessage = message;
+			ui.setWorkingMessage(message);
 		};
 		update();
-		workingTimer = setInterval(update, 1000);
+		workingTimer = setInterval(update, 80);
 		workingTimer.unref();
 	}
 
