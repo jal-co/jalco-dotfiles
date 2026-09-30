@@ -24,12 +24,13 @@ export function getFrameLabels(ctx: ExtensionContext, colorize: Colorize) {
 	}
 	const usage = ctx.getContextUsage();
 	const tokens = usage?.tokens == null ? "?" : formatTokens(usage.tokens);
-	const percent = usage?.percent === null || usage?.percent === undefined ? "?" : usage.percent.toFixed(1);
+	const contextWindow = usage?.contextWindow ?? ctx.model?.contextWindow;
+	const capacity = contextWindow == null ? "?" : formatTokens(contextWindow);
 	const provider = ctx.model ? formatProviderIcon(ctx.model.provider, colorize) : "";
 	const thinking = ctx.model?.reasoning ? colorize("dim", ` · ${ctx.thinkingLevel ?? "off"}`) : "";
 	return {
 		topRight: `${provider} ${colorize("text", ctx.model?.id ?? "no-model")}${thinking}`.trim(),
-		bottomLeft: colorize("dim", `${tokens} tokens  $${cost.toFixed(3)}  ${percent}%`),
+		bottomLeft: colorize("dim", `${tokens}/${capacity}  $${cost.toFixed(3)}`),
 		bottomRight: colorize("dim", ctx.cwd.replace(homedir(), "~")),
 	};
 }
