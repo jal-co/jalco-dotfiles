@@ -27,13 +27,12 @@ export function getFrameLabels(ctx: ExtensionContext, colorize: Colorize) {
 		cost += entry.message.usage.cost.total;
 	}
 	const usage = ctx.getContextUsage();
-	const contextWindow = usage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
 	const percent = usage?.percent === null || usage?.percent === undefined ? "?" : usage.percent.toFixed(1);
 	const provider = ctx.model ? formatProviderIcon(ctx.model.provider, colorize) : "";
 	const thinking = ctx.model?.reasoning ? colorize("dim", ` · ${ctx.thinkingLevel ?? "off"}`) : "";
 	return {
 		topRight: `${provider} ${colorize("text", ctx.model?.id ?? "no-model")}${thinking}`.trim(),
-		bottomLeft: colorize("dim", `↑${formatTokens(input)} ↓${formatTokens(output)} $${cost.toFixed(3)} ${percent}%/${formatTokens(contextWindow)}`),
+		bottomLeft: colorize("dim", `↑${formatTokens(input)}  ↓${formatTokens(output)}  $${cost.toFixed(3)}  ${percent}%`),
 		bottomRight: colorize("dim", ctx.cwd.replace(homedir(), "~")),
 	};
 }
