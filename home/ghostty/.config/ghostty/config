@@ -2,6 +2,7 @@ theme = dark:Vercel,light:GitHub Light Default
 # --- Font ---
 font-family = GeistMono Nerd Font Mono
 font-size = 14
+adjust-icon-height = 20%
 
 # --- Vercel-ish / Geist-ish palette ---
 palette = 0=#000000
