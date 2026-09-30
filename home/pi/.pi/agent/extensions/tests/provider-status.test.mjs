@@ -50,8 +50,9 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 	assert.equal(editor.getText(), "my next prompt");
 	const lines = editor.render(48);
 	assert.ok(lines[0].startsWith("╭") && lines[0].includes("⠋ 2s"));
-	assert.equal(lines.length, 3);
-	assert.ok(lines[2].startsWith("╰"));
+	assert.equal(lines.length, 4);
+	assert.equal(lines[2], "│" + " ".repeat(46) + "│");
+	assert.ok(lines[3].startsWith("╰"));
 	await handlers.get("session_shutdown")();
 });
 
