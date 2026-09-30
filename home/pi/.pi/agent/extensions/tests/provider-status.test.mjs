@@ -48,6 +48,7 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 	editor.setWorkingStatusIndicator({ renderInBorder: () => "⠋ 2s", renderSpinnerInBorder: () => "⠋" });
 	editor.setText("my next prompt");
 	assert.equal(editor.getText(), "my next prompt");
+	editor.borderColor = () => { throw new Error("Reasoning color must not override the muted frame"); };
 	const lines = editor.render(48);
 	assert.ok(lines[0].startsWith("╭") && lines[0].includes("⠋ 2s"));
 	assert.equal(lines.length, 3);
@@ -134,7 +135,7 @@ test("model branding and session metrics fit the frame without crowding the time
 	const identity = (_color, text) => text;
 	const labels = getFrameLabels(context, identity);
 	assert.equal(labels.topRight, " gpt-5.6-sol · high");
-	assert.equal(labels.bottomLeft, "↑1.4M ↓269k $45.214 66.8%/272k");
+	assert.equal(labels.bottomLeft, "↑1.4M  ↓269k  $45.214  66.8%");
 	assert.equal(labels.bottomRight, "~/dotfiles");
 	const editor = new FramedEditor(
 		{ terminal: { rows: 40 }, requestRender() {} },

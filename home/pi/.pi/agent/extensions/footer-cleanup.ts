@@ -18,6 +18,7 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 
 export class FramedEditor extends CustomEditor {
 	getLabels = () => ({ topRight: "", bottomLeft: "", bottomRight: "" });
+	frameColor = this.borderColor;
 	private labels = { topRight: "", bottomLeft: "", bottomRight: "" };
 	private bottomBorder = "";
 
@@ -43,6 +44,7 @@ export class FramedEditor extends CustomEditor {
 	}
 
 	render(width: number): string[] {
+		this.borderColor = this.frameColor;
 		this.labels = this.getLabels();
 		const lines = super.render(width);
 		if (width < 5) return lines;
@@ -167,6 +169,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		stopWorkingTimer();
 		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
 			const editor = new FramedEditor(tui, theme, keybindings, { paddingX: 3, embedWorkingStatus: true });
+			editor.frameColor = (text) => ctx.ui.theme.fg("border", text);
 			editor.getLabels = () => getFrameLabels(ctx, (color, text) => ctx.ui.theme.fg(color, text));
 			return editor;
 		});
