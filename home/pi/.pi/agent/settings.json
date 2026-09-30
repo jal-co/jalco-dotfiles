@@ -60,7 +60,7 @@
   "quietStartup": true,
   "showCacheMissNotices": true,
   "steeringMode": "all",
-  "theme": "geist-dark",
+  "theme": "verminal",
   "warnings": {
     "anthropicExtraUsage": false
   },
