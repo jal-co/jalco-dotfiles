@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type StatusColor = "accent" | "dim" | "muted" | "text" | "warning";
@@ -33,5 +34,6 @@ export function getFrameLabels(ctx: ExtensionContext, colorize: Colorize) {
 	return {
 		topRight: `${provider} ${colorize("text", ctx.model?.id ?? "no-model")}${thinking}`.trim(),
 		bottomLeft: colorize("dim", `↑${formatTokens(input)} ↓${formatTokens(output)} $${cost.toFixed(3)} ${percent}%/${formatTokens(contextWindow)}`),
+		bottomRight: colorize("dim", ctx.cwd.replace(homedir(), "~")),
 	};
 }

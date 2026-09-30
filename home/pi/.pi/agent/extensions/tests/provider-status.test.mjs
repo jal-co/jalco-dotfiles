@@ -3,6 +3,7 @@ import { createRequire, findPackageJSON } from "node:module";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import test from "node:test";
 
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
@@ -18,12 +19,12 @@ const { default: footerCleanup, FramedEditor } = await jiti.import("../footer-cl
 const { visibleWidth, CURSOR_MARKER } = await jiti.import("@earendil-works/pi-tui");
 const { getFrameLabels } = await jiti.import("../lib/footer-format.ts");
 
-test("custom footer leaves the native working indicator visible", async (t) => {
+test("hidden footer leaves the native working indicator visible", async (t) => {
 	const handlers = new Map();
 	const setFooter = t.mock.fn();
 	const setWorkingVisible = t.mock.fn();
 	providerStatus({ on: (name, handler) => handlers.set(name, handler) });
-	await handlers.get("session_start")({}, { hasUI: true, ui: { setFooter, setWorkingVisible } });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setFooter, setWorkingVisible } });
 	assert.equal(setFooter.mock.callCount(), 1);
 	assert.equal(setWorkingVisible.mock.callCount(), 0);
 });
@@ -40,7 +41,7 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 		theme: { fg: (_color, text) => text },
 	};
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
-	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui, sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui, cwd: join(homedir(), "dotfiles"), sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined });
 	const factory = setEditorComponent.mock.calls[0].arguments[0];
 	const editor = factory({ terminal: { rows: 40 }, requestRender() {} }, { borderColor: (text) => text }, { matches: () => false });
 	assert.equal(editor.embedWorkingStatus, true);
@@ -119,6 +120,7 @@ test("autocomplete stays below the frame and retains keyboard selection", async 
 
 test("model branding and session metrics fit the frame without crowding the timer", () => {
 	const context = {
+		cwd: join(homedir(), "dotfiles"),
 		model: { provider: "chatgpt-2", id: "gpt-5.6-sol", reasoning: true, contextWindow: 272000 },
 		thinkingLevel: "high",
 		getContextUsage: () => ({ percent: 66.8, contextWindow: 272000 }),
@@ -132,6 +134,7 @@ test("model branding and session metrics fit the frame without crowding the time
 	const labels = getFrameLabels(context, identity);
 	assert.equal(labels.topRight, " gpt-5.6-sol · high");
 	assert.equal(labels.bottomLeft, "↑1.4M ↓269k $45.214 66.8%/272k");
+	assert.equal(labels.bottomRight, "~/dotfiles");
 	const editor = new FramedEditor(
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: (text) => text },
@@ -147,8 +150,9 @@ test("model branding and session metrics fit the frame without crowding the time
 		if (width >= 32) assert.ok(lines[0].includes("⠋ 1m 2s"));
 		if (width >= 48) {
 			assert.ok(lines[0].includes(labels.topRight));
-			assert.ok(lines.at(-1).includes(labels.bottomLeft));
+			assert.ok(lines.at(-1).endsWith(" ~/dotfiles ─╯"));
 		}
+		if (width >= 80) assert.ok(lines.at(-1).includes(labels.bottomLeft));
 	}
 	context.model.id = "long-model-name-汉字".repeat(10);
 	assert.ok(editor.render(48).every((line) => visibleWidth(line) <= 48));
@@ -156,15 +160,15 @@ test("model branding and session metrics fit the frame without crowding the time
 	assert.ok(editor.render(80)[0].includes("new-model"));
 });
 
-test("remaining footer keeps status and cwd without duplicating model or metrics", async () => {
+test("footer renders no rows", async () => {
 	const handlers = new Map();
 	let factory;
 	providerStatus({ on: (name, handler) => handlers.set(name, handler) });
-	await handlers.get("session_start")({}, { hasUI: true, cwd: "/a/" + "long-directory/".repeat(10), ui: { setFooter: (value) => { factory = value; } } });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setFooter: (value) => { factory = value; } } });
 	const footer = factory({}, { fg: (_color, text) => text }, { getExtensionStatuses: () => new Map([["pool", "chatgpt: work"]]) });
 	for (const width of [12, 48, 140]) {
 		const lines = footer.render(width);
-		assert.equal(lines.length, 1);
+		assert.deepEqual(lines, []);
 		assert.ok(lines.every((line) => visibleWidth(line) <= width));
 	}
 });
