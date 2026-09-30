@@ -1,6 +1,7 @@
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
-import type { TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth, type TuiMouseEvent, type TuiMouseEventResult } from "@earendil-works/pi-tui";
+import { getFrameLabels } from "./lib/footer-format.js";
 
 const HIDDEN_STATUS_KEYS = new Set([
 	"pi-agentation",
@@ -16,6 +17,8 @@ const wrappedContexts = new WeakSet<object>();
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export class FramedEditor extends CustomEditor {
+	getLabels = () => ({ topRight: "", bottomLeft: "" });
+	private labels = { topRight: "", bottomLeft: "" };
 	private bottomBorder = "";
 	private bottomRow = 0;
 
@@ -25,16 +28,21 @@ export class FramedEditor extends CustomEditor {
 
 	protected renderTopBorder(width: number, hiddenLineCount: number): string {
 		if (width < 5) return super.renderTopBorder(width, hiddenLineCount);
-		return this.borderColor("╭") + super.renderTopBorder(width - 2, hiddenLineCount) + this.borderColor("╮");
+		const label = truncateToWidth(this.labels.topRight, Math.max(0, width - 20), "");
+		const right = label ? ` ${label} ${this.borderColor("─")}` : "";
+		return this.borderColor("╭") + super.renderTopBorder(width - 2 - visibleWidth(right), hiddenLineCount) + right + this.borderColor("╮");
 	}
 
 	protected renderBottomBorder(width: number, hiddenLineCount: number): string {
 		if (width < 5) return super.renderBottomBorder(width, hiddenLineCount);
-		this.bottomBorder = this.borderColor("╰") + super.renderBottomBorder(width - 2, hiddenLineCount) + this.borderColor("╯");
+		const label = truncateToWidth(this.labels.bottomLeft, Math.max(0, width - (hiddenLineCount > 0 ? 20 : 7)), "");
+		const left = label ? `${this.borderColor("─")} ${label} ` : "";
+		this.bottomBorder = this.borderColor("╰") + left + super.renderBottomBorder(width - 2 - visibleWidth(left), hiddenLineCount) + this.borderColor("╯");
 		return this.bottomBorder;
 	}
 
 	render(width: number): string[] {
+		this.labels = this.getLabels();
 		const lines = super.render(width);
 		if (width < 5) return lines;
 		this.bottomRow = lines.indexOf(this.bottomBorder);
@@ -161,7 +169,11 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 		stopWorkingTimer();
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => new FramedEditor(tui, theme, keybindings, { paddingX: 2, embedWorkingStatus: true }));
+		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
+			const editor = new FramedEditor(tui, theme, keybindings, { paddingX: 2, embedWorkingStatus: true });
+			editor.getLabels = () => getFrameLabels(ctx, (color, text) => ctx.ui.theme.fg(color, text));
+			return editor;
+		});
 		mode = loadBusyIndicatorMode();
 		latestUI = ctx.ui;
 		if (!wrappedContexts.has(ctx.ui)) {
