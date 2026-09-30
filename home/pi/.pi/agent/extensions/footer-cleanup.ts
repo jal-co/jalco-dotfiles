@@ -1,6 +1,6 @@
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
-import { truncateToWidth, visibleWidth, type TuiMouseEvent, type TuiMouseEventResult } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { getFrameLabels } from "./lib/footer-format.js";
 
 const HIDDEN_STATUS_KEYS = new Set([
@@ -20,7 +20,6 @@ export class FramedEditor extends CustomEditor {
 	getLabels = () => ({ topRight: "", bottomLeft: "" });
 	private labels = { topRight: "", bottomLeft: "" };
 	private bottomBorder = "";
-	private bottomRow = 0;
 
 	setPaddingX(padding: number): void {
 		super.setPaddingX(Math.max(2, padding));
@@ -45,15 +44,10 @@ export class FramedEditor extends CustomEditor {
 		this.labels = this.getLabels();
 		const lines = super.render(width);
 		if (width < 5) return lines;
-		this.bottomRow = lines.indexOf(this.bottomBorder);
+		const bottom = lines.indexOf(this.bottomBorder);
 		const side = this.borderColor("│");
-		for (let row = 1; row < this.bottomRow; row++) lines[row] = side + lines[row].slice(1, -1) + side;
-		lines.splice(this.bottomRow, 0, side + " ".repeat(width - 2) + side);
+		for (let row = 1; row < bottom; row++) lines[row] = side + lines[row].slice(1, -1) + side;
 		return lines;
-	}
-
-	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
-		return super.handleMouse(event.width >= 5 && event.y > this.bottomRow ? { ...event, y: event.y - 1 } : event);
 	}
 }
 
