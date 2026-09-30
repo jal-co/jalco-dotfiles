@@ -17,22 +17,19 @@ export function formatProviderIcon(provider: string, colorize: Colorize): string
 }
 
 export function getFrameLabels(ctx: ExtensionContext, colorize: Colorize) {
-	let input = 0;
-	let output = 0;
 	let cost = 0;
 	for (const entry of ctx.sessionManager.getEntries()) {
 		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
-		input += entry.message.usage.input;
-		output += entry.message.usage.output;
 		cost += entry.message.usage.cost.total;
 	}
 	const usage = ctx.getContextUsage();
+	const tokens = usage?.tokens == null ? "?" : formatTokens(usage.tokens);
 	const percent = usage?.percent === null || usage?.percent === undefined ? "?" : usage.percent.toFixed(1);
 	const provider = ctx.model ? formatProviderIcon(ctx.model.provider, colorize) : "";
 	const thinking = ctx.model?.reasoning ? colorize("dim", ` · ${ctx.thinkingLevel ?? "off"}`) : "";
 	return {
 		topRight: `${provider} ${colorize("text", ctx.model?.id ?? "no-model")}${thinking}`.trim(),
-		bottomLeft: colorize("dim", `↑${formatTokens(input)}  ↓${formatTokens(output)}  $${cost.toFixed(3)}  ${percent}%`),
+		bottomLeft: colorize("dim", `${tokens} tokens  $${cost.toFixed(3)}  ${percent}%`),
 		bottomRight: colorize("dim", ctx.cwd.replace(homedir(), "~")),
 	};
 }
