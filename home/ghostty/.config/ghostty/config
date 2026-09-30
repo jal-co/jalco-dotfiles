@@ -1,4 +1,3 @@
-theme = dark:Vercel,light:GitHub Light Default
 # --- Font ---
 font-family = GeistMono Nerd Font Mono
 font-size = 14
@@ -6,25 +5,26 @@ adjust-icon-height = 20%
 
 # --- Vercel-ish / Geist-ish palette ---
 palette = 0=#000000
-palette = 1=#e46d69
-palette = 2=#76c56c
-palette = 3=#ec9d38
-palette = 4=#72a4f8
-palette = 5=#ad78ea
-palette = 6=#5ec8b7
-palette = 7=#a1a1a1
-palette = 8=#676767
-palette = 9=#e46d69
-palette = 10=#76c56c
-palette = 11=#ec9d38
-palette = 12=#72a4f8
-palette = 13=#ad78ea
-palette = 14=#5ec8b7
-palette = 15=#ededed
+palette = 1=#FF3B30
+palette = 2=#4CD964
+palette = 3=#FFCC00
+palette = 4=#0095FF
+palette = 5=#FF2D55
+palette = 6=#5AC8FA
+palette = 7=#FFFFFF
+palette = 8=#686868
+palette = 9=#FF3B30
+palette = 10=#4CD964
+palette = 11=#FFCC00
+palette = 12=#0095FF
+palette = 13=#FF2D55
+palette = 14=#5AC8FA
+palette = 15=#FFFFFF
 
-background = #0a0a0a
-foreground = #ededed
-cursor-color = #f6f1fe
-selection-background = #ffffff
-selection-foreground = #ededed
+background = #000000
+foreground = #FFFFFF
+cursor-color = #0095FF
+cursor-text = #000000
+selection-background = #0061a6
+selection-foreground = #FFFFFF
 keybind = shift+enter=text:\n
