@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { stripVTControlCharacters } from "node:util";
 import test from "node:test";
 
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
@@ -15,8 +16,8 @@ const jiti = createJiti(import.meta.url, {
 	])),
 });
 const { default: providerStatus } = await jiti.import("../provider-status.ts");
-const { default: footerCleanup, FramedEditor } = await jiti.import("../footer-cleanup.ts");
-const { visibleWidth, CURSOR_MARKER } = await jiti.import("@earendil-works/pi-tui");
+const { default: footerCleanup, FramedEditor, formatWorkingMessage } = await jiti.import("../footer-cleanup.ts");
+const { visibleWidth, CURSOR_MARKER, rgbColor, styleText } = await jiti.import("@earendil-works/pi-tui");
 const { getFrameLabels } = await jiti.import("../lib/footer-format.ts");
 
 test("hidden footer leaves the native working indicator visible", async (t) => {
@@ -181,6 +182,23 @@ test("footer renders no rows", async () => {
 	}
 });
 
+test("working label shimmers without changing text width or animating the timer", () => {
+	const theme = {
+		colors: { muted: rgbColor(134, 134, 134), text: rgbColor(255, 255, 255) },
+		fg: (_color, text) => text,
+		style: (text, options) => styleText(text, options, "truecolor"),
+	};
+	const first = formatWorkingMessage(0, theme, true);
+	const second = formatWorkingMessage(400, theme, true);
+	assert.notEqual(first, second);
+	assert.equal(stripVTControlCharacters(first), "Working... 0s");
+	assert.equal(stripVTControlCharacters(second), "Working... 0s");
+	assert.equal(visibleWidth(first), visibleWidth(second));
+	assert.equal(stripVTControlCharacters(formatWorkingMessage(85000, theme, true)), "Working... 1m 25s");
+	assert.equal(formatWorkingMessage(0, theme, false), "Working... 0s");
+	assert.equal(formatWorkingMessage(400, theme, false), "Working... 0s");
+});
+
 test("elapsed timer survives continuation and stops on settle, shutdown, and restart", async (t) => {
 	t.mock.timers.enable({ apis: ["Date", "setInterval", "setTimeout"], now: 10000 });
 	const handlers = new Map();
@@ -193,22 +211,24 @@ test("elapsed timer survives continuation and stops on settle, shutdown, and res
 		theme: { fg: (_color, text) => text },
 	};
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
+	ui.theme.colors = { muted: rgbColor(134, 134, 134), text: rgbColor(255, 255, 255) };
+	ui.theme.style = (text) => text;
 	const context = { hasUI: true, mode: "tui", ui };
 	await handlers.get("session_start")({}, context);
 	handlers.get("agent_start")();
-	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "0s");
+	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "Working... 0s");
 	t.mock.timers.tick(3000);
-	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "3s");
+	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "Working... 3s");
 	handlers.get("agent_start")();
 	t.mock.timers.tick(58000);
-	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "1m 1s");
+	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "Working... 1m 1s");
 	handlers.get("agent_settled")();
 	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], undefined);
 	const settledCalls = setWorkingMessage.mock.callCount();
 	t.mock.timers.tick(5000);
 	assert.equal(setWorkingMessage.mock.callCount(), settledCalls);
 	handlers.get("agent_start")();
-	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "0s");
+	assert.equal(setWorkingMessage.mock.calls.at(-1).arguments[0], "Working... 0s");
 	await handlers.get("session_start")({}, context);
 	const restartedCalls = setWorkingMessage.mock.callCount();
 	t.mock.timers.tick(5000);
