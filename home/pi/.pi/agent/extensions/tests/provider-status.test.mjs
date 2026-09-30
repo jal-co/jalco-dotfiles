@@ -125,7 +125,7 @@ test("model branding and session metrics fit the frame without crowding the time
 		cwd: join(homedir(), "dotfiles"),
 		model: { provider: "chatgpt-2", id: "gpt-5.6-sol", reasoning: true, contextWindow: 272000 },
 		thinkingLevel: "high",
-		getContextUsage: () => ({ percent: 66.8, contextWindow: 272000 }),
+		getContextUsage: () => ({ tokens: 181696, percent: 66.8, contextWindow: 272000 }),
 		sessionManager: { getEntries: () => [
 			{ type: "message", message: { role: "user" } },
 			{ type: "message", message: { role: "assistant", usage: { input: 1200000, output: 200000, cost: { total: 40 } } } },
@@ -135,7 +135,7 @@ test("model branding and session metrics fit the frame without crowding the time
 	const identity = (_color, text) => text;
 	const labels = getFrameLabels(context, identity);
 	assert.equal(labels.topRight, " gpt-5.6-sol · high");
-	assert.equal(labels.bottomLeft, "↑1.4M  ↓269k  $45.214  66.8%");
+	assert.equal(labels.bottomLeft, "182k tokens  $45.214  66.8%");
 	assert.equal(labels.bottomRight, "~/dotfiles");
 	const editor = new FramedEditor(
 		{ terminal: { rows: 40 }, requestRender() {} },
@@ -160,6 +160,10 @@ test("model branding and session metrics fit the frame without crowding the time
 	assert.ok(editor.render(48).every((line) => visibleWidth(line) <= 48));
 	context.model.id = "new-model";
 	assert.ok(editor.render(80)[0].includes("new-model"));
+	context.getContextUsage = () => ({ tokens: null, percent: null, contextWindow: 272000 });
+	assert.equal(getFrameLabels(context, identity).bottomLeft, "? tokens  $45.214  ?%");
+	context.getContextUsage = () => ({ tokens: 0, percent: 0, contextWindow: 272000 });
+	assert.equal(getFrameLabels(context, identity).bottomLeft, "0 tokens  $45.214  0.0%");
 });
 
 test("footer renders no rows", async () => {
