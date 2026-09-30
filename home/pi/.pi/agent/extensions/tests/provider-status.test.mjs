@@ -50,9 +50,9 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 	assert.equal(editor.getText(), "my next prompt");
 	const lines = editor.render(48);
 	assert.ok(lines[0].startsWith("╭") && lines[0].includes("⠋ 2s"));
-	assert.equal(lines.length, 4);
-	assert.equal(lines[2], "│" + " ".repeat(46) + "│");
-	assert.ok(lines[3].startsWith("╰"));
+	assert.equal(lines.length, 3);
+	assert.ok(lines[1].startsWith("│  my next prompt"));
+	assert.ok(lines[2].startsWith("╰"));
 	await handlers.get("session_shutdown")();
 });
 
@@ -61,10 +61,10 @@ test("wrapped input preserves column widths, cursor, and mouse coordinates", () 
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: (text) => text },
 		{ matches: () => false },
-		{ paddingX: 2, embedWorkingStatus: true },
+		{ paddingX: 3, embedWorkingStatus: true },
 	);
 	editor.setPaddingX(0);
-	assert.equal(editor.getPaddingX(), 2);
+	assert.equal(editor.getPaddingX(), 3);
 	editor.focused = true;
 	for (const width of [1, 4, 5, 20, 48, 80, 140]) {
 		editor.setText(width === 1 ? "" : width < 20 ? "abc" : "👩🏽‍💻 汉字 é " + "long text ".repeat(20));
@@ -79,7 +79,7 @@ test("wrapped input preserves column widths, cursor, and mouse coordinates", () 
 	}
 	editor.setText("abcd");
 	editor.render(80);
-	editor.handleMouse({ type: "click", button: "left", x: 3, y: 1, width: 80, height: 3 });
+	editor.handleMouse({ type: "click", button: "left", x: 4, y: 1, width: 80, height: 3 });
 	assert.equal(editor.getCursor().col, 1);
 });
 
@@ -89,7 +89,7 @@ test("autocomplete stays below the frame and retains keyboard selection", async 
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: identity, selectList: { selectedPrefix: identity, selectedText: identity, description: identity, scrollInfo: identity, noMatch: identity } },
 		{ matches: () => false },
-		{ paddingX: 2, embedWorkingStatus: true },
+		{ paddingX: 3, embedWorkingStatus: true },
 	);
 	editor.setAutocompleteProvider({
 		getSuggestions: () => ({ items: [{ value: "hello", label: "hello" }, { value: "help", label: "help" }], prefix: "/" }),
@@ -140,7 +140,7 @@ test("model branding and session metrics fit the frame without crowding the time
 		{ terminal: { rows: 40 }, requestRender() {} },
 		{ borderColor: (text) => text },
 		{ matches: () => false },
-		{ paddingX: 2, embedWorkingStatus: true },
+		{ paddingX: 3, embedWorkingStatus: true },
 	);
 	editor.getLabels = () => getFrameLabels(context, identity);
 	editor.setWorkingStatusIndicator({ renderInBorder: () => "⠋ 1m 2s", renderSpinnerInBorder: () => "⠋" });
