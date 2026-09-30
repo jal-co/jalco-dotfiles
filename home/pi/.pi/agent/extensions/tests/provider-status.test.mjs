@@ -16,6 +16,7 @@ const jiti = createJiti(import.meta.url, {
 const { default: providerStatus } = await jiti.import("../provider-status.ts");
 const { default: footerCleanup, FramedEditor } = await jiti.import("../footer-cleanup.ts");
 const { visibleWidth, CURSOR_MARKER } = await jiti.import("@earendil-works/pi-tui");
+const { getFrameLabels } = await jiti.import("../lib/footer-format.ts");
 
 test("custom footer leaves the native working indicator visible", async (t) => {
 	const handlers = new Map();
@@ -39,7 +40,7 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 		theme: { fg: (_color, text) => text },
 	};
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
-	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui, sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined });
 	const factory = setEditorComponent.mock.calls[0].arguments[0];
 	const editor = factory({ terminal: { rows: 40 }, requestRender() {} }, { borderColor: (text) => text }, { matches: () => false });
 	assert.equal(editor.embedWorkingStatus, true);
@@ -114,6 +115,58 @@ test("autocomplete stays below the frame and retains keyboard selection", async 
 	assert.equal(onSubmit.mock.callCount(), 1);
 	editor.handleMouse({ type: "click", button: "left", x: 3, y: mouseBottom + 2, width: 48, height: mouseLines.length });
 	assert.equal(editor.getText(), "/help");
+});
+
+test("model branding and session metrics fit the frame without crowding the timer", () => {
+	const context = {
+		model: { provider: "chatgpt-2", id: "gpt-5.6-sol", reasoning: true, contextWindow: 272000 },
+		thinkingLevel: "high",
+		getContextUsage: () => ({ percent: 66.8, contextWindow: 272000 }),
+		sessionManager: { getEntries: () => [
+			{ type: "message", message: { role: "user" } },
+			{ type: "message", message: { role: "assistant", usage: { input: 1200000, output: 200000, cost: { total: 40 } } } },
+			{ type: "message", message: { role: "assistant", usage: { input: 200000, output: 69000, cost: { total: 5.214 } } } },
+		] },
+	};
+	const identity = (_color, text) => text;
+	const labels = getFrameLabels(context, identity);
+	assert.equal(labels.topRight, " gpt-5.6-sol · high");
+	assert.equal(labels.bottomLeft, "↑1.4M ↓269k $45.214 66.8%/272k");
+	const editor = new FramedEditor(
+		{ terminal: { rows: 40 }, requestRender() {} },
+		{ borderColor: (text) => text },
+		{ matches: () => false },
+		{ paddingX: 2, embedWorkingStatus: true },
+	);
+	editor.getLabels = () => getFrameLabels(context, identity);
+	editor.setWorkingStatusIndicator({ renderInBorder: () => "⠋ 1m 2s", renderSpinnerInBorder: () => "⠋" });
+	editor.setText("next prompt");
+	for (const width of [5, 12, 20, 32, 48, 80, 140]) {
+		const lines = editor.render(width);
+		assert.ok(lines.every((line) => visibleWidth(line) <= width), JSON.stringify({ width, lines }));
+		if (width >= 32) assert.ok(lines[0].includes("⠋ 1m 2s"));
+		if (width >= 48) {
+			assert.ok(lines[0].includes(labels.topRight));
+			assert.ok(lines.at(-1).includes(labels.bottomLeft));
+		}
+	}
+	context.model.id = "long-model-name-汉字".repeat(10);
+	assert.ok(editor.render(48).every((line) => visibleWidth(line) <= 48));
+	context.model.id = "new-model";
+	assert.ok(editor.render(80)[0].includes("new-model"));
+});
+
+test("remaining footer keeps status and cwd without duplicating model or metrics", async () => {
+	const handlers = new Map();
+	let factory;
+	providerStatus({ on: (name, handler) => handlers.set(name, handler) });
+	await handlers.get("session_start")({}, { hasUI: true, cwd: "/a/" + "long-directory/".repeat(10), ui: { setFooter: (value) => { factory = value; } } });
+	const footer = factory({}, { fg: (_color, text) => text }, { getExtensionStatuses: () => new Map([["pool", "chatgpt: work"]]) });
+	for (const width of [12, 48, 140]) {
+		const lines = footer.render(width);
+		assert.equal(lines.length, 1);
+		assert.ok(lines.every((line) => visibleWidth(line) <= width));
+	}
 });
 
 test("elapsed timer survives continuation and stops on settle, shutdown, and restart", async (t) => {
