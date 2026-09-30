@@ -48,7 +48,7 @@ test("formats compact Ponytail modes", () => {
 
 test("formats provider icons and token counts", () => {
 	assert.equal(formatProviderIcon("openai-codex-2", colorize), "[accent]");
-	assert.equal(formatProviderIcon("anthropic", colorize), "[warning]");
+	assert.equal(formatProviderIcon("anthropic", colorize), "\x1b[38;2;217;119;87m\x1b[39m");
 	assert.equal(formatTokens(5_600), "6k");
 	assert.equal(formatTokens(1_250_000), "1.3M");
 });
