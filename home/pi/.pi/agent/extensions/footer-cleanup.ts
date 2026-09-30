@@ -17,8 +17,8 @@ const wrappedContexts = new WeakSet<object>();
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export class FramedEditor extends CustomEditor {
-	getLabels = () => ({ topRight: "", bottomLeft: "" });
-	private labels = { topRight: "", bottomLeft: "" };
+	getLabels = () => ({ topRight: "", bottomLeft: "", bottomRight: "" });
+	private labels = { topRight: "", bottomLeft: "", bottomRight: "" };
 	private bottomBorder = "";
 
 	setPaddingX(padding: number): void {
@@ -34,9 +34,11 @@ export class FramedEditor extends CustomEditor {
 
 	protected renderBottomBorder(width: number, hiddenLineCount: number): string {
 		if (width < 5) return super.renderBottomBorder(width, hiddenLineCount);
-		const label = truncateToWidth(this.labels.bottomLeft, Math.max(0, width - (hiddenLineCount > 0 ? 20 : 7)), "");
+		const directory = truncateToWidth(this.labels.bottomRight, Math.max(0, Math.min(Math.floor(width / 3), width - 5)), "…");
+		const right = directory ? ` ${directory} ${this.borderColor("─")}` : "";
+		const label = truncateToWidth(this.labels.bottomLeft, Math.max(0, width - visibleWidth(right) - (hiddenLineCount > 0 ? 20 : 7)), "…");
 		const left = label ? `${this.borderColor("─")} ${label} ` : "";
-		this.bottomBorder = this.borderColor("╰") + left + super.renderBottomBorder(width - 2 - visibleWidth(left), hiddenLineCount) + this.borderColor("╯");
+		this.bottomBorder = this.borderColor("╰") + left + super.renderBottomBorder(width - 2 - visibleWidth(left) - visibleWidth(right), hiddenLineCount) + right + this.borderColor("╯");
 		return this.bottomBorder;
 	}
 
