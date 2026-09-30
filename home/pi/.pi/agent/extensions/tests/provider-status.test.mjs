@@ -135,7 +135,7 @@ test("model branding and session metrics fit the frame without crowding the time
 	const identity = (_color, text) => text;
 	const labels = getFrameLabels(context, identity);
 	assert.equal(labels.topRight, " gpt-5.6-sol · high");
-	assert.equal(labels.bottomLeft, "182k tokens  $45.214  66.8%");
+	assert.equal(labels.bottomLeft, "182k/272k  $45.214");
 	assert.equal(labels.bottomRight, "~/dotfiles");
 	const editor = new FramedEditor(
 		{ terminal: { rows: 40 }, requestRender() {} },
@@ -161,9 +161,11 @@ test("model branding and session metrics fit the frame without crowding the time
 	context.model.id = "new-model";
 	assert.ok(editor.render(80)[0].includes("new-model"));
 	context.getContextUsage = () => ({ tokens: null, percent: null, contextWindow: 272000 });
-	assert.equal(getFrameLabels(context, identity).bottomLeft, "? tokens  $45.214  ?%");
+	assert.equal(getFrameLabels(context, identity).bottomLeft, "?/272k  $45.214");
 	context.getContextUsage = () => ({ tokens: 0, percent: 0, contextWindow: 272000 });
-	assert.equal(getFrameLabels(context, identity).bottomLeft, "0 tokens  $45.214  0.0%");
+	assert.equal(getFrameLabels(context, identity).bottomLeft, "0/272k  $45.214");
+	context.getContextUsage = () => ({ tokens: 187000, percent: 18.7, contextWindow: 1000000 });
+	assert.equal(getFrameLabels(context, identity).bottomLeft, "187k/1.0M  $45.214");
 });
 
 test("footer renders no rows", async () => {
