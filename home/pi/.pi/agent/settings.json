@@ -56,7 +56,7 @@
     "npm:@narumitw/pi-btw",
     "npm:pi-chatgpt-pool"
   ],
-  "quietStartup": true,
+  "quietStartup": "header",
   "showCacheMissNotices": true,
   "steeringMode": "all",
   "theme": "verminal",
