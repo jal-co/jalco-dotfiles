@@ -20,7 +20,7 @@
   ],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.99.1",
+  "lastChangelogVersion": "1.0.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@howaboua/pi-howaboua-extensions-primitives-sdk",
@@ -38,7 +38,6 @@
     "git:github.com/jal-co/pi-agentation",
     "../../Documents/Github/pi-codex-micro",
     "npm:@ogulcancelik/pi-session-recall",
-    "npm:@ogulcancelik/pi-codex-subagents",
     "npm:@ogulcancelik/pi-auto-permissions",
     "npm:@ogulcancelik/pi-herdr",
     "npm:claude-agent-sdk-pi",

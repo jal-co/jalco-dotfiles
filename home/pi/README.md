@@ -48,7 +48,6 @@ pi/.pi/agent/
 
 ### Packages
 
-- `pi-subagents` — subagent orchestration
 - `pi-goal-x` — goal mode: persistent objectives, `/goal-set`, Sisyphus style, status overlay
 - `context-mode` — context management
 - `pi-annotate` — visual browser-to-AI annotation
@@ -98,7 +97,6 @@ source ~/.zshrc.local
 
 | Extension | Description |
 |-----------|-------------|
-| `pi-agent-manager` | Subagent and skill permission manager |
 | `pi-rfc-keywords` | Auto-uppercase RFC 2119 keywords in prompts |
 | `pi-webfetch` | Enhanced web fetching |
 

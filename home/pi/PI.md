@@ -9,11 +9,11 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 
 `agent-browser`, `background-terminals`, `brandkit`, `building-components`, `craft-noise`, `emil-animations`, `emil-ask-emil`, `emil-ask-lapse`, `emil-build-a-tool`, `emil-color`, `emil-component-design`, `emil-design-eng`, `emil-design-foundations`, `emil-design-system-docs`, `emil-design-vocabulary`, `emil-engineering-vocabulary`, `emil-forms-and-inputs`, `emil-get-creative`, `emil-marketing-pages`, `emil-performance`, `emil-prototype`, `emil-surfaces`, `emil-touch-and-accessibility`, `emil-typography`, `emil-ui-polish`, `emil-ui-review`, `emil-unslop-code`, `emil-unslop-design`, `emil-unslop-writing`, `emil-writing-skills`, `exa`, `explain-interface`, `find-skills`, `gh-stack`, `git`, `grep-app`, `grid-based-components`, `growth-ux-audit`, `herdr`, `improve-animations`, `improve`, `interface-craft`, `job-search`, `marvin-text-hierarchy`, `mastra-ui-contract`, `mastra-ui-copy`, `mastra-work`, `mcp-management`, `neon-postgres`, `orca-cli`, `orca-linear`, `orchestration`, `pi-skills`, `plain-writing`, `plan-to-linear`, `plannotator-annotate`, `plannotator-last`, `plannotator-review`, `plannotator`, `platform-local-dev`, `porting-changes`, `pr-screenshots`, `preparing-pull-requests`, `react-best-practices`, `real-app`, `repo-ci`, `rfc-xml-style`, `security-ai-keys`, `security-secrets`, `shadcn-ui`, `ship-or-skip`, `show-me`, `storybook-story-writing`, `thesvg`, `tldraw-offline`, `transitions-dev`, `transitions-polish`, `ux-sound`, `write-like-justin`, `writing-skills`
 
-## EXTENSIONS (15)
+## EXTENSIONS (14)
 
-`codex-micro-reporter`, `confirm-destructive`, `continue-after-compaction`, `counter-model-reviewer`, `custom-header`, `footer-cleanup`, `git-interceptor`, `herdr-agent-state`, `orca-agent-status`, `orca-prefill`, `orca-titlebar-spinner`, `provider-status`, `time-tracker`, `titlebar-spinner`, `tool-reference-alias-fix`
+`codex-micro-reporter`, `confirm-destructive`, `continue-after-compaction`, `custom-header`, `footer-cleanup`, `git-interceptor`, `herdr-agent-state`, `orca-agent-status`, `orca-prefill`, `orca-titlebar-spinner`, `provider-status`, `time-tracker`, `titlebar-spinner`, `tool-reference-alias-fix`
 
-## PACKAGES (27)
+## PACKAGES (26)
 
 - `npm:@juanibiapina/pi-extension-settings`
 - `npm:@howaboua/pi-howaboua-extensions-primitives-sdk`
@@ -31,7 +31,6 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `git:github.com/jal-co/pi-agentation`
 - `../../Documents/Github/pi-codex-micro`
 - `npm:@ogulcancelik/pi-session-recall`
-- `npm:@ogulcancelik/pi-codex-subagents`
 - `npm:@ogulcancelik/pi-auto-permissions`
 - `npm:@ogulcancelik/pi-herdr`
 - `npm:claude-agent-sdk-pi`
