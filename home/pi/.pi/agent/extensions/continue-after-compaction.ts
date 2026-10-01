@@ -6,9 +6,8 @@ function continuationPrompt(): string {
 Recover only from bounded, current sources:
 1. Call get_goal when a goal is active.
 2. List current todos and continue the single in-progress item, or the first unblocked pending item.
-3. If the summary names an approved Plannotator plan, read only that plan file.
-4. Use a concise git status and focused diffs to confirm worktree state.
-5. Treat the worktree as authoritative for files and this summary as authoritative for prior intent.
+3. Use a concise git status and focused diffs to confirm worktree state.
+4. Treat the worktree as authoritative for files and this summary as authoritative for prior intent.
 
 MUST NOT read or search the full session JSONL. Do not recap if executable work remains. Immediately perform the next unfinished step. Ask only when a material decision or human action is required.`;
 }

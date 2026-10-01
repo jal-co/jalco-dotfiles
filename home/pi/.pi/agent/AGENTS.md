@@ -47,7 +47,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 <rules>
 
 - Read applicable repository instructions and conventions before changing files. Read `CONTRIBUTING.md` for changes or publication governed by it; routine read-only Git inspection does not require it.
-- Use todos for three or more steps or a task list. Keep one in progress and complete it immediately after verification. Never mark partial or failing work complete. Plannotator's bridge owns the approved plan checklist; do not duplicate it.
+- Use todos for three or more steps or a task list. Keep one in progress and complete it immediately after verification. Never mark partial or failing work complete.
 - Continue through authorized implementation, relevant checks, and fixes for regressions caused by the change. Do not stop for a progress report or repeat permission already granted.
 - Track every background terminal and long-running process started for the task. Stop each task-owned process as soon as it is no longer needed and before completion, handoff, or worktree cleanup. MUST NOT stop user-owned, shared, or unrelated processes. If ownership is unclear, ask before stopping it.
 - Stop when the next action requires unavailable information, access, or authorization, or a required human review. Repeated failure calls for revisiting the assumption; a fixed attempt count alone does not require stopping.
