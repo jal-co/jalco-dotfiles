@@ -1,79 +1,46 @@
-# jalco-pi-mono
+# Pi
 
-Personal [pi](https://github.com/badlogic/pi-mono) configuration — extensions, skills, MCP servers, prompt templates, and settings. Managed with [GNU Stow](https://www.gnu.org/software/stow/) for symlink-based deployment.
+Personal [Pi](https://pi.dev) configuration: settings, extensions, skills, MCP servers, prompt templates, and themes. Stowed into `~` by `./jdot stow` from the repository root.
 
-## Quick Start
+[`PI.md`](PI.md) is the generated inventory of every skill, extension, and package. Regenerate it with `./jdot pi-digest` after adding or removing any of them.
+
+## Setup
 
 ```bash
-git clone --recurse-submodules https://github.com/justinlevinedotme/jalco-pi-mono.git ~/jalco-pi-mono
-cd ~/jalco-pi-mono
-stow -t ~ pi
-
-# Install extension dependencies
+cd ~/dotfiles && ./jdot stow
 cd ~/.pi/agent/extensions && npm install
-cd ~/.pi/agent/extensions/pi-rfc-keywords && npm install
-
-# Packages in settings.json are auto-installed by pi on first startup
 ```
 
-Re-stow after changes:
-
-```bash
-cd ~/jalco-pi-mono && stow -R -t ~ pi
-```
+Pi installs the packages listed in `settings.json` on first start.
 
 ## Structure
 
+```text
+.pi/agent/
+├── AGENTS.md          # Global agent rules
+├── settings.json      # Model, packages, Pi settings
+├── models.json        # Custom model definitions
+├── mcp.json           # MCP servers (Pi's built-in MCP support)
+├── keybindings.json
+├── extensions/        # Local extensions
+├── packages/          # Local package forks (rpiv-ask-user-question, rpiv-todo)
+├── skills/            # Agent skills
+├── skills-disabled/   # Archived skills, untracked (see cleanup-manifest.json)
+├── prompts/           # Prompt templates
+├── workflows/         # Task workflows referenced by AGENTS.md
+└── themes/            # verminal, geist-dark
 ```
-pi/.pi/agent/
-├── AGENTS.md              # Global agent rules
-├── settings.json          # Provider, model, packages
-├── models.json            # Custom model definitions
-├── mcp.json               # MCP server config
-├── keybindings.json       # Keybindings
-├── extensions/            # Extensions (.ts + multi-file)
-├── skills/                # Agent skills
-├── prompts/               # Prompt templates
-├── themes/                # Custom themes (geist-dark)
-└── scripts/               # Helper scripts (discord-mcp.sh)
-```
+
+Pi also loads shared skills from `~/.agents/skills` (`home/agents` in this repository).
 
 ## Settings
 
 | Key | Value |
 |-----|-------|
-| Provider | Anthropic |
-| Model | `claude-opus-4-8` |
-| Theme | `geist-dark` |
-
-### Packages
-
-- `pi-goal-x` — goal mode: persistent objectives, `/goal-set`, Sisyphus style, status overlay
-- `context-mode` — context management
-- `pi-annotate` — visual browser-to-AI annotation
-- `pi-markdown-preview` — markdown preview
-- `pi-notify` — desktop notifications
-- `pi-updater` — auto-update
-- `pi-copy-output` — copy last output
-- `@juanibiapina/pi-extension-settings` — extension settings UI
-- `@howaboua/pi-codex-conversion` — Codex-oriented tool and prompt adapter
-- `@howaboua/pi-markdown-workflows` — markdown workflows
-- `@howaboua/pi-howaboua-extensions-primitives-sdk` — extension primitives SDK
-- `@benvargas/pi-claude-code-use` — Claude Code integration
-- `@juicesharp/rpiv-ask-user-question` — structured questionnaire with typed options
-- `@juicesharp/rpiv-todo` — todo list overlay that survives reloads and compaction
-- `@juicesharp/rpiv-args` — shell-style `$1`/`$ARGUMENTS` and `` !`cmd` `` substitution in skills
-- `@neilurk12/pi-clean-footer` — clean footer UI
-
-## MCP
-
-Servers live in `mcp.json` and use pi's built-in MCP support. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`.
-
-```bash
-# Auth
-echo 'export EXA_API_KEY="your-key"' >> ~/.zshrc.local
-source ~/.zshrc.local
-```
+| Provider | `chatgpt` |
+| Model | `gpt-5.6-sol` |
+| Thinking | `medium` |
+| Theme | `verminal` |
 
 ## Extensions
 
@@ -81,66 +48,57 @@ source ~/.zshrc.local
 
 | Extension | Description |
 |-----------|-------------|
-| `confirm-destructive` | Confirm before destructive session actions |
-| `custom-header` | Minimal Vercel-themed header |
-| `git-push-gate` | Confirm before git push |
-| `handoff` | Transfer context to a new focused session |
-| `impeccable-commands` | Slash commands for the impeccable skill |
-| `nvidia-nim-clean` | NVIDIA NIM API provider with clean streaming |
-| `permission-gate` | Confirm before dangerous bash commands |
-| `question` | Single question with selectable options |
-| `questionnaire` | Multi-step tab-based question wizard |
-| `titlebar-spinner` | Braille spinner in terminal title |
-| `zmux` | Terminal multiplexer spinner integration |
+| `codex-micro-reporter` | Writes agent state to `~/.codex-micro` |
+| `confirm-destructive` | Confirms before session switches and forks that discard work |
+| `continue-after-compaction` | Resumes the current task after compaction |
+| `custom-header` | Minimal header with skill and tool counts |
+| `footer-cleanup` | Footer busy indicator (`/footer-indicator`) |
+| `git-interceptor` | Blocks `--no-verify` and makes agent git commands non-interactive |
+| `herdr-agent-state` | Reports agent state to Herdr |
+| `orca-agent-status` | Reports agent state to Orca |
+| `orca-prefill` | Prefills the editor from `ORCA_PI_PREFILL` |
+| `orca-titlebar-spinner` | Orca titlebar spinner |
+| `provider-status` | Hides the default footer |
+| `time-tracker` | Tracks active agent time per project for billing |
+| `titlebar-spinner` | Braille spinner in the terminal title |
+| `tool-reference-alias-fix` | Rewrites aliased tool names in tool-reference blocks |
 
 ### Multi-file
 
 | Extension | Description |
 |-----------|-------------|
-| `pi-rfc-keywords` | Auto-uppercase RFC 2119 keywords in prompts |
-| `pi-webfetch` | Enhanced web fetching |
-
-## Skills
-
-| Skill | Description |
-|-------|-------------|
-| `agent-browser` | Agent-driven browser automation |
-| `browser-tools` | Browser automation via Chrome DevTools Protocol |
-| `color-accessibility` | Accessible color palette design |
-| `component-engineering` | React component engineering standard |
-| `docs-writer` | Documentation writing for Shieldcn/Fumadocs |
-| `exa` | Web search, crawling, and deep research via Exa |
-| `find-skills` | Discover and install skills from skills.sh |
-| `git` | Git/GitHub CLI workflows and conventions |
-| `impeccable` | Frontend design audit, critique, and polish |
-| `improve` | Read-only codebase audit and improvement plans |
-| `mcp-management` | MCP server config and troubleshooting |
-| `openclaw-commands` | OpenClaw command utilities |
-| `openclaw-skills` | Create skills in the OpenClaw format |
-| `pi-skills` | Meta-skill for creating pi skills |
-| `rfc-xml-style` | RFC 2119 + XML tag structure guide |
-| `security-ai-keys` | Detect leaked AI API keys |
-| `security-secrets` | High-signal secret/credential scanning |
-| `ship-or-skip` | Honest critique and vetting of product ideas |
-| `stack-up` | Tech-stack selection and architecture advice |
-
-> Skills excluded from version control (PII): `write-like-justin`, `job-search`
+| `anti-slop-gate` | Anti-slop advisory on changed JavaScript and TypeScript |
+| `pi-cloak` | Redacts configured patterns (`/cloak-status`) |
+| `pi-rfc-keywords` | Uppercases RFC 2119 keywords in prompts |
+| `pi-tool-display` | Config for the `pi-tool-display` package's tool overrides |
+| `pi-webfetch` | `WebFetch` tool |
+| `plannotator-todo-bridge` | Connects Plannotator plans, todos, and goals (disabled in `settings.json`) |
+| `shadcn-lint-gate` | shadcn lint advisory on UI changes |
 
 ## Prompt Templates
 
 | Template | Usage |
 |----------|-------|
+| `/audit-ui` | Audit Mastra UI code against the UI contract and copy rules |
+| `/break-it` | Try to break a feature with worst-case data |
 | `/install-mcp` | Install and configure an MCP server |
-| `/refactor-rfc-xml` | Refactor markdown to RFC 2119 + XML style |
-| `/setup-ci` | Set up GitHub CI pipeline |
+| `/mastra-better` | Judge whether a change makes Mastra better |
+| `/mastra-linear` | Draft a Mastra Linear ticket from a rough note |
+| `/mdx-diagram` | Create an ASCII-frame MDX diagram |
+| `/migrate-control` | Change a playground-ui control and check for drift |
+| `/refactor-rfc-xml` | Refactor markdown into RFC 2119 + XML style |
+| `/review-ui` | Line-by-line UI review |
 
-## What's Ignored
+## MCP
 
-Runtime state (`auth.json`, `mcp-cache.json`, `sessions/`), binaries (`bin/`, `jars/`), `node_modules/`, build artifacts, and personal skills containing PII. See [`.gitignore`](.gitignore).
+Servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`. Keys go in `~/.zshrc.local`, for example `EXA_API_KEY`.
+
+## Ignored
+
+Runtime state (`auth.json`, `mcp-cache.json`, `sessions/`), `node_modules/`, `skills-disabled/`, and personal skills such as `write-like-justin` and `job-search`. See the repository [`.gitignore`](../../.gitignore) and [`home/pi/.gitignore`](.gitignore).
 
 ## Acknowledgments
 
-- [pi](https://github.com/badlogic/pi-mono) by [badlogic](https://github.com/badlogic)
+- [Pi](https://github.com/earendil-works/pi) by Earendil
 - [pi-annotate](https://github.com/nicobailon/pi-annotate) by [nicobailon](https://github.com/nicobailon)
-- [IgorWarzocha](https://github.com/IgorWarzocha) — pi-rfc-keywords, pi-agent-manager, component-engineering, security skills
-- [impeccable](https://github.com/designcomputer/impeccable) — frontend design skill
+- [IgorWarzocha](https://github.com/IgorWarzocha): pi-rfc-keywords, security skills
