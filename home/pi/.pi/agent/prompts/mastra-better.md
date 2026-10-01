@@ -1,0 +1,1 @@
+../../../../../../dev/agent-contracts-justin/prompts/mastra-better.md
