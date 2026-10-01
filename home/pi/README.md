@@ -112,22 +112,19 @@ source ~/.zshrc.local
 | `exa` | Web search, crawling, and deep research via Exa |
 | `find-skills` | Discover and install skills from skills.sh |
 | `git` | Git/GitHub CLI workflows and conventions |
-| `grep-app` | Search code across GitHub repositories |
 | `impeccable` | Frontend design audit, critique, and polish |
 | `improve` | Read-only codebase audit and improvement plans |
 | `mcp-management` | MCP server config and troubleshooting |
 | `openclaw-commands` | OpenClaw command utilities |
 | `openclaw-skills` | Create skills in the OpenClaw format |
 | `pi-skills` | Meta-skill for creating pi skills |
-| `repo-ci` | GitHub CI with Husky and conventional commits |
 | `rfc-xml-style` | RFC 2119 + XML tag structure guide |
 | `security-ai-keys` | Detect leaked AI API keys |
 | `security-secrets` | High-signal secret/credential scanning |
-| `shadcn-ui` | shadcn/ui component library patterns |
 | `ship-or-skip` | Honest critique and vetting of product ideas |
 | `stack-up` | Tech-stack selection and architecture advice |
 
-> Skills excluded from version control (PII): `write-like-justin`, `job-search`, `real-app`
+> Skills excluded from version control (PII): `write-like-justin`, `job-search`
 
 ## Prompt Templates
 
