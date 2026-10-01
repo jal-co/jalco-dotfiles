@@ -41,7 +41,6 @@
     "npm:@ogulcancelik/pi-auto-permissions",
     "npm:@ogulcancelik/pi-herdr",
     "npm:claude-agent-sdk-pi",
-    "npm:@plannotator/pi-extension",
     "npm:@jalco/pi-herdr-worktree",
     "npm:pi-web-access",
     {
