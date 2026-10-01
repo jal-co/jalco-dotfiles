@@ -15,9 +15,6 @@
     "openai-codex/gpt-6.1-sol"
   ],
   "enableSkillCommands": true,
-  "extensions": [
-    "-extensions/plannotator-todo-bridge/index.ts"
-  ],
   "followUpMode": "all",
   "hideThinkingBlock": true,
   "lastChangelogVersion": "1.0.0",

@@ -61,7 +61,7 @@ because `blockedBy` arrived as the string `"[1]"`.
    `rpiv-todo:request` shared-event contract for sibling extensions. Atomic
    reducer-backed mutation batches append full `rpiv-todo-snapshot` entries,
    refresh the existing overlay, and replay from the active session branch.
-   This is used by the Plannotator bridge without importing todo internals.
+   Sibling extensions use it without importing todo internals.
 
 6. **`complete-todos.ts`**: added `complete_todos` for explicit stale-state
    cleanup. It supports selected IDs or an explicit all-active mode, preserves

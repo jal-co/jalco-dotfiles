@@ -72,7 +72,6 @@ Pi also loads shared skills from `~/.agents/skills` (`home/agents` in this repos
 | `pi-rfc-keywords` | Uppercases RFC 2119 keywords in prompts |
 | `pi-tool-display` | Config for the `pi-tool-display` package's tool overrides |
 | `pi-webfetch` | `WebFetch` tool |
-| `plannotator-todo-bridge` | Connects Plannotator plans, todos, and goals (disabled in `settings.json`) |
 | `shadcn-lint-gate` | shadcn lint advisory on UI changes |
 
 ## Prompt Templates
