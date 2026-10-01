@@ -42,6 +42,7 @@ AGENTS.md
 # Secrets & auth
 home/pi/.pi/agent/auth.json
 home/pi/.pi/agent/mcp-auth.json
+home/pi/.pi/agent/mastra.json
 home/pi/.pi/agent/compact-adviser.json
 home/pi/.pi/agent/compact-adviser-requests.jsonl
 
@@ -50,6 +51,11 @@ home/pi/.pi/agent/mcp-plugins/
 
 # Sessions (ephemeral, large)
 home/pi/.pi/agent/sessions/
+
+# Runtime state and local backups
+home/pi/.pi/agent/backups/
+home/pi/.pi/agent/crashes.json
+home/pi/.pi/agent/model-update-cache.json
 
 # Binaries (pi recreates these on install)
 home/pi/.pi/agent/bin/
