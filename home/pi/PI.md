@@ -26,7 +26,6 @@ Rules for pi agents live in `.pi/agent/AGENTS.md`, not here — this file is inv
 - `npm:pi-notify`
 - `npm:pi-tool-display`
 - `npm:pi-updater`
-- `npm:pi-cursor-sdk`
 - `npm:pi-xai-oauth`
 - `git:github.com/jal-co/pi-agentation`
 - `../../Documents/Github/pi-codex-micro`

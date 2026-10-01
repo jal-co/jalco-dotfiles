@@ -14,7 +14,7 @@
     "deepseek/deepseek-flash",
     "openai-codex/gpt-6.1-sol"
   ],
-  "enableSkillCommands": true,
+  "enableSkillCommands": false,
   "followUpMode": "all",
   "hideThinkingBlock": true,
   "lastChangelogVersion": "1.0.0",
@@ -30,7 +30,6 @@
     "npm:pi-notify",
     "npm:pi-tool-display",
     "npm:pi-updater",
-    "npm:pi-cursor-sdk",
     "npm:pi-xai-oauth",
     "git:github.com/jal-co/pi-agentation",
     "../../Documents/Github/pi-codex-micro",
@@ -59,5 +58,13 @@
   "warnings": {
     "anthropicExtraUsage": false
   },
-  "deviceId": "73764b9c-24f9-428a-b66a-94eb83173d65"
+  "deviceId": "73764b9c-24f9-428a-b66a-94eb83173d65",
+  "terminal": {
+    "showTerminalProgress": false
+  },
+  "cacheWarming": "streaming",
+  "markdown": {
+    "mermaid": "final"
+  },
+  "doubleEscapeAction": "tree"
 }
