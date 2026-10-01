@@ -12,7 +12,7 @@
     "anthropic/claude-fable-5-1",
     "chatgpt/gpt-6-astra",
     "deepseek/deepseek-flash",
-    "chatgpt/gpt-6-sol"
+    "openai-codex/gpt-6.1-sol"
   ],
   "enableSkillCommands": true,
   "extensions": [
