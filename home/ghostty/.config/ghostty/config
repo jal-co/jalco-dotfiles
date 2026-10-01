@@ -1,7 +1,7 @@
 # --- Font ---
 font-family = Geist Mono
 font-size = 14
-font-codepoint-map = U+EC81-U+EC82=Symbols Nerd Font
+font-codepoint-map = U+EC81-U+EC82=Symbols Nerd Font Mono
 
 # --- Vercel-ish / Geist-ish palette ---
 palette = 0=#000000
