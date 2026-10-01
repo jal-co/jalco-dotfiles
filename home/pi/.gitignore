@@ -9,6 +9,7 @@
 
 # MCP caches (regenerated at runtime)
 .pi/agent/mcp-cache.json
+.pi/agent/web-search-cache/
 .pi/agent/mcp-npx-cache.json
 
 # Sessions (ephemeral, large)
