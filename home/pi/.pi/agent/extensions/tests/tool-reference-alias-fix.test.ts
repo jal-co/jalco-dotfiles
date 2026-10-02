@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { alignToolReferences } from "../tool-reference-alias-fix.ts";
 
-const aliasedTools = [{ name: "mcp__extension__plannotator_submit_plan" }, { name: "bash" }];
+const aliasedTools = [{ name: "mcp__extension__example_submit_plan" }, { name: "bash" }];
 
 function payloadWithReference(toolName: string, tools: unknown[] = aliasedTools) {
 	return {
@@ -23,10 +23,10 @@ function payloadWithReference(toolName: string, tools: unknown[] = aliasedTools)
 }
 
 test("rewrites a flat tool reference to its mcp alias", () => {
-	const result = alignToolReferences(payloadWithReference("plannotator_submit_plan"));
+	const result = alignToolReferences(payloadWithReference("example_submit_plan"));
 	assert.ok(result);
 	const block = (result.messages as any)[0].content[0].content[0];
-	assert.equal(block.tool_name, "mcp__extension__plannotator_submit_plan");
+	assert.equal(block.tool_name, "mcp__extension__example_submit_plan");
 });
 
 test("leaves a reference alone when the tool is already present", () => {
@@ -57,7 +57,7 @@ test("keeps sibling blocks in a mixed tool result", () => {
 						tool_use_id: "toolu_2",
 						content: [
 							{ type: "text", text: "output" },
-							{ type: "tool_reference", tool_name: "plannotator_submit_plan" },
+							{ type: "tool_reference", tool_name: "example_submit_plan" },
 						],
 					},
 				],
@@ -69,5 +69,5 @@ test("keeps sibling blocks in a mixed tool result", () => {
 	const content = (result.messages as any)[0].content[0].content;
 	assert.equal(content.length, 2);
 	assert.equal(content[0].text, "output");
-	assert.equal(content[1].tool_name, "mcp__extension__plannotator_submit_plan");
+	assert.equal(content[1].tool_name, "mcp__extension__example_submit_plan");
 });
