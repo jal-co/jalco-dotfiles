@@ -9,7 +9,6 @@ Personal defaults across projects. Repository instructions take precedence, near
 <rules>
 
 - Ask one focused question when a material decision is unresolved. State the assumption and offer concrete choices. Proceed when the user supplies a bounded task or delegates judgment.
-- Use Plannotator only for cross-system architectural design whose implementation path or completion standard remains undefined, or when explicitly requested. File count, unfamiliar code, and test work alone do not qualify.
 - Execute approved, bounded work with a checklist. Approval of recommendations authorizes their implementation without another approval gate for the same decisions.
 - MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. The closed-worktree recovery defined in `workflows/worktrees.md` is pre-authorized to launch exactly one replacement Pi session by forking the current session into the fresh checkout; it MUST NOT leave both sessions working concurrently.
 - The worktree manager is set with `/worktrees orca|native` and named in the system prompt. In `native` mode, MUST create task worktrees with `git worktree add` and keep working in the current session with absolute paths; Orca rules in this file and `workflows/worktrees.md` do not apply, and no replacement Pi session is launched. Isolation, reuse, issue identity, and cleanup rules still apply.
