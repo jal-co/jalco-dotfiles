@@ -1,7 +1,7 @@
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { getSetting, setSetting } from "@juanibiapina/pi-extension-settings";
-import { mixColors, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { getFrameLabels } from "./lib/footer-format.js";
+import { colorToOkhsl, mixColors, okhslColor, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { getFrameLabels, getProviderColor } from "./lib/footer-format.js";
 
 const HIDDEN_STATUS_KEYS = new Set([
 	"pi-agentation",
@@ -68,6 +68,19 @@ export function saveBusyIndicatorMode(mode: BusyIndicatorMode, agentDir?: string
 	setSetting("footer-cleanup", "busyIndicator", mode, { scope: "global", agentDir });
 }
 
+const SHIMMER_HUES = { ocean: 235, matrix: 145, ember: 35, sakura: 350, grape: 300 } as const;
+export const SHIMMER_COLORS = ["mono", "provider", "rainbow", "sunset", ...Object.keys(SHIMMER_HUES) as (keyof typeof SHIMMER_HUES)[]] as const;
+export type ShimmerColor = (typeof SHIMMER_COLORS)[number];
+
+export function loadShimmerColor(agentDir?: string): ShimmerColor {
+	const value = getSetting("footer-cleanup", "shimmerColor", "mono", { scope: "global", agentDir });
+	return SHIMMER_COLORS.find((color) => color === value) ?? "mono";
+}
+
+export function saveShimmerColor(color: ShimmerColor, agentDir?: string): void {
+	setSetting("footer-cleanup", "shimmerColor", color, { scope: "global", agentDir });
+}
+
 export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize) {
 	if (mode === "none") return { frames: [], intervalMs: 0 };
 	if (mode === "dot") return { frames: [colorize("accent", "●")], intervalMs: 0 };
@@ -88,18 +101,41 @@ export function getBusyIndicator(mode: BusyIndicatorMode, colorize: Colorize) {
 	return { frames: [colorize("accent", "")], intervalMs: 0 };
 }
 
-export function formatWorkingMessage(elapsedMs: number, theme: ExtensionUIContext["theme"], animate: boolean): string {
+export function formatWorkingMessage(
+	elapsedMs: number,
+	theme: ExtensionUIContext["theme"],
+	animate: boolean,
+	shimmer: ShimmerColor = "mono",
+	provider?: string,
+): string {
 	const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
 	const elapsed = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 	const label = "Working...";
-	const position = ((Math.max(0, elapsedMs) % 2400) / 2400) * (label.length + 6) - 3;
-	const working = animate
+	const time = animate ? Math.max(0, elapsedMs) : 0;
+	const position = animate ? ((time % 2400) / 2400) * (label.length + 6) - 3 : -10;
+	const { muted, text } = theme.colors;
+	const hues: Partial<Record<ShimmerColor, number>> = SHIMMER_HUES;
+	const tint = shimmer === "provider" ? colorToOkhsl(getProviderColor(provider, theme.colors)) : { h: hues[shimmer] ?? 0, s: 0.8 };
+	const ramp = (hue: number, saturation: number, intensity: number) => okhslColor(hue, saturation, 0.45 + 0.45 * intensity);
+	const working = animate || shimmer !== "mono"
 		? [...label].map((character, index) => {
 			const intensity = Math.max(0, 1 - Math.abs(index - position) / 2);
-			return theme.style(character, { fg: mixColors(theme.colors.muted, theme.colors.text, intensity) });
+			const fg = shimmer === "mono"
+				? mixColors(muted, text, intensity)
+				: shimmer === "rainbow"
+					? ramp((index * 36 + time * 0.15) % 360, 0.8, 0.4 + 0.6 * intensity)
+					: shimmer === "sunset"
+						? ramp((340 + index * 8) % 360, 0.85, intensity)
+						: ramp(tint.h, tint.s, intensity);
+			return theme.style(character, { fg });
 		}).join("")
 		: theme.fg("muted", label);
 	return `${working} ${theme.fg("dim", elapsed)}`;
+}
+
+export function completeOptions(options: readonly string[], current: string, prefix: string) {
+	const matches = options.filter((option) => option.startsWith(prefix.trim().toLowerCase()));
+	return matches.length ? matches.map((value) => ({ value, label: value, description: value === current ? "current" : undefined })) : null;
 }
 
 export function formatPonytailStatus(value: string, colorize: Colorize): string {
@@ -116,6 +152,8 @@ export function formatPonytailStatus(value: string, colorize: Colorize): string 
 export default function footerCleanup(pi: ExtensionAPI): void {
 	let latestUI: ExtensionUIContext | undefined;
 	let mode = loadBusyIndicatorMode();
+	let shimmer = loadShimmerColor();
+	let provider: string | undefined;
 	let workingTimer: ReturnType<typeof setInterval> | undefined;
 
 	function stopWorkingTimer(): void {
@@ -130,7 +168,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		const startedAt = Date.now();
 		let previousMessage: string | undefined;
 		const update = () => {
-			const message = formatWorkingMessage(Date.now() - startedAt, ui.theme, mode === "spinner" || mode === "pulse");
+			const message = formatWorkingMessage(Date.now() - startedAt, ui.theme, mode === "spinner" || mode === "pulse", shimmer, provider);
 			if (message === previousMessage) return;
 			previousMessage = message;
 			ui.setWorkingMessage(message);
@@ -155,6 +193,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 
 	pi.registerCommand("footer-indicator", {
 		description: "Set the working indicator: dot, pulse, none, spinner, or reset.",
+		getArgumentCompletions: (prefix) => completeOptions(["dot", "pulse", "spinner", "none", "reset"], mode, prefix),
 		handler: async (args, ctx) => {
 			const nextMode = args.trim().toLowerCase();
 			if (!nextMode) {
@@ -181,8 +220,37 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.registerCommand("footer-shimmer", {
+		description: `Set the Working... shimmer color: ${SHIMMER_COLORS.join(", ")}. No argument cycles.`,
+		getArgumentCompletions: (prefix) => completeOptions(SHIMMER_COLORS, shimmer, prefix),
+		handler: async (args, ctx) => {
+			const requested = args.trim().toLowerCase();
+			const next = requested
+				? SHIMMER_COLORS.find((color) => color === requested)
+				: SHIMMER_COLORS[(SHIMMER_COLORS.indexOf(shimmer) + 1) % SHIMMER_COLORS.length];
+			if (!next) {
+				ctx.ui.notify(`Usage: /footer-shimmer [${SHIMMER_COLORS.join("|")}]`, "error");
+				return;
+			}
+			try {
+				saveShimmerColor(next);
+			} catch (error) {
+				ctx.ui.notify(`Could not save shimmer color: ${error instanceof Error ? error.message : String(error)}`, "error");
+				return;
+			}
+			shimmer = next;
+			ctx.ui.notify(`Shimmer color saved: ${shimmer}`, "info");
+		},
+	});
+
+	pi.on("model_select", (event) => {
+		provider = event.model.provider;
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
+		provider = ctx.model?.provider;
+		shimmer = loadShimmerColor();
 		stopWorkingTimer();
 		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
 			const editor = new FramedEditor(tui, theme, keybindings, { paddingX: 3, embedWorkingStatus: true });

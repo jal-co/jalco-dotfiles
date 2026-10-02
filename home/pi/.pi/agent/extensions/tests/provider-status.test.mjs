@@ -199,6 +199,21 @@ test("working label shimmers without changing text width or animating the timer"
 	assert.equal(formatWorkingMessage(400, theme, false), "Working... 0s");
 });
 
+test("shimmer colors keep the label text and differ from mono", () => {
+	const theme = {
+		colors: { accent: rgbColor(0, 128, 255), muted: rgbColor(134, 134, 134), text: rgbColor(255, 255, 255) },
+		fg: (_color, text) => text,
+		style: (text, options) => styleText(text, options, "truecolor"),
+	};
+	const mono = formatWorkingMessage(400, theme, true, "mono");
+	for (const [shimmer, provider] of [["rainbow"], ["sunset"], ["ocean"], ["matrix"], ["ember"], ["sakura"], ["grape"], ["provider", "anthropic"], ["provider", "openai"]]) {
+		const message = formatWorkingMessage(400, theme, true, shimmer, provider);
+		assert.equal(stripVTControlCharacters(message), "Working... 0s");
+		assert.notEqual(message, mono);
+	}
+	assert.notEqual(formatWorkingMessage(0, theme, true, "rainbow"), formatWorkingMessage(400, theme, true, "rainbow"));
+});
+
 test("elapsed timer survives continuation and stops on settle, shutdown, and restart", async (t) => {
 	t.mock.timers.enable({ apis: ["Date", "setInterval", "setTimeout"], now: 10000 });
 	const handlers = new Map();
@@ -242,4 +257,10 @@ test("elapsed timer survives continuation and stops on settle, shutdown, and res
 	handlers.get("agent_start")();
 	t.mock.timers.tick(5000);
 	assert.equal(setWorkingMessage.mock.callCount(), stoppedCalls);
+});
+
+test("footer commands complete their options and mark the current one", async () => {
+	const { completeOptions } = await jiti.import("../footer-cleanup.ts");
+	assert.deepEqual(completeOptions(["mono", "matrix", "ocean"], "matrix", "m").map((item) => [item.value, item.description]), [["mono", undefined], ["matrix", "current"]]);
+	assert.equal(completeOptions(["mono"], "mono", "x"), null);
 });
