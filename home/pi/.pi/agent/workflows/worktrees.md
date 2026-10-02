@@ -27,7 +27,9 @@ Every new Orca worktree MUST use the worktree that spawned it as its immediate p
 
 ## Choose the workspace manager
 
-Use the first applicable path:
+The system prompt names the active worktree manager, set with `/worktrees orca|native` and stored in `~/.pi/agent/state/worktree-manager` (default `orca`). In `native` mode, skip every Orca step in this file: do not inspect Orca state, create Git worktrees at `<repo>/<semantic-slug>` from the remote default branch, keep working in the current session with absolute paths instead of the replacement-session handoff, and clean up with `git worktree remove`. Reuse, isolation, issue identity, and cleanup rules still apply.
+
+In `orca` mode, use the first applicable path:
 
 - If `orca` is installed and `orca status` succeeds, use Orca. Inspect `orca worktree list --json` and reuse only a matching open task worktree. Resolve the project and host setup with `orca project list --json` and `orca project setups --json`. Create with `orca worktree create --project <id> --host <host-id> --name <semantic-slug> --base-branch <remote-default> --parent-worktree active --json`. Omit `--agent`, `--prompt`, and `--activate` so creation does not launch another agent or steal focus. Verify the returned branch, checkout path, and parent worktree before editing.
 - Otherwise, inside Herdr use `herdr_worktree_*` tools so hooks and linked paths run. Outside Herdr use native Git worktree commands.
