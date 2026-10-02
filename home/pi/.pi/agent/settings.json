@@ -49,7 +49,8 @@
       ]
     },
     "npm:@narumitw/pi-btw",
-    "npm:pi-chatgpt-pool"
+    "npm:pi-chatgpt-pool",
+    "git:github.com/mastra-ai/pi-alexandria"
   ],
   "quietStartup": "header",
   "showCacheMissNotices": true,
