@@ -14,7 +14,7 @@
     "deepseek/deepseek-flash",
     "openai-codex/gpt-6.1-sol"
   ],
-  "enableSkillCommands": false,
+  "enableSkillCommands": true,
   "followUpMode": "all",
   "hideThinkingBlock": true,
   "lastChangelogVersion": "1.0.0",
