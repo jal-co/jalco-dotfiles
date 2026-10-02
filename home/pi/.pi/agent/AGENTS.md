@@ -12,6 +12,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 - Use Plannotator only for cross-system architectural design whose implementation path or completion standard remains undefined, or when explicitly requested. File count, unfamiliar code, and test work alone do not qualify.
 - Execute approved, bounded work with a checklist. Approval of recommendations authorizes their implementation without another approval gate for the same decisions.
 - MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. The closed-worktree recovery defined in `workflows/worktrees.md` is pre-authorized to launch exactly one replacement Pi session by forking the current session into the fresh checkout; it MUST NOT leave both sessions working concurrently.
+- The worktree manager is set with `/worktrees orca|native` and named in the system prompt. In `native` mode, MUST create task worktrees with `git worktree add` and keep working in the current session with absolute paths; Orca rules in this file and `workflows/worktrees.md` do not apply, and no replacement Pi session is launched. Isolation, reuse, issue identity, and cleanup rules still apply.
 - When the current open Orca worktree's linked issue, branch, path, or stated purpose matches the task, MUST use it and MUST NOT create another worktree or replacement Pi session. This applies even when the task branch has no commits or its HEAD is contained in the remote default branch; ancestry alone does not prove that a worktree is closed. A matching Linear ticket is sufficient evidence that the current open worktree owns the task.
 - Create a replacement worktree and Pi session only when the current checkout is closed, belongs to another task or repository, is the default-branch launch checkout, or would be shared by concurrent workers. MUST NOT create one merely because implementation is bounded, the branch has not diverged, or the session began before the issue was inspected.
 - The dotfiles repository is an explicit exception to worktree isolation. MUST apply requested changes directly to its `main` checkout and MUST NOT create a task worktree.
@@ -66,7 +67,7 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 
 | Task | Required guidance |
 | --- | --- |
-| Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
+| Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Follow the active worktree manager (`/worktrees`). Keep concurrent work isolated. |
 | Git changes, commits, branches, or publication | `git`; use `gh-stack` only for an existing or explicitly requested stack. |
 | Prepare, open, update, or finalize a PR | `preparing-pull-requests`. For UI intended for a PR, load before implementation to capture the before state. |
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
