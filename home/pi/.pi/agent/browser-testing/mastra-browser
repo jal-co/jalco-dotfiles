@@ -18,7 +18,7 @@ export AGENT_BROWSER_SCREENSHOT_FORMAT="${AGENT_BROWSER_SCREENSHOT_FORMAT:-png}"
 
 command="${1:-}"
 if [[ -z "$command" ]]; then
-  printf 'usage: mastra-browser <start|ready|auth-load|auth-save|artifacts|session|video-mp4|agent-browser command>\n' >&2
+  printf 'usage: mastra-browser <start|ready|auth-load|auth-save|auth-import-helium [domain...]|artifacts|session|video-mp4|agent-browser command>\n' >&2
   exit 2
 fi
 shift
@@ -51,8 +51,7 @@ case "$command" in
     printf '%s\n' "$auth_state"
     ;;
   auth-import-helium)
-    printf 'Personal-browser auth import is disabled. Supply a scoped auth-state file or complete login in an isolated session.\n' >&2
-    exit 1
+    agent-browser auth-import-helium "${@:-localhost}"
     ;;
   artifacts)
     printf '%s\n' "$artifact_dir"

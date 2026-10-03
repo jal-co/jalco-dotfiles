@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readHeliumState } from './helium-cookies.mjs'
 import { browserEnvironment, validateBatch, validateBrowserArgs, validateSession } from './policy.mjs'
 
 const args = process.argv.slice(2)
@@ -45,6 +46,19 @@ try {
     run(['open', args[1]], { stdio: 'inherit' })
     run(['set', 'viewport', '1440', '1000'], { stdio: 'inherit' })
     run(['set', 'media', env.AGENT_BROWSER_COLOR_SCHEME || 'dark'], { stdio: 'inherit' })
+    process.exit(0)
+  }
+  if (command === 'auth-import-helium') {
+    const state = readHeliumState(args.slice(1))
+    if (!state.cookies.length) throw new Error(`Helium has no cookies for ${args.slice(1).join(', ')}`)
+    const file = join(artifacts, `helium-state-${process.pid}.json`)
+    writeFileSync(file, JSON.stringify(state), { mode: 0o600 })
+    try {
+      run(['state', 'load', file], { stdio: 'inherit' })
+    } finally {
+      rmSync(file, { force: true })
+    }
+    console.log(`Imported ${state.cookies.length} Helium cookies for ${args.slice(1).join(', ')}; reload the page`)
     process.exit(0)
   }
   if (command === 'ready') {

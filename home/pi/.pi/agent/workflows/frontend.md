@@ -6,7 +6,7 @@ Read before frontend implementation, browser verification, capture, or localhost
 
 <rules>
 
-All browser automation MUST run in isolated headless Chromium, including screenshots, recordings, exploratory journeys, and repeatable tests. MUST NOT attach to personal browsers, import authentication through Helium, use OS mouse/keyboard control, or silently retry in headed mode. This prevents testing from interrupting Justin's work.
+All browser automation MUST run in isolated headless Chromium, including screenshots, recordings, exploratory journeys, and repeatable tests. MUST NOT attach to personal browsers, use OS mouse/keyboard control, or silently retry in headed mode. This prevents testing from interrupting Justin's work.
 
 </rules>
 
@@ -20,8 +20,8 @@ The helper uses the `pi-headless` namespace, derives one worktree-scoped session
 For Mastra authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-browser"`. This helper uses the same isolated launcher and seeds a new session from `~/.agent-browser/auth/mastra-platform.json` when present. If a protected route redirects to login:
 
 1. Run `"$BROWSER" auth-load`, reopen the protected route, and verify authentication.
-2. If the seed is missing or expired, stop and request a scoped state file or human login to the isolated session. MUST NOT obtain it by attaching to Helium or request credentials in chat. A review page opened in the personal browser does not authenticate the automation session.
-3. After the protected route succeeds, run `"$BROWSER" auth-save`. Auth state MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached.
+2. If the seed is missing or expired, run `"$BROWSER" auth-import-helium [domain...]` (default `localhost`), reopen the route, and verify. It decrypts only the named domains' cookies from Helium's cookie store into the headless session, so Justin's browser is never attached or disturbed. Stop and ask Justin to sign in to that site in Helium only when the import finds no valid session. MUST NOT request credentials in chat. Outside Mastra, `task-browser auth-import-helium <domain...>` does the same.
+3. After the protected route succeeds, run `"$BROWSER" auth-save`. Auth state and imported cookies MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached.
 
 Playwright assertions MUST use the repository's installed version when available, with headless execution and no `--ui`, `--headed`, `--debug`, `PWDEBUG`, or automatic report opening. Otherwise use `createMastraPage` from `$HOME/.pi/agent/browser-testing/mastra.mjs` for Mastra without adding a repository dependency. That helper always launches isolated headless Chromium with the local auth seed, viewport, and dark color scheme. Assertions belong in repeatable project tests; agents SHOULD NOT manually repeat an already-covered journey on every iteration.
 
