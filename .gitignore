@@ -24,6 +24,8 @@ home/herdr/.config/herdr/plugins.json
 home/herdr/.config/herdr/plugins/
 home/herdr/.config/herdr/release-notes.json
 home/herdr/.config/herdr/session.json
+home/herdr/.config/herdr/herdr.sock*
+home/herdr/.config/herdr/session-snapshots/
 home/zed/.config/zed/prompts/
 
 # tmux: TPM-managed plugins, reinstall via prefix + I

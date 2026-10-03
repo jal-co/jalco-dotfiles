@@ -15,17 +15,18 @@ const jiti = createJiti(import.meta.url, {
 		name, join(dirname(findPackageJSON(name, runtimeEntry)), "dist/index.js"),
 	])),
 });
-const { default: providerStatus } = await jiti.import("../provider-status.ts");
 const { default: footerCleanup, FramedEditor, formatWorkingMessage } = await jiti.import("../footer-cleanup.ts");
 const { visibleWidth, CURSOR_MARKER, rgbColor, styleText } = await jiti.import("@earendil-works/pi-tui");
 const { getFrameLabels } = await jiti.import("../lib/footer-format.ts");
+
+const stubUI = () => ({ setEditorComponent() {}, setStatus() {}, setWorkingIndicator() {}, setWorkingMessage() {}, theme: { fg: (_color, text) => text } });
 
 test("hidden footer leaves the native working indicator visible", async (t) => {
 	const handlers = new Map();
 	const setFooter = t.mock.fn();
 	const setWorkingVisible = t.mock.fn();
-	providerStatus({ on: (name, handler) => handlers.set(name, handler) });
-	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setFooter, setWorkingVisible } });
+	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { ...stubUI(), setFooter, setWorkingVisible } });
 	assert.equal(setFooter.mock.callCount(), 1);
 	assert.equal(setWorkingVisible.mock.callCount(), 0);
 });
@@ -39,6 +40,7 @@ test("spinner and elapsed time sit in the Amp-style top border", async (t) => {
 		setStatus() {},
 		setWorkingIndicator() {},
 		setWorkingMessage() {},
+		setFooter() {},
 		theme: { fg: (_color, text) => text },
 	};
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
@@ -172,8 +174,8 @@ test("model branding and session metrics fit the frame without crowding the time
 test("footer renders no rows", async () => {
 	const handlers = new Map();
 	let factory;
-	providerStatus({ on: (name, handler) => handlers.set(name, handler) });
-	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setFooter: (value) => { factory = value; } } });
+	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
+	await handlers.get("session_start")({}, { hasUI: true, mode: "tui", ui: { ...stubUI(), setFooter: (value) => { factory = value; } } });
 	const footer = factory({}, { fg: (_color, text) => text }, { getExtensionStatuses: () => new Map([["pool", "chatgpt: work"]]) });
 	for (const width of [12, 48, 140]) {
 		const lines = footer.render(width);
@@ -223,6 +225,7 @@ test("elapsed timer survives continuation and stops on settle, shutdown, and res
 		setStatus() {},
 		setWorkingIndicator() {},
 		setWorkingMessage,
+		setFooter() {},
 		theme: { fg: (_color, text) => text },
 	};
 	footerCleanup({ on: (name, handler) => handlers.set(name, handler), registerCommand() {} });
