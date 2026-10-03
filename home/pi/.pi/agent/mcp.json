@@ -86,6 +86,12 @@
     "metabase": {
       "url": "https://metabase.mastra.ai/api/metabase-mcp",
       "enabled": false
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "workos": {
+      "url": "https://mcp.workos.com/mcp"
     }
   }
 }
