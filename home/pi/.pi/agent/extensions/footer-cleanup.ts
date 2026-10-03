@@ -5,7 +5,6 @@ import { getFrameLabels, getProviderColor } from "./lib/footer-format.js";
 
 const HIDDEN_STATUS_KEYS = new Set([
 	"pi-agentation",
-	"codex-micro",
 	"mcp",
 	"mcp-auth",
 	"provider-model",
@@ -252,6 +251,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		provider = ctx.model?.provider;
 		shimmer = loadShimmerColor();
 		stopWorkingTimer();
+		ctx.ui.setFooter(() => ({ invalidate() {}, render: () => [] }));
 		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
 			const editor = new FramedEditor(tui, theme, keybindings, { paddingX: 3, embedWorkingStatus: true });
 			editor.frameColor = (text) => ctx.ui.theme.fg("border", text);

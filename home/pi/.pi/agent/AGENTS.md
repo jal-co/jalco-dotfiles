@@ -10,10 +10,8 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 - Ask one focused question when a material decision is unresolved. State the assumption and offer concrete choices. Proceed when the user supplies a bounded task or delegates judgment.
 - Execute approved, bounded work with a checklist. Approval of recommendations authorizes their implementation without another approval gate for the same decisions.
-- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. The closed-worktree recovery defined in `workflows/worktrees.md` is pre-authorized to launch exactly one replacement Pi session by forking the current session into the fresh checkout; it MUST NOT leave both sessions working concurrently.
-- The worktree manager is set with `/worktrees orca|native` and named in the system prompt. In `native` mode, MUST create task worktrees with `git worktree add` and keep working in the current session with absolute paths; Orca rules in this file and `workflows/worktrees.md` do not apply, and no replacement Pi session is launched. Isolation, reuse, issue identity, and cleanup rules still apply.
-- When the current open Orca worktree's linked issue, branch, path, or stated purpose matches the task, MUST use it and MUST NOT create another worktree or replacement Pi session. This applies even when the task branch has no commits or its HEAD is contained in the remote default branch; ancestry alone does not prove that a worktree is closed. A matching Linear ticket is sufficient evidence that the current open worktree owns the task.
-- Create a replacement worktree and Pi session only when the current checkout is closed, belongs to another task or repository, is the default-branch launch checkout, or would be shared by concurrent workers. MUST NOT create one merely because implementation is bounded, the branch has not diverged, or the session began before the issue was inspected.
+- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: the Herdr main agent (`herdr-dispatch`) launches exactly one Pi agent per task Justin hands it.
+- Task worktrees are created by the Herdr main agent, one per task, each with its own Pi session. A session already inside a task worktree MUST work there and MUST NOT create another worktree, even when its branch has no commits yet. Outside Herdr, create worktrees with `git worktree add` and keep working in the current session with absolute paths.
 - The dotfiles repository is an explicit exception to worktree isolation. MUST apply requested changes directly to its `main` checkout and MUST NOT create a task worktree.
 - A repository with no configured Git remote is also exempt: MUST work directly in its default-branch checkout when no other agent is working there. Nothing is published or reviewed from a local-only repository, so a worktree adds a checkout without protecting anything.
 - Before creating a worktree, MUST reuse an unclaimed worktree of the target repository: no linked issue or PR, no commits beyond the default branch, a clean working tree, and no agent running in it. Creating another leaves an empty worktree behind for Justin to clean up.
@@ -54,7 +52,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 - Match every explicit requirement to evidence before declaring completion. Run applicable existing checks before committing or pushing. Do not add unrelated test tooling or claim unrun checks passed.
 - Before any pull request, load `ponytail-review` and review the complete diff for avoidable complexity. Apply valid findings. For JavaScript or TypeScript changes, then run `anti-slop` (`~/dotfiles/tools/anti-slop/bin/anti-slop`) on the changed files. Fix findings in changed code or report why one stands; do not add either tool's config or dependencies to the target repository.
 - After compaction, recover from the summary, current tasks, approved plan, and workspace state. Consult session history only when those sources conflict and smaller sources cannot resolve it.
-- Session history is shared across repository checkouts and Orca workspaces. When a task references prior work, a previous decision, a recurring error, an issue, or a related branch, search all Pi sessions with `session_search`, then inspect likely matches with `session_query`. Do not search history for unrelated new tasks.
+- Session history is shared across repository checkouts and Herdr workspaces. When a task references prior work, a previous decision, a recurring error, an issue, or a related branch, search all Pi sessions with `session_search`, then inspect likely matches with `session_query`. Do not search history for unrelated new tasks.
 
 </rules>
 
@@ -66,12 +64,12 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 
 | Task | Required guidance |
 | --- | --- |
-| Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Follow the active worktree manager (`/worktrees`). Keep concurrent work isolated. |
+| Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
+| Herdr main agent: dispatch tasks, follow up, status, cleanup | `herdr-dispatch`. |
 | Git changes, commits, branches, or publication | `git`; use `gh-stack` only for an existing or explicitly requested stack. |
 | Prepare, open, update, or finalize a PR | `preparing-pull-requests`. For UI intended for a PR, load before implementation to capture the before state. |
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
-| Orca worktrees, terminals, or embedded browser | `orca-cli`. The embedded browser does not replace frontend verification. |
 | Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
 | Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, which loads both `plain-writing` and `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
@@ -87,7 +85,7 @@ Other specialized tasks use their matching skill when needed, including security
 
 Lead with the answer or required action. Use short, direct sentences and enough context to explain decisions. Name concrete evidence and blockers. Use headings and numbered steps when they help scanning.
 
-When Orca delivers review notes from a pull request or diff view, begin the requested work without an acknowledgment-only response such as “Fixing,” “On it,” or “Got it.” Respond only when there is a substantive result, blocker, or required question.
+When review notes arrive from a pull request or diff view, begin the requested work without an acknowledgment-only response such as “Fixing,” “On it,” or “Got it.” Respond only when there is a substantive result, blocker, or required question.
 
 MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. Avoid preambles, generic offers, and recap endings. Do not end by asking permission for a safe next step you can execute. Safety and real ambiguity take precedence over brevity.
 
