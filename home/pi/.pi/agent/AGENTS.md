@@ -10,8 +10,8 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 - Ask one focused question when a material decision is unresolved. State the assumption and offer concrete choices. Proceed when the user supplies a bounded task or delegates judgment.
 - Execute approved, bounded work with a checklist. Approval of recommendations authorizes their implementation without another approval gate for the same decisions.
-- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: the Herdr main agent (`herdr-dispatch`) launches exactly one Pi agent per task Justin hands it.
-- Task worktrees are created by the Herdr main agent, one per task, each with its own Pi session. A session already inside a task worktree MUST work there and MUST NOT create another worktree, even when its branch has no commits yet. Outside Herdr, create worktrees with `git worktree add` and keep working in the current session with absolute paths.
+- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: a main agent (`herdr-dispatch` in Herdr, `t3-dispatch` in T3 Code) launches exactly one Pi agent per task Justin hands it.
+- Task worktrees are created by the main agent, one per task, each with its own Pi session. A session already inside a task worktree MUST work there and MUST NOT create another worktree, even when its branch has no commits yet. Without a main agent, create worktrees with `git worktree add` and keep working in the current session with absolute paths.
 - The dotfiles repository is an explicit exception to worktree isolation. MUST apply requested changes directly to its `main` checkout and MUST NOT create a task worktree.
 - A repository with no configured Git remote is also exempt: MUST work directly in its default-branch checkout when no other agent is working there. Nothing is published or reviewed from a local-only repository, so a worktree adds a checkout without protecting anything.
 - Before creating a worktree, MUST reuse an unclaimed worktree of the target repository: no linked issue or PR, no commits beyond the default branch, a clean working tree, and no agent running in it. Creating another leaves an empty worktree behind for Justin to clean up.
@@ -66,6 +66,7 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 | --- | --- |
 | Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
 | Herdr main agent: dispatch tasks, follow up, status, cleanup | `herdr-dispatch`. |
+| T3 Code main agent: dispatch tasks, follow up, status, cleanup | `t3-dispatch`. |
 | Git changes, commits, branches, or publication | `git`; use `gh-stack` only for an existing or explicitly requested stack. |
 | Prepare, open, update, or finalize a PR | `preparing-pull-requests`. For UI intended for a PR, load before implementation to capture the before state. |
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |

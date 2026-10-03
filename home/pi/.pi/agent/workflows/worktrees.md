@@ -4,9 +4,9 @@
 
 ## Where work happens
 
-Inside Herdr, the main agent (`herdr-dispatch`) creates one worktree, workspace, and Pi session per task. A task session works only in its own worktree and MUST NOT create, switch, or remove worktrees; a second task goes back to the main agent, because one session per task is what keeps context separate.
+Inside Herdr or T3 Code, the main agent (`herdr-dispatch` or `t3-dispatch`) creates one worktree and Pi session per task. A task session works only in its own worktree and MUST NOT create, switch, or remove worktrees; a second task goes back to the main agent, because one session per task is what keeps context separate.
 
-Outside Herdr, read-only investigation MAY stay in the current checkout. Bounded implementation in a repository's default-branch checkout MUST move to a worktree: `git fetch origin && git worktree add -b <branch> <repo>-<slug> origin/<default>`, then keep working in the current session with absolute paths.
+Elsewhere, read-only investigation MAY stay in the current checkout. Bounded implementation in a repository's default-branch checkout MUST move to a worktree: `git fetch origin && git worktree add -b <branch> <repo>-<slug> origin/<default>`, then keep working in the current session with absolute paths.
 
 Exceptions: the dotfiles repository, and a repository where `git remote` prints nothing and no other agent works in the checkout. Work directly in the default-branch checkout; nothing is published from either, so a worktree only adds a checkout.
 
@@ -24,8 +24,8 @@ After a push or PR creation for issue-linked work, verify the issue shows the br
 
 ## Cleanup
 
-Inside Herdr, cleanup belongs to the main agent (`herdr-dispatch` cleanup workflow). A task session MUST NOT remove its own worktree.
+Inside Herdr or T3 Code, cleanup belongs to the main agent's cleanup workflow. A task session MUST NOT remove its own worktree.
 
-Outside Herdr, after merge: stop every task-owned server, watcher, and background command; MUST NOT stop user-owned, shared, or unrelated processes, and ask when ownership is unclear. Then verify the checkout is clean with no unpushed or unmerged commits, run `git worktree remove <path>`, and delete the branch. Never force-remove a checkout or discard uncommitted, unpushed, or unmerged work; report the blocker and ask.
+Elsewhere, after merge: stop every task-owned server, watcher, and background command; MUST NOT stop user-owned, shared, or unrelated processes, and ask when ownership is unclear. Then verify the checkout is clean with no unpushed or unmerged commits, run `git worktree remove <path>`, and delete the branch. Never force-remove a checkout or discard uncommitted, unpushed, or unmerged work; report the blocker and ask.
 
 </workflow>
