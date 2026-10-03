@@ -4,7 +4,7 @@
 
 ## Where work happens
 
-Inside Herdr or T3 Code, the main agent (`herdr-dispatch` or `t3-dispatch`) creates one worktree and Pi session per task. A task session works only in its own worktree and MUST NOT create, switch, or remove worktrees; a second task goes back to the main agent, because one session per task is what keeps context separate.
+Inside Herdr or T3 Code, the main agent (`herdr-dispatch` or `t3-dispatch`) creates one worktree and Pi session per task. A task session works only in its own worktree and MUST NOT create, switch, or remove worktrees of its own repository; a second task goes back to the main agent, because one session per task is what keeps context separate. Exception: when the same task needs changes in another repository (for example a playground-ui change in `mastra` for a `platform` task), the session MAY create one companion worktree there with `git fetch origin && git worktree add -b <task-branch> ~/.t3/worktrees/<repo>/<task-branch> origin/<default>`, reusing an existing one for the same branch first, and work in it with absolute paths.
 
 Elsewhere, read-only investigation MAY stay in the current checkout. Bounded implementation in a repository's default-branch checkout MUST move to a worktree: `git fetch origin && git worktree add -b <branch> <repo>-<slug> origin/<default>`, then keep working in the current session with absolute paths.
 
