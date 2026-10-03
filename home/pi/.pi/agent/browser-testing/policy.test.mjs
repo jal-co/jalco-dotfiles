@@ -6,6 +6,21 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { browserEnvironment, validateBatch, validateBrowserArgs, validateSession } from './policy.mjs'
+import { createCipheriv, createHash } from 'node:crypto'
+import { cookieKey, toStorageState } from './helium-cookies.mjs'
+
+test('Helium cookies decrypt into scoped storage state', () => {
+  const key = cookieKey('secret')
+  const encrypt = (host, value) => {
+    const cipher = createCipheriv('aes-128-cbc', key, Buffer.alloc(16, ' '))
+    const plain = Buffer.concat([createHash('sha256').update(host).digest(), Buffer.from(value)])
+    return Buffer.concat([Buffer.from('v10'), cipher.update(plain), cipher.final()])
+  }
+  const row = (host_key, value) => ({ host_key, name: 'sid', value: '', encrypted_value: encrypt(host_key, value), path: '/', expires_utc: 13400000000000000, is_secure: 1, is_httponly: 1, samesite: 1 })
+  const state = toStorageState([row('.mastra.ai', 'a'), row('localhost', 'b'), row('.notmastra.ai', 'c')], ['mastra.ai'], key, 24)
+  assert.deepEqual(state.cookies.map(cookie => [cookie.domain, cookie.value, cookie.sameSite]), [['.mastra.ai', 'a', 'Lax']])
+  assert.equal(state.cookies[0].expires, 13400000000 - 11644473600)
+})
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 
@@ -88,7 +103,7 @@ else if (process.env.TEST_FAIL) process.exit(7);
     assert.equal(invoke('task-browser', ['close', '--all']).status, 1)
     assert.equal(invoke('task-browser', ['snapshot'], { env: { ...env, TEST_FAIL: '1' } }).status, 7)
     assert.equal(invoke('mastra-browser', ['start', 'about:blank']).status, 0)
-    assert.equal(invoke('mastra-browser', ['auth-import-helium', 'https://example.com']).status, 1)
+    assert.equal(invoke('task-browser', ['auth-import-helium']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'javascript:alert(1)']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'https://user:pass@example.com']).status, 1)
   } finally {
