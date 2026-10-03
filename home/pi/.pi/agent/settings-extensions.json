@@ -1,6 +1,6 @@
 {
 	"footer-cleanup": {
 		"busyIndicator": "spinner",
-		"shimmerColor": "rainbow"
+		"shimmerColor": "provider"
 	}
 }
