@@ -34,7 +34,7 @@ case "$command" in
     else
       agent-browser open "$url"
     fi
-    agent-browser set viewport 1440 1000
+    agent-browser set viewport 1440 1000 2
     agent-browser set media "$AGENT_BROWSER_COLOR_SCHEME"
     printf 'session=%s\nartifacts=%s\nauth_seed=%s\n' "$session" "$artifact_dir" "$auth_state"
     ;;

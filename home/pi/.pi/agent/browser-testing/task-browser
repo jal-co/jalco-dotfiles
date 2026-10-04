@@ -44,7 +44,7 @@ try {
     if (args.length !== 2) throw new Error('Usage: task-browser start <url>')
     validateBrowserArgs(['open', args[1]])
     run(['open', args[1]], { stdio: 'inherit' })
-    run(['set', 'viewport', '1440', '1000'], { stdio: 'inherit' })
+    run(['set', 'viewport', '1440', '1000', '2'], { stdio: 'inherit' })
     run(['set', 'media', env.AGENT_BROWSER_COLOR_SCHEME || 'dark'], { stdio: 'inherit' })
     process.exit(0)
   }
