@@ -92,6 +92,9 @@
     },
     "workos": {
       "url": "https://mcp.workos.com/mcp"
+    },
+    "autumn": {
+      "url": "https://mcp.useautumn.com/mcp"
     }
   }
 }
