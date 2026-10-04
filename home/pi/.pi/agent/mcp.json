@@ -95,6 +95,9 @@
     },
     "autumn": {
       "url": "https://mcp.useautumn.com/mcp"
+    },
+    "mobbin": {
+      "url": "https://api.mobbin.com/mcp"
     }
   }
 }
