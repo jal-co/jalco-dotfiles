@@ -87,7 +87,7 @@ else if (process.env.TEST_FAIL) process.exit(7);
     const start = invoke('task-browser', ['start', 'about:blank'])
     assert.equal(start.status, 0, start.stderr)
     let calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
-    assert.deepEqual(calls.map(call => call.args), [['open', 'about:blank'], ['set', 'viewport', '1440', '1000'], ['set', 'media', 'dark']])
+    assert.deepEqual(calls.map(call => call.args), [['open', 'about:blank'], ['set', 'viewport', '1440', '1000', '2'], ['set', 'media', 'dark']])
     for (const call of calls) {
       assert.equal(call.env.AGENT_BROWSER_HEADED, 'false')
       assert.equal(call.env.AGENT_BROWSER_CDP, undefined)

@@ -62,7 +62,7 @@ Start from a settled initial state and stop after the final state settles. Keep 
 
 Before-and-after pairs MUST use the same CSS viewport dimensions, device pixel ratio, browser zoom, `visualViewport.scale`, crop, content state, scroll position, and capture method. Browser zoom and `visualViewport.scale` MUST remain `1`. Matching output image dimensions alone is insufficient because a Retina screenshot can have twice as many pixels as its CSS viewport.
 
-Agents MUST verify each pair's browser metrics before capture and its pixel dimensions before upload. They MUST NOT pass a Retina image's physical pixel dimensions to `set viewport`; browser viewport commands use CSS pixels. A mismatch requires recapture, not resizing one image afterward.
+Agents MUST verify each pair's browser metrics before capture and its pixel dimensions before upload. They MUST NOT pass a Retina image's physical pixel dimensions to `set viewport`; browser viewport commands use CSS pixels. Capture and record at device pixel ratio 2 (`set viewport <w> <h> 2`, the task-browser default) so media stays sharp on Retina screens; never downscale a 2x image or video before upload. A mismatch requires recapture, not resizing one image afterward.
 
 UI screenshot sets SHOULD show light and dark variants whenever the surface supports both. UI changes MUST include both themes; if the surface supports only one theme, state that in the pull request. Use HTML only when display sizing is needed:
 

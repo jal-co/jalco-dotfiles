@@ -15,7 +15,7 @@ BROWSER="$HOME/.pi/agent/browser-testing/task-browser"
 "$BROWSER" start <url>
 ```
 
-The helper uses the `pi-headless` namespace, derives one worktree-scoped session, enables automatic state restore, sets a 1440 by 1000 CSS-pixel viewport and dark color scheme, and stores artifacts outside the repository. It discards inherited browser launch settings, bypasses user/project browser configuration, and rejects headed mode, CDP attachment, personal profiles, custom browser binaries, and launch arguments. Every later browser command MUST use this helper, including read-only inspection and cleanup. MUST NOT bypass a rejected option with a raw CLI, alternate tool, or desktop automation. Set `AGENT_BROWSER_SESSION` to a distinct task name for simultaneous journeys in the same worktree; never use `default`.
+The helper uses the `pi-headless` namespace, derives one worktree-scoped session, enables automatic state restore, sets a 1440 by 1000 CSS-pixel viewport at device pixel ratio 2 and dark color scheme, and stores artifacts outside the repository. It discards inherited browser launch settings, bypasses user/project browser configuration, and rejects headed mode, CDP attachment, personal profiles, custom browser binaries, and launch arguments. Every later browser command MUST use this helper, including read-only inspection and cleanup. MUST NOT bypass a rejected option with a raw CLI, alternate tool, or desktop automation. Set `AGENT_BROWSER_SESSION` to a distinct task name for simultaneous journeys in the same worktree; never use `default`.
 
 For Mastra authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-browser"`. This helper uses the same isolated launcher and seeds a new session from `~/.agent-browser/auth/mastra-platform.json` when present. If a protected route redirects to login:
 
@@ -70,7 +70,7 @@ Before screenshots or recording, run:
 "$BROWSER" ready
 ```
 
-This waits for network activity, fonts, and images, then reports the actual viewport and device pixel ratio. Wait separately for any application-specific settled state.
+This waits for network activity, fonts, and images, then reports the actual viewport and device pixel ratio. The device pixel ratio MUST be 2: GitHub and Linear are viewed on Retina screens, where 1x screenshots and recordings look blurry. When resizing, pass the scale (`set viewport <w> <h> 2`), because `set viewport <w> <h>` alone resets it to 1. Wait separately for any application-specific settled state.
 
 Human-facing screenshots MUST:
 
