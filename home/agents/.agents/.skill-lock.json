@@ -461,6 +461,15 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-02T01:11:53.813Z",
       "updatedAt": "2026-10-02T01:11:53.813Z"
+    },
+    "hairline-create": {
+      "source": "lucasmarkes/hairline",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/lucasmarkes/hairline.git",
+      "skillPath": "skills/hairline-create/SKILL.md",
+      "skillFolderHash": "8e824bc2c2d03090eeb3b3777ba9d1ecd960aa62",
+      "installedAt": "2026-10-04T18:58:35.692Z",
+      "updatedAt": "2026-10-04T18:58:35.692Z"
     }
   },
   "dismissed": {
