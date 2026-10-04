@@ -2,7 +2,7 @@
 description: Generate a grid of Mastra UI variants in Paper, seeded by Mobbin references
 argument-hint: "<surface or component, e.g. 'Studio agents list' or 'Platform usage card'>"
 ---
-Generate design variants in Paper for: ${ARGUMENTS}
+Generate design variants in Paper for: $ARGUMENTS
 
 Use the `paper` MCP to draw and the `mobbin` MCP for references. If either reports it needs sign-in, stop and tell Justin to run `pi mcp login <server>`. Load `mastra-ui-contract` and `mastra-ui-copy` first.
 
