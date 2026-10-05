@@ -44,7 +44,7 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
 
 A task runs with p3 when the dispatcher itself runs on the `pi-p3` provider instance, or when Justin adds "with p3" to it; "without p3" overrides both. If `pi-p3` is missing from `orchestrator_capabilities`, tell Justin and launch on plain Pi only if he says so. A task without p3 sets `"instanceId": "pi"` explicitly, because an omitted model selection inherits the dispatcher's instance.
 
-A p3 task is a tree: the root task thread, plus child threads titled `<name> › <part>` that the root may launch. Launch the root with `"modelSelection": { "instanceId": "pi-p3", "model": "<the dispatcher's model>" }` and this brief, replacing step 7's:
+A p3 task is a tree: the root task thread, plus child threads titled `<name> › <part>` that the root may launch. Launch the root on the code model from `~/.agents/p3-models.md`: the `bug-fix` line for a defect, else the `feature, refactoring` line, as `"modelSelection": { "instanceId": "pi-p3", "model": "<model>", "options": [{ "id": "thinking", "value": "<level>" }] }`. That file is where Justin sets which models do the work, and the dispatcher's own model only routes tasks. Use this brief, replacing step 7's:
 
 ```
 $p3-mode <issue identifier and title, or Justin's task text verbatim>
@@ -68,7 +68,7 @@ That file tells the root how to launch children and when to report code-ready. R
 Runs when a message starting `p3 code-ready` arrives. Review is the dispatcher's job because the thread that wrote the code cannot judge it independently, and a reviewer on a different model family catches what the builder's family misses.
 
 1. Parse `task`, `thread`, `worktree`, `branch`, `base`, `head`, `gates`. Confirm the commit exists with `git -C <worktree> cat-file -e <head>`. Count earlier rounds for this task in `~/.p3/verdicts.tsv`; this is round N.
-2. Pick reviewers from the `interrogate reviewers` line in `~/.agents/p3-models.md`. Drop every entry from the same model family as the task thread's model (read it with `t3_thread_read`). Keep at least two; if fewer remain, use the `judgment and prose` line for the rest. Resolve each entry the way p3-mode's Subagents section does.
+2. Pick reviewers from the `interrogate reviewers` line in `~/.agents/p3-models.md`. Drop the entry that matches the task thread's exact model (read it with `t3_thread_read`), because a model reviewing its own output repeats its own blind spots. Keep every other entry, and keep at least one from a different provider than the builder so one lane catches what that provider's models share. Resolve each entry the way p3-mode's Subagents section does.
 3. Launch one `delegate_task` per lane, `mode: "async"`, each on a different reviewer. Lanes: correctness against the task's goal and edge cases; scope and simplicity (unrequested changes, avoidable code); the repository's AGENTS.md rules for the touched paths. Brief:
    ```
    Review commit <head> of <branch> for task <task>: <goal in one line>.
