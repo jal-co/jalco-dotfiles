@@ -1,1 +1,0 @@
-../../../../../../dev/agent-contracts-justin/prompts/paper-variants.md
