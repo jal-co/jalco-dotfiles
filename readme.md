@@ -1,105 +1,80 @@
 # jalco-dotfiles
 
-Personal macOS configuration for shells, editors, terminals, Git, and [Pi](https://github.com/badlogic/pi-mono). [GNU Stow](https://www.gnu.org/software/stow/) links packages from `home/` into `$HOME`; `jdot` handles maintenance.
+Personal macOS setup: shell, Git, terminal, editor, and [Pi](https://pi.dev). [mise](https://mise.jdx.dev) does everything: it installs Homebrew packages, links config files into `~`, and installs runtimes. Everything lives in [`mise.toml`](mise.toml).
 
 ## Setup
 
-Install Homebrew first, then review `Brewfile`. It lists what is installed on this machine: desktop apps, CLI tools, and global npm packages.
+Install mise first (`curl https://mise.run | sh`), then:
 
 ```bash
 git clone https://github.com/jal-co/jalco-dotfiles.git ~/dotfiles
 cd ~/dotfiles
-brew bundle
-./jdot stow
+mise trust
+mise bootstrap --dry-run
+mise bootstrap
+cd ~/.pi/agent/extensions && npm install
 ```
 
-`jdot` requires Node.js. Stowing requires GNU Stow. The Brewfile installs Pi globally; skill checks and the Pi inventory also require npm.
+`mise bootstrap` installs the packages in `[bootstrap.packages]`, links every entry in `[dotfiles]`, installs runtimes from `mise/config.toml`, and installs the global npm packages listed in the `bootstrap` task. Pi installs the packages in `pi/agent/settings.json` on first start.
 
-Existing files can conflict with Stow. Inspect conflicts and preserve local data before replacing anything. Re-run `./jdot stow` after adding or moving package files. Editing a file through an existing Stow symlink edits its repository target directly.
+Tinycast comes from a third-party tap that mise can only read with Ruby 3, so install it with Homebrew: `brew install --cask abue-ammar/tinycast/tinycast`.
+
+## Day to day
+
+| Task | Command |
+| --- | --- |
+| See what is linked and what drifted | `mise dot status` |
+| Preview changes | `mise dot diff` or `mise dot apply -n` |
+| Re-link after adding an entry | `mise dot apply` |
+| Add a package | `mise bootstrap packages use brew:<name>` or `brew-cask:<name>` |
+| Check packages | `mise bootstrap packages status` |
+
+To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi and Herdr link individual entries instead, so their sessions, logs, sockets, and auth stay in `~` and out of this repository.
 
 ## Layout
 
-```text
-dotfiles/
-├── jdot
-├── folders.toml
-├── .jdotignore.example
-├── DOTFILES.md
-├── Brewfile
-└── home/
-    ├── agents/.agents/
-    ├── eza/.config/eza/
-    ├── ghostty/.config/ghostty/
-    ├── git/.config/git/
-    ├── herdr/.config/herdr/
-    ├── mise/.config/mise/
-    ├── pi/.pi/
-    ├── starship/.config/
-    ├── zed/.config/zed/
-    └── zsh/
-```
-
-Each direct child of `home/` is a Stow package. OpenCode configuration is no longer managed here. Agent rules live in `home/pi/.pi/agent/AGENTS.md`.
-
-## Commands
-
-Run commands from the repository root.
-
-| Command | Purpose |
+| Folder | Linked to |
 | --- | --- |
-| `./jdot stow` | Stow all packages except package names in `.jdotignore` |
-| `./jdot unstow [pkg]` | Remove Stow links for one package, or all packages when omitted |
-| `./jdot alias` | Generate shell shortcuts and macOS Finder aliases from `folders.toml` |
-| `./jdot doctor` | Check mapped home paths for visible package entries; currently skips dot-prefixed entries |
-| `./jdot benchmark-shell [-r N] [-v]` | Measure interactive Zsh startup |
-| `./jdot digest` | Regenerate `DOTFILES.md` from the local repository |
-| `./jdot pi-digest` | Regenerate `home/pi/PI.md`, including skills from both repository roots |
-| `./jdot skills-check` | Check skill names, divergent copies, broken links, and Pi validation diagnostics without changing files |
+| `zsh/` | `~/.zshrc` |
+| `git/` | `~/.config/git` |
+| `ghostty/`, `eza/`, `zed/`, `ponytail/`, `mise/` | `~/.config/<name>` |
+| `starship/` | `~/.config/starship.toml` |
+| `herdr/` | `config.toml` and `scripts/` in `~/.config/herdr` |
+| `agents/` | `~/.agents` (shared skills) |
+| `pi/` | config entries in `~/.pi` and `~/.pi/agent` |
+| `tools/anti-slop/` | not linked; run through the `anti-slop` alias |
 
-`skills-check` exits nonzero on problems. It uses the globally installed Pi loader and checks repository skill roots, not package-provided skills or other projects.
+Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not in this repository.
 
-`doctor` is not a complete dotfile audit. Use `skills-check` for skills and Stow's dry run to inspect link changes:
+## Pi
 
-```bash
-stow -n -v -d home -t "$HOME" pi agents
-```
+| Path in `pi/agent/` | Purpose |
+| --- | --- |
+| `AGENTS.md` | Global agent rules |
+| `settings.json` | Model, packages, Pi settings |
+| `models.json`, `mcp.json`, `keybindings.json` | Models, MCP servers, keys |
+| `extensions/` | Local extensions |
+| `packages/` | Local forks of `rpiv-ask-user-question` and `rpiv-todo` |
+| `skills/` | Pi-only skills |
+| `prompts/` | Prompt templates |
+| `workflows/` | Task workflows referenced by `AGENTS.md` |
+| `themes/` | `verminal`, `geist-dark` |
+| `browser-testing/` | Headless browser wrapper used by `AGENTS.md` |
 
-### Machine-local opt-outs
+Pi also loads shared skills from `~/.agents/skills`. Keep each skill in one of the two roots, not both.
 
-Copy `.jdotignore.example` to the gitignored `.jdotignore` and list package names to skip:
-
-```text
-herdr
-zed
-```
-
-The current `stow` command applies package-name exclusions only. Although the example file describes globs, `jdot` does not pass those globs to Stow. Use Stow's package-local ignore files for file exclusions.
-
-## Pi and skills
-
-Pi discovers both `~/.agents/skills/` and `~/.pi/agent/skills/`. Shared skills have one canonical copy under `home/agents/.agents/skills/`; compatibility symlinks point to it. Pi deduplicates paths to the same file but warns when different files declare the same skill name.
-
-Emil skills stay unchanged in their local installation. Agent instructions prefer the matching Emil skill. `interface-craft` covers DialKit and storyboard tooling; `pi-skills` covers Pi packaging and discovery. The separate `writing-skills` testing workflow is explicit-only.
-
-`preparing-pull-requests` coordinates PR descriptions, screenshot evidence, and Show Me's diff explanations. It loads `write-like-justin`, which requires both `plain-writing` and `emil-unslop-writing`. Capture existing UI before implementation when a PR is intended.
-
-After installing or updating skills:
-
-```bash
-./jdot skills-check
-./jdot pi-digest
-```
-
-Keep shared installs in one root so updates do not recreate divergent copies. Retired skills and superseded copies remain locally in the gitignored `home/pi/.pi/agent/skills-disabled/`, outside discovery. Its `cleanup-manifest.json` records original paths. Shieldcn and Remotion skills are removed from the active catalog.
+MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`. API keys go in `~/.zshrc.local`.
 
 ### Local-only content
 
-A fresh clone does not contain the complete live environment. Private skills, licensed Emil skills, and Interface Craft require separate local provisioning. Symlinks to absent local-only skills can remain unresolved until those skills are installed. Do not force-add their contents to Git.
+A fresh clone does not include everything. These are gitignored and installed separately:
 
-Private skills include `write-like-justin`, `job-search`, `real-app`, and `plan-to-linear`. Personal design rules also remain local. `home/pi/PI.md` records the generating machine's inventory, including local-only skill names; it is not an installation manifest.
+- Licensed skills: the `emil-*` skills and `interface-craft`.
+- Private skills: `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`, `platform-local-dev`.
+- Mastra skills and prompts that link to `~/dev/agent-contracts-justin`.
 
-Secrets such as `auth.json` and `home/zsh/.zshrc.local`, sessions, caches, dependency directories, compiled helpers, and retired skills are gitignored. See [`.gitignore`](.gitignore) for the exact exclusions.
+Sessions, auth, caches, and retired skills stay in `~/.pi/agent`, outside this repository.
 
 ## Acknowledgments
 
-Layout inspired by [dmmulroy/.dotfiles](https://github.com/dmmulroy/.dotfiles). Configuration managed with [GNU Stow](https://www.gnu.org/software/stow/) and [Pi](https://github.com/badlogic/pi-mono).
+Layout inspired by [dmmulroy/.dotfiles](https://github.com/dmmulroy/.dotfiles). `tools/anti-slop` is vendored from dmmulroy's anti-slop oxlint plugin. [pi-rfc-keywords](https://github.com/IgorWarzocha) and the security skills come from IgorWarzocha.

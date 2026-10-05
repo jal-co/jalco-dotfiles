@@ -10,7 +10,7 @@ Pi has built-in MCP support. Read the full reference before changing config:
 
 ## Where things live
 
-- Global servers: `~/.pi/agent/mcp.json` (tracked in dotfiles at `home/pi/.pi/agent/mcp.json`)
+- Global servers: `~/.pi/agent/mcp.json` (tracked in dotfiles at `pi/agent/mcp.json`)
 - Project servers: `.pi/mcp.json`, read only in trusted projects
 - OAuth tokens: `~/.pi/agent/mcp-auth.json` (gitignored)
 - Secrets: `~/.zshrc.local`, referenced as `${NAME}` in `mcp.json`. MUST NOT put literal tokens in `mcp.json`.
