@@ -48,20 +48,16 @@ Pi also loads shared skills from `~/.agents/skills` (`home/agents` in this repos
 
 | Extension | Description |
 |-----------|-------------|
-| `codex-micro-reporter` | Writes agent state to `~/.codex-micro` |
 | `confirm-destructive` | Confirms before session switches and forks that discard work |
 | `continue-after-compaction` | Resumes the current task after compaction |
-| `custom-header` | Minimal header with skill and tool counts |
 | `footer-cleanup` | Footer busy indicator (`/footer-indicator`) |
 | `git-interceptor` | Blocks `--no-verify` and makes agent git commands non-interactive |
 | `herdr-agent-state` | Reports agent state to Herdr |
-| `orca-agent-status` | Reports agent state to Orca |
-| `orca-prefill` | Prefills the editor from `ORCA_PI_PREFILL` |
-| `orca-titlebar-spinner` | Orca titlebar spinner |
-| `provider-status` | Hides the default footer |
+| `herdr-main-name` | Names the Herdr pane `main` when Pi starts in `$HOME` |
 | `time-tracker` | Tracks active agent time per project for billing |
 | `titlebar-spinner` | Braille spinner in the terminal title |
 | `tool-reference-alias-fix` | Rewrites aliased tool names in tool-reference blocks |
+| `white-logo-header` | Patches Pi's header logo to white |
 
 ### Multi-file
 
@@ -71,7 +67,6 @@ Pi also loads shared skills from `~/.agents/skills` (`home/agents` in this repos
 | `pi-cloak` | Redacts configured patterns (`/cloak-status`) |
 | `pi-rfc-keywords` | Uppercases RFC 2119 keywords in prompts |
 | `pi-tool-display` | Config for the `pi-tool-display` package's tool overrides |
-| `pi-webfetch` | `WebFetch` tool |
 | `shadcn-lint-gate` | shadcn lint advisory on UI changes |
 
 ## Prompt Templates
@@ -80,11 +75,13 @@ Pi also loads shared skills from `~/.agents/skills` (`home/agents` in this repos
 |----------|-------|
 | `/audit-ui` | Audit Mastra UI code against the UI contract and copy rules |
 | `/break-it` | Try to break a feature with worst-case data |
+| `/dispatch-setup` | Turn a T3 thread into the pinned dispatch thread |
 | `/install-mcp` | Install and configure an MCP server |
 | `/mastra-better` | Judge whether a change makes Mastra better |
 | `/mastra-linear` | Draft a Mastra Linear ticket from a rough note |
 | `/mdx-diagram` | Create an ASCII-frame MDX diagram |
 | `/migrate-control` | Change a playground-ui control and check for drift |
+| `/paper-variants` | Generate a grid of Mastra UI variants in Paper |
 | `/refactor-rfc-xml` | Refactor markdown into RFC 2119 + XML style |
 | `/review-ui` | Line-by-line UI review |
 
@@ -94,7 +91,7 @@ Servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <serve
 
 ## Ignored
 
-Runtime state (`auth.json`, `mcp-cache.json`, `sessions/`), `node_modules/`, `skills-disabled/`, and personal skills such as `write-like-justin` and `job-search`. See the repository [`.gitignore`](../../.gitignore) and [`home/pi/.gitignore`](.gitignore).
+Runtime state (`auth.json`, `mcp-cache.json`, `sessions/`), `node_modules/`, `skills-disabled/`, and personal skills such as `write-like-justin` and `job-search`. See the repository [`.gitignore`](../../.gitignore).
 
 ## Acknowledgments
 
