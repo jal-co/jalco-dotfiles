@@ -49,3 +49,12 @@ dotfiles.relative_symlinks = true
 
 [tasks.bootstrap]
 run = "npm install -g @earendil-works/pi-coding-agent agent-browser corepack superset vercel"
+
+[dotfiles."~/.pi/*.json"]
+source = "pi/*.json"
+
+[dotfiles."~/.pi/agent/*"]
+source = "pi/agent/*"
+
+[dotfiles."~/.config/herdr/*"]
+source = "herdr/*"

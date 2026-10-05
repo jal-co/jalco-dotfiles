@@ -29,7 +29,7 @@ Tinycast comes from a third-party tap that mise can only read with Ruby 3, so in
 | Add a package | `mise bootstrap packages use brew:<name>` or `brew-cask:<name>` |
 | Check packages | `mise bootstrap packages status` |
 
-To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi and Herdr link individual entries instead, so their sessions, logs, sockets, and auth stay in `~` and out of this repository.
+To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi and Herdr use glob entries that link each top-level item in `pi/agent/` or `herdr/` individually, so their sessions, logs, sockets, and auth stay in `~` and out of this repository. A new file added there is linked on the next `mise dot apply`.
 
 ## Layout
 
