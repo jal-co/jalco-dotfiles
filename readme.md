@@ -32,7 +32,6 @@ dotfiles/
     ├── ghostty/.config/ghostty/
     ├── git/.config/git/
     ├── herdr/.config/herdr/
-    ├── mastracode/.mastracode/ and Library/Application Support/mastracode/
     ├── mise/.config/mise/
     ├── pi/.pi/
     ├── starship/.config/

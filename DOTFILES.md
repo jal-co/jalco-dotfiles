@@ -18,7 +18,6 @@ dotfiles/
 │   ├── ghostty/
 │   ├── git/
 │   ├── herdr/
-│   ├── mastracode/
 │   ├── mise/
 │   ├── pi/
 │   ├── starship/
