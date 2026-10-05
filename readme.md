@@ -29,7 +29,6 @@ dotfiles/
 └── home/
     ├── agents/.agents/
     ├── eza/.config/eza/
-    ├── fastfetch/.config/fastfetch/
     ├── ghostty/.config/ghostty/
     ├── git/.config/git/
     ├── herdr/.config/herdr/
@@ -71,7 +70,7 @@ stow -n -v -d home -t "$HOME" pi agents
 Copy `.jdotignore.example` to the gitignored `.jdotignore` and list package names to skip:
 
 ```text
-fastfetch
+herdr
 zed
 ```
 

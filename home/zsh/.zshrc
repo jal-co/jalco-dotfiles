@@ -268,7 +268,6 @@ if [[ -f "$HOME/.zshrc.local" ]]; then
   source "$HOME/.zshrc.local"
 fi
 
-( fastfetch )
 # Created by `pipx` on 2025-12-30 22:48:38
 export PATH="$PATH:/Users/justin/.local/bin"
 

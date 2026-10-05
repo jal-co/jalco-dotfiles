@@ -15,7 +15,6 @@ dotfiles/
 ├── home/
 │   ├── agents/
 │   ├── eza/
-│   ├── fastfetch/
 │   ├── ghostty/
 │   ├── git/
 │   ├── herdr/
