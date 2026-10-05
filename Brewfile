@@ -1,7 +1,5 @@
 tap "abue-ammar/tinycast", trusted: true
-tap "anomalyco/tap"
 tap "hashicorp/tap"
-tap "steipete/tap"
 brew "cmake"
 brew "exiftool"
 brew "eza"
