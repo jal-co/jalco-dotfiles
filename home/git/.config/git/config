@@ -1,2 +1,26 @@
-[include]
-	path = .gitconfig
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+[user]
+	name = Justin Levine
+	email = 20596508+jal-co@users.noreply.github.com
+	signingkey = 31F78E11C8E925AD
+[commit]
+	template = ~/.config/git/.gitmessage
+	gpgsign = true
+[tag]
+	gpgSign = true
+[init]
+	defaultBranch = main
+[credential]
+	helper = osxkeychain
+[gpg]
+	program = /opt/homebrew/bin/gpg
+[credential "https://origin.cursor.com/git"]
+	helper =
+	helper = !/Users/justin/.local/bin/origin credential-helper
+[credential "https://origin.cursor.com"]
+	helper =
+	helper = !/Users/justin/.local/bin/origin credential-helper
