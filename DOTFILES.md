@@ -24,7 +24,7 @@ dotfiles/
 │   ├── starship/
 │   ├── zed/
 │   └── zsh/
-└── packages/bundle     # Brewfile
+└── Brewfile
 ```
 
 ## COMMANDS
