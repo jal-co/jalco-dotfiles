@@ -50,6 +50,11 @@ home/pi/.pi/agent/compact-adviser-requests.jsonl
 
 # MCP plugin downloads
 home/pi/.pi/agent/mcp-plugins/
+home/pi/.pi/agent/mcp-cache.json
+home/pi/.pi/agent/mcp-npx-cache.json
+home/pi/.pi/agent/mcp-onboarding.json
+home/pi/.pi/agent/mcp-oauth/
+home/pi/.pi/agent/web-search-cache/
 
 # Sessions (ephemeral, large)
 home/pi/.pi/agent/sessions/
