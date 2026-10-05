@@ -68,7 +68,7 @@ Load only the guidance relevant to the task. Prefer the matching `emil-*` skill 
 | Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
 | Herdr main agent: dispatch tasks, follow up, status, cleanup | `herdr-dispatch`. |
 | T3 Code main agent: dispatch tasks, follow up, status, cleanup | `t3-dispatch`. |
-| Git changes, commits, branches, or publication | `git`; use `gh-stack` only for an existing or explicitly requested stack. |
+| Git changes, commits, branches, or publication | `git`. |
 | Prepare, open, update, or finalize a PR | `preparing-pull-requests`. For UI intended for a PR, load before implementation to capture the before state. |
 | Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
