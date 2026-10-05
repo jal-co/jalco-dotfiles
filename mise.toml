@@ -1,0 +1,13 @@
+[settings]
+dotfiles.relative_symlinks = true
+
+[dotfiles]
+"~/.zshrc" = "zsh/.zshrc"
+"~/.config/git" = "git"
+"~/.config/ghostty" = "ghostty"
+"~/.config/eza" = "eza"
+"~/.config/mise" = "mise"
+"~/.config/ponytail" = "ponytail"
+"~/.config/starship.toml" = "starship/starship.toml"
+"~/.config/zed" = "zed"
+"~/.agents" = "agents"
