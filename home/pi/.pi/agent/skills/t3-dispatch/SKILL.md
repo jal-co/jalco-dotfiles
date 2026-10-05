@@ -40,6 +40,10 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
 7. The brief is three lines at most: the issue identifier and title (or Justin's task text verbatim), "Read the issue in Linear for full context" when one exists, and any constraint Justin stated. The task agent's own AGENTS.md and skills cover everything else, including when to stop for review.
 8. Reply with one line: `<name> (<repo>) → <branch>, thread <threadId>`.
 
+## With p3
+
+When Justin adds "with p3" to a task, launch it on the `pi-p3` provider instance, which loads p3-stack's skills from `~/dev/p3-stack`. Add `"modelSelection": { "instanceId": "pi-p3", "model": "<the current Pi model>" }` to the launch, and start the brief with `/p3-mode` followed by the usual brief lines, plus: "Delegation and new threads are approved. Use single-task playbooks only, no orchestrate or autopilot." The dispatcher owns intake, one thread per task; p3's orchestrate and autopilot playbooks would coordinate the same tasks a second time. If `pi-p3` is missing from `orchestrator_capabilities`, tell Justin and launch on plain Pi only if he says so. Reply with `with p3` after the thread id.
+
 ## Follow-up
 
 Another project's thread: tell Justin to open it in that project. Own project: `t3_thread_send` with `mode: "auto"`, which steers an active turn or starts an idle one. Use `mode: "queue"` when Justin wants it after the current work. If the thread is waiting, read `t3_pending_request_list` for it, report the question, and ask Justin; never answer for him. Approvals cannot be answered from here; tell Justin to open the thread.
