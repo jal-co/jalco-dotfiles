@@ -42,7 +42,7 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
 
 ## With p3
 
-When Justin adds "with p3" to a task, launch it on the `pi-p3` provider instance, which loads p3-stack's skills from `~/dev/p3-stack`. Add `"modelSelection": { "instanceId": "pi-p3", "model": "<the current Pi model>" }` to the launch, and start the brief with `/p3-mode` followed by the usual brief lines, plus: "Delegation and new threads are approved. Use single-task playbooks only, no orchestrate or autopilot." The dispatcher owns intake, one thread per task; p3's orchestrate and autopilot playbooks would coordinate the same tasks a second time. If `pi-p3` is missing from `orchestrator_capabilities`, tell Justin and launch on plain Pi only if he says so. Reply with `with p3` after the thread id.
+When Justin adds "with p3" to a task, launch it on the `pi-p3` provider instance, which loads p3-stack's skills from `~/dev/p3-stack`. Add `"modelSelection": { "instanceId": "pi-p3", "model": "<the current Pi model>" }` to the launch, and start the brief with `$p3-mode` (T3 invokes skills with `$`) followed by the usual brief lines, plus: "Delegation and new threads are approved. Use single-task playbooks only, no orchestrate or autopilot." The dispatcher owns intake, one thread per task; p3's orchestrate and autopilot playbooks would coordinate the same tasks a second time. If `pi-p3` is missing from `orchestrator_capabilities`, tell Justin and launch on plain Pi only if he says so. Reply with `with p3` after the thread id.
 
 ## Follow-up
 
