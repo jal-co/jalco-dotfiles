@@ -4,12 +4,12 @@ Personal macOS configuration for shells, editors, terminals, Git, and [Pi](https
 
 ## Setup
 
-Install Homebrew first, then review `packages/bundle`. It includes personal desktop apps, Mac App Store apps, and developer tools.
+Install Homebrew first, then review `Brewfile`. It lists what is installed on this machine: desktop apps, CLI tools, and global npm packages.
 
 ```bash
 git clone https://github.com/jal-co/jalco-dotfiles.git ~/dotfiles
 cd ~/dotfiles
-brew bundle --file=packages/bundle
+brew bundle
 ./jdot stow
 ```
 
@@ -25,7 +25,7 @@ dotfiles/
 ├── folders.toml
 ├── .jdotignore.example
 ├── DOTFILES.md
-├── packages/bundle
+├── Brewfile
 └── home/
     ├── agents/.agents/
     ├── eza/.config/eza/
