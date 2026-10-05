@@ -17,7 +17,7 @@
   "enableSkillCommands": true,
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "1.0.0",
+  "lastChangelogVersion": "1.0.3",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@benvargas/pi-claude-code-use",
