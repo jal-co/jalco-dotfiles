@@ -105,13 +105,13 @@ function cmdStow() {
     console.log("Nothing to stow.");
     return;
   }
-  execFileSync("stow", ["-t", HOME, ...toStow], { cwd: PKG_ROOT, stdio: "inherit" });
+  execFileSync("stow", ["--ignore=\\.DS_Store", "-t", HOME, ...toStow], { cwd: PKG_ROOT, stdio: "inherit" });
   console.log(`Stowed: ${toStow.join(", ")}`);
 }
 
 function cmdUnstow(pkg) {
   const targets = pkg ? [pkg] : listPackages();
-  execFileSync("stow", ["-D", "-t", HOME, ...targets], { cwd: PKG_ROOT, stdio: "inherit" });
+  execFileSync("stow", ["--ignore=\\.DS_Store", "-D", "-t", HOME, ...targets], { cwd: PKG_ROOT, stdio: "inherit" });
   console.log(`Unstowed: ${targets.join(", ")}`);
 }
 
