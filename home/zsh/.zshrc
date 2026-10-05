@@ -15,9 +15,6 @@ docker() {
 #                 PATH Setup
 ###############################################
 
-# Ensure user-installed binaries take priority
-export PATH="$HOME/bin:$PATH"
-
 # Homebrew (Universal)
 if [ -d /opt/homebrew ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -46,52 +43,6 @@ if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi
 
-#flutter
-export PATH="$HOME/.flutter-sdk/bin:$PATH"
-
-###############################################
-#                      Rust
-###############################################
-
-export PATH="$HOME/.cargo/bin:$PATH"
-
-###############################################
-#                     Python
-###############################################
-
-export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-if command -v pyenv >/dev/null 2>&1; then
-  eval "$(pyenv init -)"
-fi
-
-# Python framework path
-export PATH="/Library/Frameworks/Python.framework/Versions/3.11/bin:$PATH"
-
-###############################################
-#                 JavaScript Tools
-###############################################
-
-# Bun (optional)
-[ -d "$HOME/.bun/bin" ] && export PATH="$HOME/.bun/bin:$PATH"
-
-###############################################
-#                  VSCode
-###############################################
-
-# Enable "code" CLI
-if [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
-  export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PATH"
-fi
-
-###############################################
-#                   Golang (optional)
-###############################################
-
-if [ -d "$HOME/go/bin" ]; then
-  export GOPATH="$HOME/go"
-  export PATH="$GOPATH/bin:$PATH"
-fi
 
 ###############################################
 #               Shell Environment
@@ -253,9 +204,9 @@ alias venv="python3 -m venv .venv && source .venv/bin/activate"
 alias d="docker"
 alias dps="docker ps"
 alias dimg="docker images"
-alias dstop="docker stop $(docker ps -aq)"
-alias drm="docker rm $(docker ps -aq)"
-alias drmi="docker rmi $(docker images -q)"
+alias dstop='docker stop $(docker ps -aq)'
+alias drm='docker rm $(docker ps -aq)'
+alias drmi='docker rmi $(docker images -q)'
 
 ###############################################
 #                     System
@@ -320,9 +271,6 @@ fi
 ( fastfetch )
 # Created by `pipx` on 2025-12-30 22:48:38
 export PATH="$PATH:/Users/justin/.local/bin"
-
-# sentry
-fpath=("/Users/justin/.local/share/zsh/site-functions" $fpath)
 
 # Vite+ bin (https://viteplus.dev)
 . "$HOME/.config/vite-plus/env"
