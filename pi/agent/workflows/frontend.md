@@ -1,6 +1,6 @@
 # Frontend workflow
 
-Read before frontend implementation, browser verification, capture, or localhost handoff. Load `agent-browser` and run `agent-browser skills get core --full` before the first browser command. Follow `preparing-pull-requests` before changing UI intended for a pull request so before evidence exists.
+Read before frontend implementation, browser verification, capture, or localhost handoff. Load `agent-browser` and run `agent-browser skills get core --full` before the first browser command. Follow `preparing-pull-requests` before changing UI intended for a pull request so before evidence exists. Read [task-browser notes](../browser-testing/README.md) for authentication and command examples.
 
 ## Dedicated browser session
 
@@ -17,11 +17,17 @@ BROWSER="$HOME/.pi/agent/browser-testing/task-browser"
 
 The helper uses the `pi-headless` namespace, derives one worktree-scoped session, enables automatic state restore, sets a 1440 by 1000 CSS-pixel viewport at device pixel ratio 2 and dark color scheme, and stores artifacts outside the repository. It discards inherited browser launch settings, bypasses user/project browser configuration, and rejects headed mode, CDP attachment, personal profiles, custom browser binaries, and launch arguments. Every later browser command MUST use this helper, including read-only inspection and cleanup. MUST NOT bypass a rejected option with a raw CLI, alternate tool, or desktop automation. Set `AGENT_BROWSER_SESSION` to a distinct task name for simultaneous journeys in the same worktree; never use `default`.
 
-For Mastra authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-browser"`. This helper uses the same isolated launcher and seeds a new session from `~/.agent-browser/auth/mastra-platform.json` when present. If a protected route redirects to login:
+<workflow>
 
-1. Run `"$BROWSER" auth-load`, reopen the protected route, and verify authentication.
-2. If the seed is missing or expired, run `"$BROWSER" auth-import-helium [domain...]` (default `localhost`), reopen the route, and verify. It decrypts only the named domains' cookies from Helium's cookie store into the headless session, so Justin's browser is never attached or disturbed. Stop and ask Justin to sign in to that site in Helium only when the import finds no valid session. MUST NOT request credentials in chat. Outside Mastra, `task-browser auth-import-helium <domain...>` does the same.
-3. After the protected route succeeds, run `"$BROWSER" auth-save`. Auth state and imported cookies MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached.
+For Mastra Platform localhost authentication, use `BROWSER="$HOME/.pi/agent/browser-testing/mastra-browser"`. It restores separate TEST sessions and `~/.agent-browser/auth/mastra-platform-test.json`, not Justin's personal seed.
+
+1. Reuse valid test state with `"$BROWSER" auth-load`, then verify the protected route and expected test organization.
+2. If the test seed is missing or expired, follow the [test-login setup](../browser-testing/README.md). Open the local API's `/v1/auth/login` flow and run `"$BROWSER" auth-test-login "$HOSTED_URL"` on its hosted WorkOS page in the same session. The helper reads the dedicated password-only TEST account from 1Password and uses the encrypted auth vault. Missing account setup or a signed-out `op` is a blocker, not permission to use personal cookies.
+3. After authentication succeeds, run `"$BROWSER" auth-save`. State MUST remain outside Git with mode `0600` and MUST NOT be printed, inspected, or attached. MUST NOT request credentials in chat.
+
+For sites without a test account, use `task-browser auth-import-helium <domain...>`, reopen the route, and verify. The import reads only those domains and never attaches to Helium.
+
+</workflow>
 
 Playwright assertions MUST use the repository's installed version when available, with headless execution and no `--ui`, `--headed`, `--debug`, `PWDEBUG`, or automatic report opening. Otherwise use `createMastraPage` from `$HOME/.pi/agent/browser-testing/mastra.mjs` for Mastra without adding a repository dependency. That helper always launches isolated headless Chromium with the local auth seed, viewport, and dark color scheme. Assertions belong in repeatable project tests; agents SHOULD NOT manually repeat an already-covered journey on every iteration.
 
@@ -50,9 +56,17 @@ For each changed route or component, verify:
 - Light and dark themes when the surface supports both.
 - Loading, empty, error, disabled, or overflow states when the change can affect them.
 
-Use Agent Browser for user-journey verification and the project's Playwright tests for repeatable assertions whenever behavior can be automated. If Playwright does not apply, report why.
+<rules>
 
-For every changed interaction:
+Use accessibility `snapshot` and `eval` assertions for the agent's own checks. Screenshots are evidence for Justin, not a substitute for assertions. Use the project's Playwright tests for repeatable journeys and Storybook `play` tests for design-system component interactions. If neither applies, report why.
+
+Group a known flow into one `"$BROWSER" batch --bail` call with JSON command arrays on stdin. Stop on failure and refresh refs after page changes. See the task-browser notes for an example.
+
+Keep one dev server per worktree and reuse Vite's hot updates. MUST NOT restart a healthy Vite server after each edit or start a second main-branch server for before images. Capture the baseline before editing, then use `diff screenshot --baseline <before.png>`. Use `diff url <existing-base-url> <task-url>` when a comparable base is already served. Neither command reconstructs uncaptured before evidence. If no valid baseline or already-served base exists, report the missing evidence and stop for a review decision instead of inventing it or starting another server.
+
+</rules>
+
+For every changed interaction, batch the known steps and stop when new refs are needed:
 
 1. Run `"$BROWSER" snapshot -i` before acting.
 2. Perform the interaction using current refs.

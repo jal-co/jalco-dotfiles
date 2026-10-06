@@ -8,7 +8,7 @@ export async function createMastraPage({
   colorScheme = 'dark',
   deviceScaleFactor = 2,
 } = {}) {
-  const authState = join(homedir(), '.agent-browser', 'auth', 'mastra-platform.json')
+  const authState = join(homedir(), '.agent-browser', 'auth', 'mastra-platform-test.json')
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
     colorScheme,

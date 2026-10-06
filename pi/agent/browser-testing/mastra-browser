@@ -4,10 +4,14 @@ umask 077
 
 browser="$(cd "$(dirname "$0")" && pwd)/task-browser"
 agent-browser() { "$browser" "$@"; }
-session="$(agent-browser session)"
+if [[ -n "${AGENT_BROWSER_SESSION:-}" ]]; then
+  session="$(agent-browser session)"
+else
+  session="$(agent-browser session id --scope worktree --prefix mastra-test)"
+fi
 artifact_root="${AGENT_BROWSER_ARTIFACT_ROOT:-${TMPDIR:-/tmp}/agent-browser-artifacts}"
 artifact_dir="${artifact_root%/}/${session}"
-auth_state="${AGENT_BROWSER_MASTRA_AUTH_STATE:-$HOME/.agent-browser/auth/mastra-platform.json}"
+auth_state="${AGENT_BROWSER_MASTRA_AUTH_STATE:-$HOME/.agent-browser/auth/mastra-platform-test.json}"
 mkdir -p "$artifact_dir"
 
 export AGENT_BROWSER_SESSION="$session"
@@ -18,7 +22,7 @@ export AGENT_BROWSER_SCREENSHOT_FORMAT="${AGENT_BROWSER_SCREENSHOT_FORMAT:-png}"
 
 command="${1:-}"
 if [[ -z "$command" ]]; then
-  printf 'usage: mastra-browser <start|ready|auth-load|auth-save|auth-import-helium [domain...]|artifacts|session|video-mp4|agent-browser command>\n' >&2
+  printf 'usage: mastra-browser <start|ready|auth-load|auth-save|auth-test-login <hosted-login-url>|artifacts|session|video-mp4|agent-browser command>\n' >&2
   exit 2
 fi
 shift
@@ -51,7 +55,8 @@ case "$command" in
     printf '%s\n' "$auth_state"
     ;;
   auth-import-helium)
-    agent-browser auth-import-helium "${@:-localhost}"
+    printf 'Mastra TEST sessions reject personal cookie imports; use auth-test-login. For other sites, use task-browser auth-import-helium.\n' >&2
+    exit 1
     ;;
   artifacts)
     printf '%s\n' "$artifact_dir"

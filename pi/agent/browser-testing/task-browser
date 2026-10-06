@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readHeliumState } from './helium-cookies.mjs'
 import { browserEnvironment, validateBatch, validateBrowserArgs, validateSession } from './policy.mjs'
@@ -16,8 +16,77 @@ function run(command, options = {}) {
   return (result.stdout || '').trim()
 }
 
+function authTestLogin(loginUrl) {
+  const configFile = join(homedir(), '.config', 'task-browser', 'mastra-test.json')
+  let config
+  try {
+    const file = lstatSync(configFile)
+    if (!file.isFile() || (file.mode & 0o077) || file.uid !== process.getuid()) throw new Error()
+    config = JSON.parse(readFileSync(configFile, 'utf8'))
+  } catch {
+    throw new Error('Create a private ~/.config/task-browser/mastra-test.json owned by you with mode 600, environment TEST, itemReference and loginOrigin')
+  }
+  let request
+  try {
+    const url = new URL(loginUrl)
+    const origin = new URL(config.loginOrigin)
+    if (config.environment !== 'TEST' || typeof config.itemReference !== 'string' || !config.itemReference.trim() || config.itemReference.startsWith('-') ||
+      url.protocol !== 'https:' || !/^[a-z0-9-]+\.authkit\.app$/.test(url.hostname) || url.port || url.username || url.password ||
+      config.loginOrigin !== origin.origin || url.origin !== origin.origin) throw new Error()
+    request = { loginUrl: url.href, itemReference: config.itemReference }
+  } catch {
+    throw new Error('TEST login requires a configured TEST account and a pinned HTTPS AuthKit origin matching the supplied URL')
+  }
+  try {
+    const current = new URL(run(['get', 'url'], { timeout: 30000 }))
+    if (current.origin !== new URL(request.loginUrl).origin || current.username || current.password) throw new Error()
+  } catch {
+    throw new Error('Open the configured WorkOS TEST login page in this task session before auth-test-login')
+  }
+  let username
+  let password
+  try {
+    const result = spawnSync('op', ['item', 'get', request.itemReference, '--format=json'], { env, encoding: 'utf8', timeout: 30000 })
+    if (result.error || result.status !== 0) throw new Error()
+    const item = JSON.parse(result.stdout)
+    username = item.fields.find(field => field.id === 'username')?.value
+    password = item.fields.find(field => field.id === 'password')?.value
+    if (item.category !== 'LOGIN' || typeof username !== 'string' || !username.trim() || username.startsWith('-') ||
+      typeof password !== 'string' || !password || /[\r\n]/.test(password)) throw new Error()
+  } catch {
+    throw new Error('Could not read TEST login credentials; sign in to op and configure a dedicated password-only TEST Login item')
+  }
+  try {
+    const origin = new URL(request.loginUrl).origin
+    if (new URL(run(['get', 'url'], { timeout: 30000 })).origin !== origin) throw new Error()
+    if (run(['get', 'count', 'input[type=password]'], { timeout: 30000 }) === '0') {
+      run(['fill', 'input[type=email]', username], { timeout: 30000 })
+      run(['press', 'Enter'], { timeout: 30000 })
+    }
+    run(['wait', 'input[type=password]'], { timeout: 30000 })
+    const profile = `mastra-test-${env.AGENT_BROWSER_SESSION}`
+    run(['auth', 'save', profile, '--url', origin, '--username', username, '--password-stdin'], { input: password, timeout: 30000 })
+    try {
+      run(['auth', 'login', profile, '--no-navigate', '--url', origin,
+        '--username-selector', 'input[type=password]', '--password-selector', 'input[type=password]',
+        '--submit-selector', 'input[type=password]'], { timeout: 30000 })
+      run(['click', 'button[type=submit]'], { timeout: 30000 })
+    } finally {
+      run(['auth', 'delete', profile], { timeout: 30000 })
+    }
+  } catch {
+    throw new Error('TEST login failed; check the trusted WorkOS email/password form; SSO, MFA and other forms are unsupported')
+  }
+  console.log('Submitted TEST account login in the isolated task session')
+}
+
 try {
   const command = args[0]
+  if (command === 'session' && args[1] === 'id') {
+    validateBrowserArgs(args)
+    console.log(run(args))
+    process.exit(0)
+  }
   if (command === 'review') {
     if (args.length !== 2) throw new Error('Usage: task-browser review <http(s)-url>')
     const url = new URL(args[1])
@@ -46,6 +115,11 @@ try {
     run(['open', args[1]], { stdio: 'inherit' })
     run(['set', 'viewport', '1440', '1000', '2'], { stdio: 'inherit' })
     run(['set', 'media', env.AGENT_BROWSER_COLOR_SCHEME || 'dark'], { stdio: 'inherit' })
+    process.exit(0)
+  }
+  if (command === 'auth-test-login') {
+    if (args.length !== 2) throw new Error('Usage: task-browser auth-test-login <hosted-login-url>')
+    authTestLogin(args[1])
     process.exit(0)
   }
   if (command === 'auth-import-helium') {
