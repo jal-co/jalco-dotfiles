@@ -9,6 +9,8 @@ You are a task thread in a p3 tree. The dispatcher (the main thread named in you
 - MUST use a single-task p3 playbook. MUST NOT run orchestrate, autopilot-full, or autopilot-stack: the dispatcher already coordinates the tree, and a second coordinator duplicates intake and review.
 - `delegate_task` helpers are approved for your own task.
 - MUST NOT push or open a PR before the dispatcher reports a clean verdict for your current head. Review needs a fixed commit, and Mastra UI work also needs Justin's localhost review before any push.
+- Tests MUST stay proportionate: cover the changed behavior with the fewest tests that fail without the change, plus one regression test per fixed bug. MUST NOT add tests for unchanged behavior, exhaustive state matrices, or assertions an existing test already makes. Justin finds large test diffs harder to review than the code they cover.
+- Browser evidence MUST stay proportionate: one before/after per visibly changed screen in light and dark, plus mobile only when the change affects narrow layouts. MUST NOT build capture matrices or reusable verification scripts unless the dispatcher asks; a re-capture costs more than the review it supports.
 
 </constraints>
 
