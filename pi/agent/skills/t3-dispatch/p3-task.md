@@ -51,7 +51,7 @@ Every thread whose branch becomes its own PR reports code-ready to the dispatche
 <workflow name="review-results">
 
 - `p3 findings` round N: fix each finding in new commits, rerun the gates, and report code-ready again with the new head. Reply to a finding you disagree with in your code-ready message with its evidence instead of changing code.
-- `p3 clean` at a head: that head is approved. Continue with the hand-off your rules require, such as Justin's localhost review, then push and open the PR. Justin merges.
+- `p3 clean` at a head: that head is approved. Continue with the hand-off your rules require, such as Justin's localhost review, then push and open the PR. Justin merges. Push as soon as clean arrives, as a standalone `git push` command: the gates already ran on that head before code-ready, so MUST NOT rerun repo-wide lint, format, or test suites before pushing. CI runs them again.
 - A blocking question that only Justin can answer: send `p3 blocked`, `task:`, `thread:`, and the question, then end the turn.
 
 </workflow>
