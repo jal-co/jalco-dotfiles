@@ -3,6 +3,7 @@ export ZSH_CUSTOM="$ZSH/custom"
 export TERM=xterm-256color
 export DOCKER_SOCK="$HOME/.docker/run/docker.sock"
 export HOMEBREW_NO_ENV_HINTS=1
+export ALEXANDRIA_GAPS=auto
 export GPG_TTY=$(tty)
 
 
