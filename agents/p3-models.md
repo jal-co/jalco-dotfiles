@@ -17,4 +17,5 @@ arena runners: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/chatgpt/gpt-6-astra (high
 arena cross-judge pool: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/chatgpt/gpt-6-astra (high), pi-p3/anthropic/claude-opus-5-5 (high)
 swarm workers: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/anthropic/claude-opus-5-5 (high)
 architect runners: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/chatgpt/gpt-6-astra (high), pi-p3/anthropic/claude-opus-5-5 (high)
-interrogate reviewers: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/chatgpt/gpt-6-astra (high), pi-p3/anthropic/claude-opus-5-5 (high)
+interrogate reviewers: pi-p3/chatgpt/gpt-6.1-sol (high), pi-p3/chatgpt/gpt-6-astra (high), pi-p3/anthropic/claude-opus-5-5 (high), pi-p3/anthropic/claude-sonnet-5-5 (high)
+scope reviewer: pi-p3/anthropic/claude-sonnet-5-5 (high)
