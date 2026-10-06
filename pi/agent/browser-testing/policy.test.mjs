@@ -104,12 +104,77 @@ else if (process.env.TEST_FAIL) process.exit(7);
     assert.equal(invoke('task-browser', ['snapshot'], { env: { ...env, TEST_FAIL: '1' } }).status, 7)
     assert.equal(invoke('mastra-browser', ['start', 'about:blank']).status, 0)
     assert.equal(invoke('task-browser', ['auth-import-helium']).status, 1)
+    assert.equal(invoke('mastra-browser', ['auth-import-helium']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'javascript:alert(1)']).status, 1)
     assert.equal(invoke('task-browser', ['review', 'https://user:pass@example.com']).status, 1)
   } finally {
     unlinkSync(fake)
     rmdirSync(bin)
     for (const name of readdirSync(temp)) unlinkSync(join(temp, name))
+    rmdirSync(temp)
+    rmdirSync(join(tmpdir(), 'agent-browser-artifacts', session))
+  }
+})
+
+test('TEST login uses op password stdin, preserves the hosted flow and redacts failures', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'browser-auth-test-'))
+  const bin = join(temp, 'bin')
+  const configDir = join(temp, '.config', 'task-browser')
+  const log = join(temp, 'calls.jsonl')
+  const session = `auth-test-${process.pid}`
+  const origin = 'https://test-login.authkit.app'
+  const loginUrl = `${origin}/sign-in?state=ephemeral`
+  mkdirSync(bin)
+  mkdirSync(configDir, { recursive: true })
+  writeFileSync(join(configDir, 'mastra-test.json'), JSON.stringify({ environment: 'TEST', itemReference: 'TEST Login', loginOrigin: origin }), { mode: 0o600 })
+  const fake = `#!/usr/bin/env node
+const fs = require('node:fs');
+const cli = require('node:path').basename(process.argv[1]);
+const args = process.argv.slice(2);
+const input = args[0] === 'auth' && args[1] === 'save' ? fs.readFileSync(0, 'utf8') : undefined;
+fs.appendFileSync(process.env.TEST_LOG, JSON.stringify({ cli, args, input }) + '\\n');
+if (process.env.TEST_FAIL === cli || process.env.TEST_FAIL === args[1]) { console.error('dummy-secret test@example.invalid'); process.exit(7); }
+if (cli === 'op') console.log(JSON.stringify({ category: 'LOGIN', fields: [{ id: 'username', value: 'test@example.invalid' }, { id: 'password', value: 'dummy-secret' }] }));
+else if (args[0] === 'get' && args[1] === 'url') console.log(process.env.TEST_URL);
+else if (args[0] === 'get' && args[1] === 'count') console.log('0');
+else console.log('dummy-secret test@example.invalid');
+`
+  for (const cli of ['op', 'agent-browser']) writeFileSync(join(bin, cli), fake, { mode: 0o700 })
+  const env = { ...process.env, HOME: temp, PATH: `${bin}:${process.env.PATH}`, TEST_LOG: log, TEST_URL: loginUrl, AGENT_BROWSER_SESSION: session }
+  const invoke = (url = loginUrl, extra = {}) => spawnSync(join(root, 'task-browser'), ['auth-test-login', url], { env: { ...env, ...extra }, cwd: temp, encoding: 'utf8' })
+  try {
+    const success = invoke()
+    assert.equal(success.status, 0, success.stderr)
+    assert.equal(success.stdout, 'Submitted TEST account login in the isolated task session\n')
+    assert.equal(success.stderr, '')
+    const calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
+    assert.deepEqual(calls.find(call => call.cli === 'op').args, ['item', 'get', 'TEST Login', '--format=json'])
+    assert.deepEqual(calls.filter(call => ['fill', 'press', 'wait', 'click'].includes(call.args[0])).map(call => call.args), [['fill', 'input[type=email]', 'test@example.invalid'], ['press', 'Enter'], ['wait', 'input[type=password]'], ['click', 'button[type=submit]']])
+    const saved = calls.find(call => call.args[1] === 'save')
+    assert.equal(saved.input, 'dummy-secret')
+    assert.deepEqual(saved.args, ['auth', 'save', `mastra-test-${session}`, '--url', origin, '--username', 'test@example.invalid', '--password-stdin'])
+    assert.deepEqual(calls.find(call => call.args[1] === 'login').args, ['auth', 'login', `mastra-test-${session}`, '--no-navigate', '--url', origin, '--username-selector', 'input[type=password]', '--password-selector', 'input[type=password]', '--submit-selector', 'input[type=password]'])
+    assert.deepEqual(calls.at(-1).args, ['auth', 'delete', `mastra-test-${session}`])
+    assert.equal(calls.some(call => call.args.includes('dummy-secret')), false)
+    for (const failure of ['op', 'save', 'login']) {
+      const failed = invoke(loginUrl, { TEST_FAIL: failure })
+      assert.equal(failed.status, 1)
+      assert.equal(failed.stdout, '')
+      assert.match(failed.stderr, failure === 'op' ? /sign in to op/ : /TEST login failed/)
+      assert.doesNotMatch(failed.stderr, /dummy-secret|test@example.invalid/)
+    }
+    writeFileSync(log, '')
+    assert.equal(invoke('https://other.authkit.app/login').status, 1)
+    assert.equal(readFileSync(log, 'utf8'), '')
+    assert.equal(invoke(loginUrl, { TEST_URL: 'https://example.com/login' }).status, 1)
+    assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse).map(call => call.args), [['get', 'url']])
+  } finally {
+    for (const name of readdirSync(bin)) unlinkSync(join(bin, name))
+    rmdirSync(bin)
+    unlinkSync(join(configDir, 'mastra-test.json'))
+    rmdirSync(configDir)
+    rmdirSync(join(temp, '.config'))
+    unlinkSync(log)
     rmdirSync(temp)
     rmdirSync(join(tmpdir(), 'agent-browser-artifacts', session))
   }
