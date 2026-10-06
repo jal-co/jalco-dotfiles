@@ -45,7 +45,7 @@ export interface ExecResult {
 export type Exec = (command: string, args: string[]) => Promise<ExecResult>;
 
 async function resolveBase(exec: Exec, root: string): Promise<string> {
-	for (const ref of ["@{upstream}", "origin/HEAD"]) {
+	for (const ref of ["origin/HEAD", "@{upstream}"]) {
 		const result = await exec("git", ["-C", root, "rev-parse", "--verify", "--quiet", ref]);
 		if (result.code === 0 && result.stdout.trim()) {
 			const base = await exec("git", ["-C", root, "merge-base", "HEAD", result.stdout.trim()]);
