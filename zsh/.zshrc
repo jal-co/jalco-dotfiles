@@ -4,6 +4,7 @@ export TERM=xterm-256color
 export DOCKER_SOCK="$HOME/.docker/run/docker.sock"
 export HOMEBREW_NO_ENV_HINTS=1
 export ALEXANDRIA_GAPS=auto
+export ALEXANDRIA_MODEL=anthropic/claude-sonnet-5-5
 export GPG_TTY=$(tty)
 
 
