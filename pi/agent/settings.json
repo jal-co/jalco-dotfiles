@@ -27,7 +27,6 @@
     "npm:pi-goal-x",
     "npm:pi-notify",
     "npm:pi-tool-display",
-    "npm:pi-updater",
     "git:github.com/jal-co/pi-agentation",
     "npm:@ogulcancelik/pi-session-recall",
     "npm:@ogulcancelik/pi-auto-permissions",
