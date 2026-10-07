@@ -118,7 +118,16 @@ function expandSkill(command: string): string {
 }
 ```
 
-- For a visual UI, layout, state comparison, or concept too dense for Mermaid, write one focused HTML file: a diagram, an infographic, or a short slide deck, whichever fits the point. Match the product's colors, type, spacing, and components; use real labels and data; support desktop and mobile. Then open it for the user:
+- For a visual UI, layout, state comparison, chart, or concept too dense for Mermaid, write one focused, self-contained HTML document: a diagram, an infographic, or a short slide deck, whichever fits the point. Use real labels and data and support desktop and mobile.
+
+  Inside T3 Code (the `html_preview` and `html_render` tools are available), show it inline in the thread:
+
+  1. Style it with T3's injected theme variables (`--background`, `--foreground`, `--muted-foreground`, `--border`, `--card`, `--accent`, `--chart-1` … `--chart-6`, `--font-sans`, `--font-mono`) so it follows the user's theme and light/dark mode. Use a fluid width, no horizontal padding on the outermost element, no outer card, border, or banner title, and fixed pixel heights for charts.
+  2. Check it with `html_preview` at the default width and at about 390px, fixing console errors and overflow.
+  3. Publish it with `html_render`, using the preview's `contentHeight` as `height`, before writing the reply.
+  4. In the reply, do not announce or restate the page; add only what it doesn't say.
+
+  Outside T3 Code, match the product's colors, type, spacing, and components, write the file, and open it for the user:
 
 ```
 Bash(open path/to/show-me-{description}.html)
