@@ -4,15 +4,15 @@
     "keepRecentTokens": 48000
   },
   "defaultModel": "gpt-5.6-sol",
-  "defaultProvider": "chatgpt",
+  "defaultProvider": "cliproxyapi",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
     "anthropic/claude-opus-5-5",
     "anthropic/claude-sonnet-5",
     "anthropic/claude-fable-5-1",
-    "chatgpt/gpt-6-astra",
+    "cliproxyapi/gpt-6-astra",
     "deepseek/deepseek-flash",
-    "openai-codex/gpt-6.1-sol"
+    "cliproxyapi/gpt-6.1-sol"
   ],
   "enableSkillCommands": true,
   "followUpMode": "all",
