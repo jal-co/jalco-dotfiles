@@ -68,6 +68,7 @@ That file tells the root how to launch children and when to report code-ready. R
 Runs when a message starting `p3 code-ready` arrives. Review is the dispatcher's job because the thread that wrote the code cannot judge it independently, and a reviewer on a different model family catches what the builder's family misses.
 
 1. Parse `task`, `thread`, `worktree`, `branch`, `base`, `head`, `gates`. Confirm the commit exists with `git -C <worktree> cat-file -e <head>`. Count earlier rounds for this task in `~/.p3/verdicts.tsv`; this is round N.
+   Fast path: when the round's production diff is under about 50 changed lines, or the delta since the last reviewed head is mechanical (a docs revert, test trim, rename, or applied finding), read the diff yourself and send `clean` or findings in the same turn. Record the verdict with reviewers `dispatcher`. Three lanes cost an hour of wall time; a change that size takes minutes to read and rarely hides what lanes catch. Use lanes for larger diffs, auth, billing, data writes, or migrations.
 2. Pick reviewers from the `interrogate reviewers` line in `~/.agents/p3-models.md`. Drop the entry that matches the task thread's exact model (read it with `t3_thread_read`), because a model reviewing its own output repeats its own blind spots. Keep every other entry, and keep at least one from a different provider than the builder so one lane catches what that provider's models share. Resolve each entry the way p3-mode's Subagents section does.
 3. Launch one `delegate_task` per lane, `mode: "async"`, each on a different reviewer. Lanes: correctness against the task's goal and edge cases; scope and simplicity (unrequested changes, avoidable code); the repository's AGENTS.md rules for the touched paths. Brief:
    ```
@@ -82,6 +83,7 @@ Runs when a message starting `p3 code-ready` arrives. Review is the dispatcher's
 4. When every lane has returned, the verdict is `clean` only if all lanes passed. Drop a finding that names no file:line or evidence. Append one row to `~/.p3/verdicts.tsv` (create it with the header `date	task	branch	head	round	verdict	reviewers`): you are its only writer, and a verdict belongs to one head, so a new head always needs a new round.
 5. Findings: send the task thread `p3 findings`, `round: N`, `head: <head>`, and the findings verbatim, with `t3_thread_send`. Clean: send `p3 clean`, `head: <head>`, and tell Justin in one line: `<name> clean at <short head>, ready for your review → thread <id>`.
 6. After three rounds with findings on the same task, stop sending fix rounds and tell Justin the open findings. Repeated rounds mean the builder and reviewers disagree on something only Justin can settle.
+7. Settle a design question with Justin once, before the thread builds. MUST NOT send a changed design to a thread without his pick, and MUST NOT add a preview round after he has approved the direction. Each reversal or extra approval loop costs Justin a round trip on work he already decided.
 
 A `p3 blocked` message: relay the question to Justin in one line with the thread id. Never answer it yourself.
 
