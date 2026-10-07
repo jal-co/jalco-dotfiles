@@ -43,7 +43,8 @@
     "npm:@narumitw/pi-btw",
     "npm:pi-chatgpt-pool",
     "git:github.com/mastra-ai/pi-alexandria",
-    "npm:pi-title-renamer"
+    "npm:pi-title-renamer",
+    "npm:@router-for-me/pi-cliproxyapi-provider"
   ],
   "quietStartup": "header",
   "showCacheMissNotices": true,
