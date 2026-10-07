@@ -56,7 +56,7 @@
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp",
-      "enabled": false
+      "enabled": true
     },
     "typefully": {
       "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
