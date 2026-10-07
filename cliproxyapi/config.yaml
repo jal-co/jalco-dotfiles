@@ -1,0 +1,105 @@
+config-version: 8
+models:
+  catalog: ""
+  codex-catalog: ""
+  devin-catalog: ""
+server:
+  host: "127.0.0.1"
+  port: 8317
+  trusted-proxies: []
+  tls:
+    enable: false
+    cert: ""
+    key: ""
+  commercial-mode: false
+  discovery:
+    enabled: false
+management:
+  allow-remote: false
+  secret-key: ""
+  disable-control-panel: false
+  panel-github-repository: "https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
+access:
+  api-keys:
+    - "__CLIPROXY_API_KEY__"
+routing:
+  strategy: "round-robin"
+  session-affinity: true
+  session-affinity-ttl: "1h"
+  session-affinity-subagents: true
+  force-model-prefix: false
+  retry:
+    request-retry: 3
+    max-retry-credentials: 0
+    max-retry-interval: 30
+  cooldown:
+    disable-cooling: false
+    save-cooldown-status: false
+    transient-error-cooldown-seconds: 0
+requests:
+  proxy-url: ""
+  passthrough-headers: false
+  nonstream-keepalive-interval: 0
+client:
+  codex:
+    enable-apply-patch: false
+    optimize-multi-agent-v2: false
+upstream:
+  codex:
+    response-steering: false
+    disable-codex-cloaking: false
+    stream-bootstrap-buffering: false
+    stream-bootstrap-timeout: "0"
+    orphan-delegation-compatibility: false
+    model-level-cooling: false
+  claude:
+    model-level-cooling: false
+    disable-claude-cloak-mode: false
+    disable-cloaking-model-list: false
+  xai:
+    inject-x-search: false
+oauth:
+  auth-dir: "~/.cli-proxy-api"
+  providers:
+    aistudio:
+      ws-auth: true
+    codex:
+      live-media-relay:
+        enabled: false
+        max-sessions: 32
+        disable-private-remote-ips: false
+        public-ip: ""
+        udp-port-min: 0
+        udp-port-max: 0
+    antigravity:
+      antigravity-credits: true
+multimedia:
+  disable-image-generation: false
+  video-result-auth-cache-ttl: "3h"
+observability:
+  logs:
+    debug: false
+    logging-to-file: false
+    logs-max-total-size-mb: 0
+    error-logs-max-files: 10
+    request-log: false
+  usage:
+    usage-statistics-enabled: false
+    redis-usage-queue-retention-seconds: 60
+  pprof:
+    enable: false
+    addr: "127.0.0.1:8316"
+plugins:
+  enabled: false
+  dir: "plugins"
+  configs:
+    example:
+      enabled: true
+      priority: 1
+      config1: true
+      config2: "string"
+      config3: 3
+      mode: "safe"
+      config-list: ["a", "b"]
+      config-object:
+        mode: "safe"
