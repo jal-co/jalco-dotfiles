@@ -56,7 +56,8 @@ description = "Write the CLIProxyAPI config with the Keychain keys and restart i
 run = """
 key=$(security find-generic-password -s cliproxyapi-local -w 2>/dev/null || { k="cp-$(openssl rand -hex 24)"; security add-generic-password -a "$USER" -s cliproxyapi-local -w "$k"; echo "$k"; })
 mgmt=$(security find-generic-password -s cliproxyapi-management -w 2>/dev/null || { k="cpm-$(openssl rand -hex 24)"; security add-generic-password -a "$USER" -s cliproxyapi-management -w "$k"; echo "$k"; })
-sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
+deepseek=$(security find-generic-password -s cliproxyapi-deepseek -w)
+sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" -e "s/__DEEPSEEK_API_KEY__/$deepseek/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
 brew services restart cliproxyapi
 """
 

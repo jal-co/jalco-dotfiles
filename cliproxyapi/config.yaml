@@ -22,6 +22,24 @@ management:
 access:
   api-keys:
     - "__CLIPROXY_API_KEY__"
+api-keys:
+  openai-compatibility:
+    - name: "deepseek"
+      base-url: "https://api.deepseek.com"
+      keys:
+        - api-key: "__DEEPSEEK_API_KEY__"
+      models:
+        - name: "deepseek-flash"
+          display-name: "DeepSeek V4.1 Flash"
+          max-context-length: 1000000
+          thinking:
+            levels: ["low", "high", "max"]
+        - name: "deepseek-v4-pro"
+          display-name: "DeepSeek V4 Pro"
+          max-context-length: 1000000
+          input-modalities: [text]
+          thinking:
+            levels: ["low", "high", "max"]
 routing:
   strategy: "round-robin"
   session-affinity: true
