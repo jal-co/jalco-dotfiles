@@ -12,7 +12,7 @@
     "cliproxyapi/claude-sonnet-5",
     "cliproxyapi/claude-fable-5-1",
     "cliproxyapi/gpt-6-astra",
-    "deepseek/deepseek-flash",
+    "cliproxyapi/deepseek-flash",
     "cliproxyapi/gpt-6.1-sol"
   ],
   "enableSkillCommands": true,
