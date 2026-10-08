@@ -39,6 +39,8 @@ AGENTS.md
 # Secrets & auth
 pi/agent/auth.json
 pi/agent/mcp-auth.json
+pi/agent/cliproxyapi.json
+pi/agent/cliproxyapi-models.json
 pi/agent/mastra.json
 pi/agent/compact-adviser.json
 pi/agent/compact-adviser-requests.jsonl
@@ -136,3 +138,7 @@ pi/agent/skills/emil-*/
 
 # Multi-pass runtime state (cooldowns, ephemeral)
 pi/agent/chatgpt-pool.json
+
+# CLIProxyAPI tokens and generated config (secrets come from Keychain via `mise run cliproxy`)
+.cli-proxy-api/
+cliproxyapi/*.conf
