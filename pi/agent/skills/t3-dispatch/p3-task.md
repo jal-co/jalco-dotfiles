@@ -25,7 +25,7 @@ For each child:
 - Title: `<task name> › <part>`. The dispatcher finds a tree's threads by the task name prefix, so a child with another title drops out of status and review.
 - `workspaceStrategy`: `{ "type": "worktree", "baseRef": "<your branch for a stacked part, else the default branch>", "branch": "<your branch>--<part>", "startFromOrigin": false }`. Commit what the child builds on before launching, because uncommitted changes are not copied.
 - `modelSelection`: your own instance and model.
-- Brief: `$p3-mode`, then the part's goal and the files it may touch, then `child`, `Dispatcher thread: <dispatcher thread id>`, and `Follow ~/.pi/agent/skills/t3-dispatch/p3-task.md`.
+- Brief: `Using p3. $p3-mode`, then the part's goal and the files it may touch, then `child`, `Dispatcher thread: <dispatcher thread id>`, and `Follow ~/.pi/agent/skills/t3-dispatch/p3-task.md`.
 
 Every thread whose branch becomes its own PR reports code-ready to the dispatcher itself. A child whose work you will merge into your branch reports to you instead, and you report the combined head.
 

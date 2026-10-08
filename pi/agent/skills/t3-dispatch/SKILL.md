@@ -1,6 +1,6 @@
 ---
 name: t3-dispatch
-description: Run the T3 Code main agent that turns Linear tickets and tasks into Pi threads in their own worktrees in the right repository's T3 project, follows up with them, reports status, and cleans up. On the pi-p3 instance it also tracks each task as a tree of threads and runs a cross-model review of every code-ready commit. Use in a Pi thread inside T3 Code (`T3_MCP_URL` is set) that is not bound to a worktree, when Justin gives a Linear issue or task to start, asks to follow up on a task, asks for status ("what's running", "where are we"), or asks to clean up worktrees or threads.
+description: Run the T3 Code main agent that turns Linear tickets and tasks into Pi threads in their own worktrees in the right repository's T3 project, follows up with them, reports status, and cleans up. For a task run with p3 it also tracks the task as a tree of threads and runs a cross-model review of every code-ready commit. Use in a Pi thread inside T3 Code (`T3_MCP_URL` is set) that is not bound to a worktree, when Justin gives a Linear issue or task to start, asks to follow up on a task, asks for status ("what's running", "where are we"), or asks to clean up worktrees or threads.
 ---
 
 <overview>
@@ -36,18 +36,18 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
      "message": "<brief>"
    }
    ```
-   `startFromOrigin: true` fetches first so the base is current. Task threads inherit the dispatcher's provider instance; read it with `t3_thread_configuration` before launching, and when it is `pi-p3`, follow "With p3" below. Do not wait for the thread; return to Justin immediately.
+   `startFromOrigin: true` fetches first so the base is current. Every launch sets `"instanceId": "pi"` in `modelSelection`, because an omitted model selection inherits the dispatcher's instance. When the task runs with p3, follow "With p3" below. Do not wait for the thread; return to Justin immediately.
 7. The brief is three lines at most: the issue identifier and title (or Justin's task text verbatim), "Read the issue in Linear for full context" when one exists, and any constraint Justin stated. The task agent's own AGENTS.md and skills cover everything else, including when to stop for review.
 8. Reply with one line: `<name> (<repo>) → <branch>, thread <threadId>`.
 
 ## With p3
 
-A task runs with p3 only when it is a big change or a real engineering lift: a new feature across several layers, auth, billing, data model or migrations, security-sensitive paths, or a multi-PR effort. Copy tweaks, small UI fixes, label changes, prototypes, investigations, dashboards, and one-file fixes run on plain Pi, even when the dispatcher runs on `pi-p3`, because review lanes and fix rounds cost more than such changes can hide. When a task looks like it needs p3, ask Justin in one line before launching ("This touches auth across API and frontend; run it with p3?") and launch plain Pi unless he says yes. "with p3" or "without p3" from Justin decides without asking. If `pi-p3` is missing from `orchestrator_capabilities`, tell Justin and launch on plain Pi only if he says so. A task without p3 sets `"instanceId": "pi"` explicitly, because an omitted model selection inherits the dispatcher's instance. Launch quick, mechanical plain-Pi tasks (reverts, one-file fixes, label or copy changes, small CSS tweaks, PR-body edits, rebases, CI checks) on `cliproxyapi/deepseek-flash` (thinking `low`), because Justin wants speed there. Launch other plain-Pi tasks on `cliproxyapi/claude-sonnet-5-5` (thinking `high`); use `cliproxyapi/claude-opus-5-5` for design, taste, or prose-heavy work. Justin finds GPT models too slow for interactive task threads, so use them only as one cross-provider review lane.
+A task runs with p3 only when it is a big change or a real engineering lift: a new feature across several layers, auth, billing, data model or migrations, security-sensitive paths, or a multi-PR effort. Copy tweaks, small UI fixes, label changes, prototypes, investigations, dashboards, and one-file fixes run on plain Pi, because review lanes and fix rounds cost more than such changes can hide. When a task looks like it needs p3, ask Justin in one line before launching ("This touches auth across API and frontend; run it with p3?") and launch plain Pi unless he says yes. "with p3" or "without p3" from Justin decides without asking. Launch quick, mechanical plain-Pi tasks (reverts, one-file fixes, label or copy changes, small CSS tweaks, PR-body edits, rebases, CI checks) on `cliproxyapi/deepseek-flash` (thinking `low`), because Justin wants speed there. Launch other plain-Pi tasks on `cliproxyapi/claude-sonnet-5-5` (thinking `high`); use `cliproxyapi/claude-opus-5-5` for design, taste, or prose-heavy work. Justin finds GPT models too slow for interactive task threads, so use them only as one cross-provider review lane.
 
-A p3 task is a tree: the root task thread, plus child threads titled `<name> › <part>` that the root may launch. Launch the root on the code model from `~/.agents/p3-models.md`: the `bug-fix` line for a defect, else the `feature, refactoring` line, as `"modelSelection": { "instanceId": "pi-p3", "model": "<model>", "options": [{ "id": "thinking", "value": "<level>" }] }`. That file is where Justin sets which models do the work, and the dispatcher's own model only routes tasks. Use this brief, replacing step 7's:
+A p3 task is a tree: the root task thread, plus child threads titled `<name> › <part>` that the root may launch. Launch the root on the code model from `~/.agents/p3-models.md`: the `bug-fix` line for a defect, else the `feature, refactoring` line, as `"modelSelection": { "instanceId": "pi", "model": "<model>", "options": [{ "id": "thinking", "value": "<level>" }] }`. That file is where Justin sets which models do the work, and the dispatcher's own model only routes tasks. Use this brief, replacing step 7's:
 
 ```
-$p3-mode <issue identifier and title, or Justin's task text verbatim>
+Using p3. $p3-mode <issue identifier and title, or Justin's task text verbatim>
 Read the issue in Linear for full context.   (only when there is one)
 <any constraint Justin stated>
 root
@@ -55,7 +55,7 @@ Dispatcher thread: <this thread's id, the currentThreadId from t3_thread_list>
 Follow ~/.pi/agent/skills/t3-dispatch/p3-task.md
 ```
 
-That file tells the root how to launch children and when to report code-ready. Reply with `with p3` after the thread id.
+The `Using p3.` opening is what puts the thread in p3, because every thread runs on the same `pi` instance and Justin's AGENTS.md starts p3 without asking only when the brief says so. That file tells the root how to launch children and when to report code-ready. Reply with `with p3` after the thread id.
 
 ## Follow-up
 
