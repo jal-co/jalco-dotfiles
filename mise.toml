@@ -52,12 +52,17 @@ dotfiles.relative_symlinks = true
 run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.38.2 corepack superset vercel"
 
 [tasks.cliproxy]
-description = "Write the CLIProxyAPI config with the Keychain key and restart it"
+description = "Write the CLIProxyAPI config with the Keychain keys and restart it"
 run = """
 key=$(security find-generic-password -s cliproxyapi-local -w 2>/dev/null || { k="cp-$(openssl rand -hex 24)"; security add-generic-password -a "$USER" -s cliproxyapi-local -w "$k"; echo "$k"; })
-sed "s/__CLIPROXY_API_KEY__/$key/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
+mgmt=$(security find-generic-password -s cliproxyapi-management -w 2>/dev/null || { k="cpm-$(openssl rand -hex 24)"; security add-generic-password -a "$USER" -s cliproxyapi-management -w "$k"; echo "$k"; })
+sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
 brew services restart cliproxyapi
 """
+
+[tasks.cliproxy-tui]
+description = "Open the CLIProxyAPI terminal management UI"
+run = 'cliproxyapi -config "$(brew --prefix)/etc/cliproxyapi.conf" -tui -password "$(security find-generic-password -s cliproxyapi-management -w)"'
 
 [dotfiles."~/.pi/*.json"]
 source = "pi/*.json"
