@@ -16,6 +16,10 @@
     "cliproxyapi/gpt-6.1-sol"
   ],
   "enableSkillCommands": true,
+  "skills": [
+    "~/dev/p3-stack/skills",
+    "!**/p3-stack/skills/teach/**"
+  ],
   "followUpMode": "all",
   "hideThinkingBlock": true,
   "lastChangelogVersion": "1.1.0",
