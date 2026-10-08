@@ -84,7 +84,7 @@ observability:
     error-logs-max-files: 10
     request-log: false
   usage:
-    usage-statistics-enabled: true
+    usage-statistics-enabled: false
     redis-usage-queue-retention-seconds: 60
   pprof:
     enable: false
@@ -92,8 +92,3 @@ observability:
 plugins:
   enabled: true
   dir: "~/.cli-proxy-api/plugins"
-  configs:
-    keeper:
-      enabled: true
-      priority: 1
-      keeper_url: "http://127.0.0.1:8080/"
