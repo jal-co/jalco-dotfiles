@@ -1,6 +1,6 @@
 [tools]
-bun = "latest"
-go = "latest"
-java = "latest"
-node = "latest"
-python = "latest"
+bun = { version = "latest", auto_update = true }
+go = { version = "latest", auto_update = true }
+java = { version = "latest", auto_update = true }
+node = { version = "24", auto_update = true }
+python = { version = "latest", auto_update = true }
