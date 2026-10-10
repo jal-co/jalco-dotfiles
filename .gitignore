@@ -23,7 +23,7 @@ herdr/release-notes.json
 herdr/session.json
 herdr/herdr.sock*
 herdr/session-snapshots/
-zed/prompts/
+zed/prompts
 
 
 # Environment files
@@ -78,7 +78,8 @@ pi/agent/extensions/*/dist/
 pi/agent/skills/exa/exa
 
 # Personal/private skills (PII, voice samples, account-specific data)
-pi/agent/skills/write-like-justin/
+pi/agent/skills/write-like-justin
+pi/agent/skills/platform-local-dev
 pi/agent/skills/job-search/
 pi/agent/skills/real-app/
 pi/agent/skills/plan-to-linear/
