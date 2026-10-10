@@ -3,8 +3,8 @@
     "enabled": false
   },
   "reviewer": {
-    "provider": "anthropic",
-    "model": "claude-haiku-4-5",
+    "provider": "cliproxyapi",
+    "model": "claude-haiku-5-5",
     "reasoningEffort": "low",
     "timeoutMs": 30000
   },
