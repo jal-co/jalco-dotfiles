@@ -20,6 +20,7 @@ dotfiles.relative_symlinks = true
 "brew:ffmpeg" = "latest"
 "brew:fzf" = "latest"
 "brew:gh" = "latest"
+"brew:gitleaks" = "latest"
 "brew:git" = "latest"
 "brew:gnupg" = "latest"
 "brew:herdr" = "latest"
@@ -50,7 +51,18 @@ dotfiles.relative_symlinks = true
 "brew-cask:zed" = "latest"
 
 [tasks.bootstrap]
-run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.38.2 corepack superset vercel"
+run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.38.2 corepack superset vercel && mise run hooks"
+
+[tasks.hooks]
+description = "Install the gitleaks pre-commit hook in the dotfiles repos"
+run = """
+for repo in "$HOME/dotfiles" "$HOME/dotfiles-private"; do
+  [ -d "$repo/.git" ] || continue
+  printf '#!/bin/sh\nexec gitleaks git --staged --redact --no-banner\n' > "$repo/.git/hooks/pre-commit"
+  chmod +x "$repo/.git/hooks/pre-commit"
+  echo "hook installed in $repo"
+done
+"""
 
 [tasks.cliproxy]
 description = "Write the CLIProxyAPI config with the Proton Pass keys and restart it"
