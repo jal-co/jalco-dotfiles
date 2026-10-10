@@ -123,6 +123,8 @@ setopt PUSHD_IGNORE_DUPS
 
 eval "$(starship init zsh)"
 
+export AGENT_BROWSER_COLOR_SCHEME="dark"
+
 # Local overrides
 if [[ -f "$HOME/.zshrc.local" ]]; then
   source "$HOME/.zshrc.local"
