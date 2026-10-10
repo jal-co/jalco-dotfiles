@@ -28,6 +28,7 @@ dotfiles.relative_symlinks = true
 "brew:ninja" = "latest"
 "brew:node" = "latest"
 "brew:oxlint" = "latest"
+"brew:proton-pass-cli" = "latest"
 "brew:rust" = "latest"
 "brew:starship" = "latest"
 "brew:zoxide" = "latest"
