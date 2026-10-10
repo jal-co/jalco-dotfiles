@@ -106,6 +106,7 @@ export function formatWorkingMessage(
 	animate: boolean,
 	shimmer: ShimmerColor = "mono",
 	provider?: string,
+	modelId?: string,
 ): string {
 	const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
 	const elapsed = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
@@ -114,7 +115,7 @@ export function formatWorkingMessage(
 	const position = animate ? ((time % 2400) / 2400) * (label.length + 6) - 3 : -10;
 	const { muted, text } = theme.colors;
 	const hues: Partial<Record<ShimmerColor, number>> = SHIMMER_HUES;
-	const tint = shimmer === "provider" ? colorToOkhsl(getProviderColor(provider, theme.colors)) : { h: hues[shimmer] ?? 0, s: 0.8 };
+	const tint = shimmer === "provider" ? colorToOkhsl(getProviderColor(provider, theme.colors, modelId)) : { h: hues[shimmer] ?? 0, s: 0.8 };
 	const ramp = (hue: number, saturation: number, intensity: number) => okhslColor(hue, saturation, 0.45 + 0.45 * intensity);
 	const working = animate || shimmer !== "mono"
 		? [...label].map((character, index) => {
@@ -153,6 +154,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 	let mode = loadBusyIndicatorMode();
 	let shimmer = loadShimmerColor();
 	let provider: string | undefined;
+	let modelId: string | undefined;
 	let workingTimer: ReturnType<typeof setInterval> | undefined;
 
 	function stopWorkingTimer(): void {
@@ -167,7 +169,7 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 		const startedAt = Date.now();
 		let previousMessage: string | undefined;
 		const update = () => {
-			const message = formatWorkingMessage(Date.now() - startedAt, ui.theme, mode === "spinner" || mode === "pulse", shimmer, provider);
+			const message = formatWorkingMessage(Date.now() - startedAt, ui.theme, mode === "spinner" || mode === "pulse", shimmer, provider, modelId);
 			if (message === previousMessage) return;
 			previousMessage = message;
 			ui.setWorkingMessage(message);
@@ -244,11 +246,13 @@ export default function footerCleanup(pi: ExtensionAPI): void {
 
 	pi.on("model_select", (event) => {
 		provider = event.model.provider;
+		modelId = event.model.id;
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 		provider = ctx.model?.provider;
+		modelId = ctx.model?.id;
 		shimmer = loadShimmerColor();
 		stopWorkingTimer();
 		ctx.ui.setFooter(() => ({ invalidate() {}, render: () => [] }));
