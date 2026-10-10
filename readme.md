@@ -31,6 +31,10 @@ Tinycast comes from a third-party tap that mise can only read with Ruby 3, so in
 
 To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi and Herdr use glob entries that link each top-level item in `pi/agent/` or `herdr/` individually, so their sessions, logs, sockets, and auth stay in `~` and out of this repository. A new file added there is linked on the next `mise dot apply`.
 
+## Private files
+
+Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private`. Clone it to `~/dotfiles-private` and run its `link.sh`. Credentials live in Proton Pass, not in either repo.
+
 ## Layout
 
 | Folder | Linked to |
