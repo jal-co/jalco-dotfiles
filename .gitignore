@@ -88,7 +88,7 @@ pi/agent/skills/grid-based-components/
 pi/agent/mastra-design.md
 
 # Licensed skill content (installer-gated, not redistributable)
-agents/skills/interface-craft/
+agents/skills/interface-craft
 
 # Personal prompts (resume details, contact info)
 pi/agent/prompts/jobs.md
@@ -135,7 +135,7 @@ pi/agent/skills/browser-tools/_*.mjs
 pi/agent/skills/browser-tools/capture-badges.mjs
 
 # Licensed aiforui skills (installed by npx @aiforui/install, not redistributable)
-pi/agent/skills/emil-*/
+pi/agent/skills/emil-*
 
 # Multi-pass runtime state (cooldowns, ephemeral)
 pi/agent/chatgpt-pool.json
