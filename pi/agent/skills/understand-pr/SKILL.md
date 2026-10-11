@@ -110,6 +110,7 @@ Choose the smallest verification that could falsify the important claims:
 - Performance: measure identical realistic inputs.
 - Schema/storage: prove upgrade, rollback, and mixed-version behavior where relevant.
 - Packaging: build/pack and consume through exports when package shape is the claim.
+- Rendered UI: when the PR changes rendered output, run the feature locally from a disposable worktree on the PR branch and follow `~/.agents/skills/break-it/SKILL.md`. Report each surface that visibly broke as a request with its pointer. Skip it for PRs that change no rendered UI.
 
 Run broader suites only when blast radius or uncertainty justifies them. Test the exact merge only when base interaction or discrepant CI makes it informative. Do not turn “more commands ran” into a proxy for confidence.
 

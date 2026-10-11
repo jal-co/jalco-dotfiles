@@ -1,6 +1,7 @@
 ---
 name: show-me
-description: Use when a visual explanation would clarify code changes, control flow, architecture, component structure, state transitions, or interface concepts.
+description: Help the user understand the current topic visually with concise diagrams, code-shape sketches, and focused HTML artifacts.
+disable-model-invocation: true
 ---
 
 Help the user understand the current topic of conversation visually. Skip the preamble and keep prose brief. Pick the smallest view that makes the key point clear.
@@ -57,10 +58,6 @@ sequenceDiagram
 
 - Use `diff` when the point is what changes and the surrounding shape already exists. Match the diff shape to the topic.
 
-For GitHub pull request, issue, and comment explanations, a visual that describes changed code or behavior MUST use a `diff` fence instead of `text` or a language fence. GitHub only colors lines whose first character is `+` or `-`, so every added or removed line MUST carry the correct marker. Keep a few unmarked context lines so the change remains legible.
-
-If the behavior is entirely new, prefix the new branch or block with `+`. If behavior is replaced, show both the `-` and `+` forms. Markers MUST remain semantically accurate; do not color unchanged lines for decoration.
-
 For a component change:
 
 ```diff
@@ -109,7 +106,7 @@ For a state or control-flow change:
 +  invalidate cache
 ```
 
-- Show the whole block when most of it is new, when omitted context would hide ownership or order, or when the user needs a copyable target shape. In a GitHub change explanation, keep the `diff` fence and prefix the new lines with `+`. Use a language fence when the primary purpose is copyable code rather than change review:
+- Show the whole block when most of it is new, when omitted context would hide ownership or order, or when the user needs a copyable target shape:
 
 ```ts
 function expandSkill(command: string): string {
@@ -118,16 +115,7 @@ function expandSkill(command: string): string {
 }
 ```
 
-- For a visual UI, layout, state comparison, chart, or concept too dense for Mermaid, write one focused, self-contained HTML document: a diagram, an infographic, or a short slide deck, whichever fits the point. Use real labels and data and support desktop and mobile.
-
-  Inside T3 Code (the `html_preview` and `html_render` tools are available), show it inline in the thread:
-
-  1. Style it with T3's injected theme variables (`--background`, `--foreground`, `--muted-foreground`, `--border`, `--card`, `--accent`, `--chart-1` … `--chart-6`, `--font-sans`, `--font-mono`) so it follows the user's theme and light/dark mode. Use a fluid width, no horizontal padding on the outermost element, no outer card, border, or banner title, and fixed pixel heights for charts.
-  2. Check it with `html_preview` at the default width and at about 390px, fixing console errors and overflow.
-  3. Publish it with `html_render`, using the preview's `contentHeight` as `height`, before writing the reply.
-  4. In the reply, do not announce or restate the page; add only what it doesn't say.
-
-  Outside T3 Code, match the product's colors, type, spacing, and components, write the file, and open it for the user:
+- For a visual UI, layout, state comparison, or concept too dense for Mermaid, write one focused HTML file — a diagram, an infographic, or a short slide deck, whichever fits the point. Match the product's colors, type, spacing, and components; use real labels and data; support desktop and mobile. Then open it for the user:
 
 ```
 Bash(open path/to/show-me-{description}.html)
