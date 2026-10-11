@@ -1,5 +1,6 @@
 ---
 name: playground-snapshot-release
+disable-model-invocation: true
 description: Publish a Playground UI snapshot (`@mastra/playground-ui` and its workspace dependencies) from `main` or the current branch via the `playground-snapshot` mode of the Publish to npm workflow, wait for it to finish, then open a PR on `mastra-ai/platform` bumping the frontend to the published snapshot version. Use when asked to release, publish, or ship a playground/studio UI snapshot to the platform frontend.
 ---
 

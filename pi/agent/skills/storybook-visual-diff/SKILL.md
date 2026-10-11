@@ -1,5 +1,6 @@
 ---
 name: storybook-visual-diff
+disable-model-invocation: true
 description: Produce a visual diff report of a large UI change by screenshotting every affected Storybook story on the base branch and the working branch, then building one HTML report (main, branch, diff and a zoom on the changed region per story) and a PDF of it. Use when Justin asks to "see all the changes", for "visual diffs", "diff screenshots", "before and after of everything", or when a design-system change (tokens, colors, spacing, typography, shared components) touches more stories than a PR screenshot table can hold.
 ---
 
