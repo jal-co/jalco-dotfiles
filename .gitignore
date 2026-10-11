@@ -15,14 +15,6 @@ yarn.lock
 
 
 # Local secrets, no longer git-crypt managed (removed 2026-07-24)
-herdr/.plugins.lock
-herdr/herdr-*.log
-herdr/plugins.json
-herdr/plugins/
-herdr/release-notes.json
-herdr/session.json
-herdr/herdr.sock*
-herdr/session-snapshots/
 zed/prompts
 
 

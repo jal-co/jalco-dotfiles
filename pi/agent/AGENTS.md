@@ -10,7 +10,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 - Ask one focused question when a material decision is unresolved. State the assumption and offer concrete choices. Proceed when the user supplies a bounded task or delegates judgment.
 - Execute approved, bounded work with a checklist. Approval of recommendations authorizes their implementation without another approval gate for the same decisions.
-- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: a main agent (`herdr-dispatch` in Herdr, `t3-dispatch` in T3 Code) launches exactly one Pi agent per task Justin hands it. A p3 tree under `t3-dispatch` extends this: the dispatcher MAY launch read-only review agents, and the task's root thread MAY launch child threads and helpers as `t3-dispatch/p3-task.md` allows, because Justin approved that tree shape for every p3 task.
+- MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: the main agent (`t3-dispatch` in T3 Code) launches exactly one Pi agent per task Justin hands it. A p3 tree under `t3-dispatch` extends this: the dispatcher MAY launch read-only review agents, and the task's root thread MAY launch child threads and helpers as `t3-dispatch/p3-task.md` allows, because Justin approved that tree shape for every p3 task.
 - The p3 workflow MUST start only when Justin says "with p3" or "using p3", or answers yes to "Use p3?". Before a big change, ask "Use p3?" in one line and wait: a feature across several layers, auth, billing, data model or migrations, security-sensitive paths, or a multi-PR effort. Smaller work runs without p3, because its review lanes and fix rounds cost more than a small change can hide. To start p3, read `~/dev/p3-stack/skills/p3-mode/SKILL.md` and follow it. A thread whose task brief opens with "Using p3" is already in p3 and MUST NOT ask.
 - Task worktrees are created by the main agent, one per task, each with its own Pi session. A session already inside a task worktree MUST work there and MUST NOT create another worktree of the same repository, even when its branch has no commits yet. When the task also needs changes in another repository, the session MAY create one companion worktree there on the task's branch name, as `workflows/worktrees.md` describes; a cross-repository change has no other way to land, and the shared branch name lets cleanup match it to the task. Without a main agent, create worktrees with `git worktree add` and keep working in the current session with absolute paths.
 - The dotfiles repository is an explicit exception to worktree isolation. MUST apply requested changes directly to its `main` checkout and MUST NOT create a task worktree.
@@ -54,7 +54,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 - Match every explicit requirement to evidence before declaring completion. Run applicable existing checks before committing or pushing. Do not add unrelated test tooling or claim unrun checks passed.
 - Before any pull request, load `ponytail-review` and review the complete diff for avoidable complexity. Apply valid findings. For JavaScript or TypeScript changes, then run `anti-slop` (`~/dotfiles/tools/anti-slop/bin/anti-slop`) on the changed files. Fix findings in changed code or report why one stands; do not add either tool's config or dependencies to the target repository.
 - After compaction, recover from the summary, current tasks, approved plan, and workspace state. Consult session history only when those sources conflict and smaller sources cannot resolve it.
-- Session history is shared across repository checkouts and Herdr workspaces. When a task references prior work, a previous decision, a recurring error, an issue, or a related branch, search all Pi sessions with `session_search`, then inspect likely matches with `session_query`. Do not search history for unrelated new tasks.
+- Session history is shared across repository checkouts. When a task references prior work, a previous decision, a recurring error, an issue, or a related branch, search all Pi sessions with `session_search`, then inspect likely matches with `session_query`. Do not search history for unrelated new tasks.
 
 </rules>
 
@@ -62,23 +62,23 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 <instructions>
 
-Load only the guidance relevant to the task. Prefer the matching `emil-*` skill for design, motion, typography, color, components, accessibility, performance, review, writing cleanup, and skill authoring. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
+Load only the guidance relevant to the task. Load `better-ui` for surfaces, icons, and motion. Prefer the matching `emil-*` skill for typography, color, forms, component APIs, performance, writing cleanup, and skill authoring. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
 
 | Task | Required guidance |
 | --- | --- |
 | Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
-| Herdr main agent: dispatch tasks, follow up, status, cleanup | `herdr-dispatch`. |
 | T3 Code main agent: dispatch tasks, follow up, status, cleanup | `t3-dispatch`. |
 | Git changes, commits, branches, or publication | `git`. |
-| Prepare, open, update, or finalize a PR | `preparing-pull-requests`. For UI intended for a PR, load before implementation to capture the before state. |
-| Attach media to issues, comments, or PRs | `pr-screenshots`, including final URL verification and native GitHub uploads. |
+| Prepare, open, update, or finalize a PR | Read `~/.pi/agent/skills/preparing-pull-requests/SKILL.md` (or load `git`, which points to it). For UI intended for a PR, read it before implementation to capture the before state. |
+| Attach media to issues, comments, or PRs | Read `~/.agents/skills/pr-screenshots/SKILL.md`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
 | Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. |
+| Explore alternatives for a UI piece, stress test a component, or render every state of a component | `variant`, `break`, or `state-machine`. Run each only when Justin invokes it. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
 | Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, which loads both `plain-writing` and `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
 | Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and `rfc-xml-style`. |
 
-Other specialized tasks use their matching skill when needed, including security, releases, and Herdr operations. A skill's command examples do not grant permission to execute them.
+Other specialized tasks use their matching skill when needed, including security and releases. A skill's command examples do not grant permission to execute them.
 
 </instructions>
 

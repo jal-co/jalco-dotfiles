@@ -23,7 +23,6 @@ dotfiles.relative_symlinks = true
 "brew:gitleaks" = "latest"
 "brew:git" = "latest"
 "brew:gnupg" = "latest"
-"brew:herdr" = "latest"
 "brew:mise" = "latest"
 "brew:mole" = "latest"
 "brew:ninja" = "latest"
@@ -84,6 +83,3 @@ source = "pi/*.json"
 
 [dotfiles."~/.pi/agent/*"]
 source = "pi/agent/*"
-
-[dotfiles."~/.config/herdr/*"]
-source = "herdr/*"

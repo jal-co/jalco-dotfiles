@@ -29,7 +29,7 @@ Tinycast comes from a third-party tap that mise can only read with Ruby 3, so in
 | Add a package | `mise bootstrap packages use brew:<name>` or `brew-cask:<name>` |
 | Check packages | `mise bootstrap packages status` |
 
-To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi and Herdr use glob entries that link each top-level item in `pi/agent/` or `herdr/` individually, so their sessions, logs, sockets, and auth stay in `~` and out of this repository. A new file added there is linked on the next `mise dot apply`.
+To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi uses a glob entry that links each top-level item in `pi/agent/` individually, so their sessions, logs, sockets, and auth stay in `~` and out of this repository. A new file added there is linked on the next `mise dot apply`.
 
 ## Private files
 
@@ -43,7 +43,6 @@ Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private
 | `git/` | `~/.config/git` |
 | `ghostty/`, `eza/`, `zed/`, `ponytail/`, `mise/` | `~/.config/<name>` |
 | `starship/` | `~/.config/starship.toml` |
-| `herdr/` | `config.toml` and `scripts/` in `~/.config/herdr` |
 | `agents/` | `~/.agents` (shared skills) |
 | `pi/` | config entries in `~/.pi` and `~/.pi/agent` |
 | `tools/anti-slop/` | not linked; run through the `anti-slop` alias |
