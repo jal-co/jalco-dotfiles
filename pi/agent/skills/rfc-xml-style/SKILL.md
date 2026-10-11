@@ -1,5 +1,6 @@
 ---
 name: rfc-xml-style
+disable-model-invocation: true
 description: |-
   RFC 2119 keywords and XML tag structure guide for agent prompts, skill definitions, and internal documentation.
   Use when writing, reviewing, or refactoring markdown files that instruct AI agents — including skills, prompt templates,

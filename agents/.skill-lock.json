@@ -46,15 +46,6 @@
       "installedAt": "2026-05-30T22:50:43.632Z",
       "updatedAt": "2026-10-11T20:45:09.905Z"
     },
-    "improve": {
-      "source": "shadcn/improve",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/shadcn/improve.git",
-      "skillPath": "skills/improve/SKILL.md",
-      "skillFolderHash": "7d77d76815e6deb704427f17f6e393f55e3cb6da",
-      "installedAt": "2026-06-12T14:16:57.245Z",
-      "updatedAt": "2026-07-19T04:10:53.883Z"
-    },
     "ship-or-skip": {
       "source": "jal-co/skills",
       "sourceType": "github",

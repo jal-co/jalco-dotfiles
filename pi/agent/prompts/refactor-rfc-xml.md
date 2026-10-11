@@ -1,7 +1,7 @@
 ---
 description: Refactor all markdown files in a folder into RFC 2119 + XML tag structure
 ---
-Load the `rfc-xml-style` skill by reading its SKILL.md, then read the style guide reference it points to. You MUST have both loaded before proceeding.
+Read `~/.pi/agent/skills/rfc-xml-style/SKILL.md`, then read the style guide reference it points to. You MUST have both loaded before proceeding.
 
 Refactor all markdown files in the specified folder into RFC 2119 + XML compliant format.
 

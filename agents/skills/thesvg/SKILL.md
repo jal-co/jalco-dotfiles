@@ -1,5 +1,6 @@
 ---
 name: thesvg
+disable-model-invocation: true
 description: Fetch brand SVG logos and cloud architecture icons (AWS, Azure, GCP) from theSVG. Use when the user asks for a brand logo, company icon, framework mark, service icon, or any "icon/logo for X" where X is a real brand or cloud service. Returns ready-to-use CDN URLs or raw SVG markup.
 license: MIT
 ---

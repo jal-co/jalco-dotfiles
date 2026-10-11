@@ -75,8 +75,8 @@ Load only the guidance relevant to the task. Load `better-ui` for surfaces, icon
 | Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. |
 | Explore alternatives for a UI piece, stress test a component, or render every state of a component | `variant`, `break`, or `state-machine`. Run each only when Justin invokes it. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
-| Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, which loads both `plain-writing` and `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
-| Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and `rfc-xml-style`. |
+| Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, then `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
+| Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and read `~/.pi/agent/skills/rfc-xml-style/SKILL.md`. |
 
 Other specialized tasks use their matching skill when needed, including security and releases. A skill's command examples do not grant permission to execute them.
 
@@ -99,6 +99,6 @@ MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. Avoid 
 <rules>
 
 - Higher-priority runtime instructions take precedence. A project's `project-override` block replaces its named section; other repository instructions are additive, nearest first.
-- Changes to this file require `rfc-xml-style` and `emil-writing-skills`. Change behavior, preserve permission boundaries, and keep task procedures out of the global file.
+- Changes to this file require `~/.pi/agent/skills/rfc-xml-style/SKILL.md` and `emil-writing-skills`. Change behavior, preserve permission boundaries, and keep task procedures out of the global file.
 
 </rules>
