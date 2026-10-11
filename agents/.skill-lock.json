@@ -109,15 +109,6 @@
       "installedAt": "2026-07-02T02:06:40.293Z",
       "updatedAt": "2026-07-02T02:06:40.293Z"
     },
-    "emil-design-eng": {
-      "source": "emilkowalski/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/emilkowalski/skills.git",
-      "skillPath": "skills/emil-design-eng/SKILL.md",
-      "skillFolderHash": "175725745e70946d891b93a1694d7c9ebb71b69d",
-      "installedAt": "2026-07-03T03:03:09.170Z",
-      "updatedAt": "2026-07-26T18:37:16.300Z"
-    },
     "improve-animations": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -159,9 +150,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/jakubkrehel/skills.git",
       "skillPath": "skills/better-ui/SKILL.md",
-      "skillFolderHash": "c85dfe0d2c5d1fa599c88e54cef7ae9495862a04",
+      "skillFolderHash": "b938dbf6c6a50895f092211012546a31fc5e887e",
       "installedAt": "2026-07-19T20:01:46.345Z",
-      "updatedAt": "2026-07-19T20:01:46.345Z"
+      "updatedAt": "2026-10-11T20:28:03.831Z"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
@@ -470,6 +461,33 @@
       "skillFolderHash": "58cbb5c7712d2f1ba359892c8c693d0efe96c829",
       "installedAt": "2026-10-10T20:16:26.444Z",
       "updatedAt": "2026-10-10T20:16:26.444Z"
+    },
+    "break": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
+      "skillPath": "skills/break/SKILL.md",
+      "skillFolderHash": "35be06d826768f2872e16171276ac9a8ae276f59",
+      "installedAt": "2026-10-11T20:28:03.832Z",
+      "updatedAt": "2026-10-11T20:28:03.832Z"
+    },
+    "state-machine": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
+      "skillPath": "skills/state-machine/SKILL.md",
+      "skillFolderHash": "642e1a1814fb06f59cbe054ae07fe0a12fed7c95",
+      "installedAt": "2026-10-11T20:28:03.832Z",
+      "updatedAt": "2026-10-11T20:28:03.832Z"
+    },
+    "variant": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
+      "skillPath": "skills/variant/SKILL.md",
+      "skillFolderHash": "9714e4e95df9cd76f6235abbe801a277dcbac16a",
+      "installedAt": "2026-10-11T20:28:03.832Z",
+      "updatedAt": "2026-10-11T20:28:03.832Z"
     }
   },
   "dismissed": {
