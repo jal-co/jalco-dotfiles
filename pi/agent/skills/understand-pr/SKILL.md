@@ -154,7 +154,7 @@ Read the existing review file first. The independent model already exists; do no
 
 ## Tone and review comments
 
-Apply this guidance to every human-facing review interaction, including the local briefing, drafted or posted GitHub review bodies, inline comments, and follow-up replies. **Before drafting or posting anything to GitHub, load the `gh-review` skill** and follow it: every posted item is a required change, reviews land as request-changes or approve (except its self-review comment fallback), and nothing is marked optional or deferred.
+Apply this guidance to every human-facing review interaction, including the local briefing, drafted or posted GitHub review bodies, inline comments, and follow-up replies. **Before drafting or posting anything to GitHub, read `~/.pi/agent/skills/gh-review/SKILL.md`** and follow it: every posted item is a required change, reviews land as request-changes or approve (except its self-review comment fallback), and nothing is marked optional or deferred.
 
 Be direct, specific, calm, and easy to disagree with:
 
@@ -193,4 +193,4 @@ Once a sufficient front page is posted: `waiting`, unless the autonomous draft r
 - `references/archaeology.md` — known-working Git/GitHub and verification recipes
 - `references/categories/README.md` — category index; reading the relevant pages is required
 - `references/templates.md` — flexible review-record and front-page examples
-- `gh-review` skill — voice and posting rules for anything that goes to GitHub
+- `~/.pi/agent/skills/gh-review/SKILL.md` — voice and posting rules for anything that goes to GitHub

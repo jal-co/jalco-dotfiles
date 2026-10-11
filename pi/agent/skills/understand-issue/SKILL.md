@@ -126,7 +126,7 @@ Read the existing record first. The own model already exists; do not recreate it
 
 ## Tone and issue comments
 
-Apply this to the local briefing and to any drafted or posted GitHub comment. **Before drafting or posting anything to GitHub, load the `gh-review` skill** and follow it: the diagnosis is stated as a claim, the fix is a required change, and nothing is hedged or deferred.
+Apply this to the local briefing and to any drafted or posted GitHub comment. **Before drafting or posting anything to GitHub, read `~/.pi/agent/skills/gh-review/SKILL.md`** and follow it: the diagnosis is stated as a claim, the fix is a required change, and nothing is hedged or deferred.
 
 - Discuss code and evidence, not the reporter or commenters.
 - State the diagnosis plainly. "This is a bug in X because Y" beats "could this be related to X?"

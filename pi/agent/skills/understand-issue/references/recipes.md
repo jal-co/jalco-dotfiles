@@ -100,7 +100,7 @@ Keep probes minimal and remove them. Prefer a throwaway test file alongside the 
 
 ## Posting (only with explicit user approval)
 
-Voice and post commands live in the `gh-review` skill — load it before drafting. Write the body to a file first.
+Voice and post commands live in `~/.pi/agent/skills/gh-review/SKILL.md`. Read it before drafting. Write the body to a file first.
 
 ```bash
 # Edit a posted issue comment

@@ -1,5 +1,6 @@
 ---
 name: pr-screenshots
+disable-model-invocation: true
 description: Use when attaching screenshots, images, or videos to GitHub or Azure DevOps issues, pull requests, and comments, especially for before-and-after UI evidence.
 ---
 
