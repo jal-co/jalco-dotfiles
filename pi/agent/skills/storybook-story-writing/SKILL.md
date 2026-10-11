@@ -1,6 +1,6 @@
 ---
 name: storybook-story-writing
-user-invocable: false
+disable-model-invocation: true
 description: Use when creating or modifying Storybook stories for components. Ensures stories follow CSF3 format, properly showcase component variations, and build successfully.
 allowed-tools:
   - Read
