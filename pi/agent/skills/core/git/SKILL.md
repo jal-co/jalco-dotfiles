@@ -38,4 +38,4 @@ Every Mastra pull request MUST have a Linear ticket attached (compliance policy,
 
 ## Pull request workflow
 
-MUST read and follow `~/.pi/agent/skills/preparing-pull-requests/SKILL.md` when preparing, opening, updating, or finalizing a PR. It owns the body format, Justin's voice, no-slop pass, screenshots, diff explanations, and publication checks. For UI work intended for a PR, read it before implementation so the before state is captured in time.
+MUST read and follow `~/.pi/agent/skills/core/preparing-pull-requests/SKILL.md` when preparing, opening, updating, or finalizing a PR. It owns the body format, Justin's voice, no-slop pass, screenshots, diff explanations, and publication checks. For UI work intended for a PR, read it before implementation so the before state is captured in time.

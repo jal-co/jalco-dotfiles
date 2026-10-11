@@ -212,7 +212,7 @@ Name a person in "Needs you," not "someone."
 
 ## Posting (explicit approval or eligible autonomous draft review)
 
-Posting authorization, including the draft-and-owned-author exception, voice, structure, and commands live in `~/.pi/agent/skills/gh-review/SKILL.md`. Read it before drafting. Reviews land as `--request-changes` or `--approve`; never `--comment`. Write the body to a file first; never inline a multi-line body in the command.
+Posting authorization, including the draft-and-owned-author exception, voice, structure, and commands live in `~/.pi/agent/skills/core/gh-review/SKILL.md`. Read it before drafting. Reviews land as `--request-changes` or `--approve`; never `--comment`. Write the body to a file first; never inline a multi-line body in the command.
 
 ```bash
 # Edit a posted review body (review_id: gh api repos/<owner>/<repo>/pulls/<pr>/reviews --jq '.[-1].id')

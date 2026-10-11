@@ -67,7 +67,7 @@ What is the reader comparing?
 When the user wants an image (for social posts, Slack, or a site without MDX), write the content grid to a temporary `.txt` file and run:
 
 ```sh
-bun ~/.pi/agent/skills/mdx-diagrams/assets/export.ts --title "Taste, explained" grid.txt out.png
+bun ~/.pi/agent/skills/core/mdx-diagrams/assets/export.ts --title "Taste, explained" grid.txt out.png
 ```
 
 - Content syntax is identical to the MDX body; pass `-` to read stdin.

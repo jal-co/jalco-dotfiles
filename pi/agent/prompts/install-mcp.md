@@ -44,8 +44,8 @@ Constraints:
 Useful target files:
 - `~/.pi/agent/mcp.json`
 - `~/.zshrc.local`
-- `~/.pi/agent/skills/mcp-management/SKILL.md`
-- `~/.pi/agent/skills/pi-skills/SKILL.md`
+- `~/.pi/agent/skills/core/mcp-management/SKILL.md`
+- `~/.pi/agent/skills/core/pi-skills/SKILL.md`
 
 Expected output:
 - `pi mcp list` passing for the new server

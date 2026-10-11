@@ -66,6 +66,8 @@ Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not
 
 Pi also loads shared skills from `~/.agents/skills`. Keep each skill in one of the two roots, not both.
 
+In `pi/agent/skills`, `core/` holds the everyday skills, `work/` the Mastra skills and the ones `mastra-work` routes to, and `design/` the licensed Emil skills. Pi finds skills in subfolders. A skill with `disable-model-invocation: true` is hidden from automatic selection and read by path. Skills installed with `npx skills` stay flat in `agents/skills`, because `skills update` writes them there.
+
 MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`. API keys go in `~/.zshrc.local`.
 
 ### Local-only content

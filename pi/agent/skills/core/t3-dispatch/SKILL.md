@@ -52,7 +52,7 @@ Read the issue in Linear for full context.   (only when there is one)
 <any constraint Justin stated>
 root
 Dispatcher thread: <this thread's id, the currentThreadId from t3_thread_list>
-Follow ~/.pi/agent/skills/t3-dispatch/p3-task.md
+Follow ~/.pi/agent/skills/core/t3-dispatch/p3-task.md
 ```
 
 The `Using p3.` opening is what puts the thread in p3, because every thread runs on the same `pi` instance and Justin's AGENTS.md starts p3 without asking only when the brief says so. That file tells the root how to launch children and when to report code-ready. Reply with `with p3` after the thread id.
