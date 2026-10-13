@@ -50,7 +50,7 @@ dotfiles.relative_symlinks = true
 "brew-cask:zed" = "latest"
 
 [tasks.bootstrap]
-run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.38.2 corepack superset vercel && mise run hooks"
+run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.39.0 corepack superset vercel && mise run hooks"
 
 [tasks.hooks]
 description = "Install the gitleaks pre-commit hook in the dotfiles repos"
