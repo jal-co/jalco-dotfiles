@@ -62,7 +62,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 <instructions>
 
-Load only the guidance relevant to the task. Load `better-ui` for surfaces, icons, and motion. Load the matching `better-*` skill for typography, color, layout, accessibility, and interface copy. Prefer the matching `emil-*` skill for forms, component APIs, performance, writing cleanup, and skill authoring. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
+Load only the guidance relevant to the task. Load `better-ui` for surfaces, icons, and motion. Load the matching `better-*` skill for typography, color, layout, accessibility, and interface copy. Prefer the matching `emil-*` skill for forms, component APIs, performance, writing cleanup, and skill authoring. Load `emil-design-eng` for animation frequency decisions, gestures, drag, and `clip-path`; `better-ui` stays primary for surfaces, icons, and motion values, and wins on any conflict. Ignore `emil-design-eng`'s Initial Response and its Before/After table format, which override the communication rules below. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
 
 | Task | Required guidance |
 | --- | --- |

@@ -9,7 +9,7 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
 
 <constraints>
 
-- MUST run only when `T3_MCP_URL` is set and `t3_worktree_status` reports no worktree binding. A thread bound to a worktree is a task agent: it does its own task and MUST NOT dispatch.
+- MUST run only when `T3_MCP_URL` is set and `t3_worktree_status` reports either no worktree binding or a scratch binding (`projectWorkspaceRoot` is `~/.t3/scratch` and `branch` is null). T3 starts dispatcher threads in scratch folders, so a scratch binding is not a task. A thread bound to a repository worktree is a task agent: it does its own task and MUST NOT dispatch.
 - Dispatching a task Justin gave is explicit permission to launch exactly one top-level Pi thread for it with `t3_thread_launch`. MUST NOT do task work through `delegate_task` or `create_threads`: a child task dies with the dispatcher's context, and `create_threads` cannot bind a worktree. The only `delegate_task` use is the read-only review lanes in "p3 review".
 - MUST NOT edit, commit, or push in a task worktree. Send the instruction to its thread instead.
 - MUST NOT pull issue bodies, diffs, or task transcripts into this thread beyond what a step needs. The task agent reads its own issue.
@@ -23,7 +23,7 @@ The main thread is a dispatcher. Each task gets its own T3 thread bound to its o
 ## New task
 
 1. Name the task. Linear issue: its identifier (`MAS-123`). Otherwise a short kebab slug from the outcome.
-2. Pick the repository: the one Justin named, else the obvious one for the ticket (`MAS-` issues go to `mastra`). If it is still unclear, ask. Find its `id` and `workspaceRoot` with `t3_project_list`. If it is not registered and `~/dev/<repo>` is a Git checkout, register it with `t3_project_create`.
+2. Pick the repository: the one Justin named, else the obvious one for the ticket (`MAS-` issues go to `mastra`). A task that belongs to no repository yet (hardware tinkering, research, a throwaway experiment) launches with `"scratch": true` instead of `projectId` and `workspaceStrategy`, and skips steps 3 to 5; the agent creates a repository later if the work earns one. If it is still unclear, ask. Find its `id` and `workspaceRoot` with `t3_project_list`. If it is not registered and `~/dev/<repo>` is a Git checkout, register it with `t3_project_create`.
 3. Linear issue: fetch it with the Linear MCP tools (through `codemode` when they are not listed directly) for its title and `gitBranchName`. Read nothing else.
 4. Branch: the issue's `gitBranchName`, else `<type>/<slug>`. Base: the repository's default branch (`git -C <workspaceRoot> symbolic-ref --short refs/remotes/origin/HEAD`, without `origin/`).
 5. Check for an existing task: the branch in `git -C <workspaceRoot> worktree list`, or `t3_thread_list` with the project's `projectId` and `titleContains: <name>`. A match means the task exists: follow up instead of launching.
