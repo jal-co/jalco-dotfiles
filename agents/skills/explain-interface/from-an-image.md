@@ -18,11 +18,11 @@ You cannot even be sure an effect is CSS. A gradient may be a flat image, a `can
 
 ## Colors, which are the reliable part
 
-Sample the actual pixels rather than describing what you see. Then measure against `better-colors`, which owns these checks:
+Sample the actual pixels rather than describing what you see. Then measure against `emil-color`, which owns these checks:
 
 - Convert each sample to OKLCH, so lightness is comparable across hues.
-- Sort by lightness to see whether the samples form a ramp. `better-colors` expects the steps to sit closer together at the light end, so report the spacing you find.
-- Compare hue across the ramp. `better-colors` holds hue constant end to end, so report how far it moves.
+- Sort by lightness to see whether the samples form a ramp. `emil-color` spaces the steps evenly in lightness, so report the spacing you find.
+- Compare hue across the ramp. `emil-color` holds hue constant end to end, so report how far it moves.
 - Measure contrast on every foreground and background pair you can isolate. It is exact and the most valuable single number an image gives you.
 - Check the grays for a few percent of the accent hue, and name a tinted neutral where you find one.
 
@@ -34,7 +34,7 @@ You cannot identify a typeface from a screenshot with confidence, so never claim
 - **Tells worth naming.** Single or double-storey `a` and `g`, terminal angle, aperture, x-height against cap height. Also whether the digits are lining or old-style and whether the figures look tabular.
 - **Scale.** Count the distinct sizes. Express them as multiples of the body size and derive the ratio.
 - **Weights.** Count them and estimate how far apart they sit.
-- **Measure.** Count characters on a full line of body copy and compare against the 60 to 75 range `better-typography` sets.
+- **Measure.** Count characters on a full line of body copy and compare against the 45 to 75 range `emil-typography` sets.
 
 Where the actual face matters, name the category and suggest identifying it from the live page.
 
@@ -42,7 +42,7 @@ Where the actual face matters, name the category and suggest identifying it from
 
 Measure in the image, then divide everything by the smallest repeated gap. That quotient set is the rhythm, and it survives not knowing the scale.
 
-Then measure the gap between groups against the gap within one. `better-layout` sets the yardstick at 2× or more for space to carry the grouping. Below that, something else carries it, usually a border or a background shape.
+Then measure the gap between groups against the gap within one. The usual yardstick is 2× or more for space to carry the grouping. Below that, something else carries it, usually a border or a background shape.
 
 ## Say what the image hid
 

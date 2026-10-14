@@ -16,7 +16,7 @@ An axis that stays contributes its scenarios as written here. Add any value the 
 | Several sentences | Wrapping, line-height at multiple lines, containers that assumed one line |
 | One unbreakable string | A long URL or `Donaudampfschiffahrtsgesellschaft`: overflow with no wrap opportunity |
 
-Breaks land in `better-typography` for wrapping and truncation, `better-layout` where the container has no room and `better-writing` where the source copy is the problem.
+Breaks land in `emil-typography` for wrapping and truncation, `emil-design-foundations` where the container has no room and `emil-design-foundations` where the source copy is the problem.
 
 ## Content shape
 
@@ -30,7 +30,7 @@ Breaks land in `better-typography` for wrapping and truncation, `better-layout` 
 | Diacritics and tall scripts | Clipped ascenders and descenders in tight line boxes |
 | Numbers where columns align | Proportional figures wobbling in tables and timers |
 
-Breaks land in `better-typography`; spatial mirroring lands in `better-layout`.
+Breaks land in `emil-typography`; spatial mirroring lands in `emil-design-foundations`.
 
 ## Quantity
 
@@ -43,7 +43,7 @@ Breaks land in `better-typography`; spatial mirroring lands in `better-layout`.
 | The realistic count | The baseline |
 | Ten times the realistic count | Missing scroll or pagination, performance collapse, sticky elements unsticking |
 
-Zero-item breaks land in `better-writing` for the empty state and `better-layout` for the region; the rest land in `better-layout`.
+Zero-item breaks land in `emil-design-foundations` for the empty state and `emil-design-foundations` for the region; the rest land in `emil-design-foundations`.
 
 ## Container
 
@@ -55,7 +55,7 @@ Zero-item breaks land in `better-writing` for the empty state and `better-layout
 | Squeezed by a flex or grid sibling | Min-content blowout, the component refusing to shrink |
 | A very wide container | Unbounded measure, stretched controls, content pinned to opposite edges |
 
-Breaks land in `better-layout`.
+Breaks land in `emil-design-foundations`.
 
 ## State
 
@@ -69,10 +69,10 @@ Breaks land in `better-layout`.
 
 Focus and hover are the user's to try while they view the page. Invite them to tab through the instances in the report rather than simulating focus in the harness.
 
-Breaks land in `better-accessibility`; purely visual state polish lands in `better-ui`.
+Breaks land in `emil-touch-and-accessibility`; purely visual state polish lands in `emil-ui-polish`.
 
 ## Environment
 
 **Cue: the project supports the mode.** These are viewing modes, not page content, so the page renders nothing for them. Name them in the report for the user to toggle while viewing: OS dark mode where a dark theme exists, browser zoom, reduced motion. Simulating one on the page, such as re-declaring dark tokens under a class, observes a different component.
 
-Dark-mode breaks land in `better-colors`; zoom and motion land in `better-accessibility`.
+Dark-mode breaks land in `emil-color`; zoom and motion land in `emil-touch-and-accessibility`.

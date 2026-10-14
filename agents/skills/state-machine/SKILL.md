@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 This skill takes one component and renders it on a throwaway page in every state it can be in. Mock data feeds each state, a switcher flips between them and the page is deleted in one step when you are done.
 
-It is a workbench, not a review. The page stays up while the user works on the visuals, one state on screen and every other a keypress away. Stacking hostile scenarios on one page for a single look is `break`, exploring alternative designs is `variant` and reviewing finished work is `interface-review`.
+It is a workbench, not a review. The page stays up while the user works on the visuals, one state on screen and every other a keypress away. Stacking hostile scenarios on one page for a single look is `break`, exploring alternative designs is `variant` and reviewing finished work is `emil-ui-review`.
 
 ## 1. Scope one component
 

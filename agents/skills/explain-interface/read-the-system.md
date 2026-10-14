@@ -84,7 +84,7 @@ The walk recurses into `@layer`, `@media` and `@supports`, since Tailwind v4 wri
 }
 ```
 
-Group the result by prefix, since the prefixes are the system's own layer names. A two-tier structure, `--blue-500` feeding `--color-text-primary`, is what `better-colors` calls primitives and semantic tokens.
+Group the result by prefix, since the prefixes are the system's own layer names. A two-tier structure, `--blue-500` feeding `--color-text-primary`, is the usual primitives-and-semantic-tokens split.
 
 ## The type scale
 
@@ -121,7 +121,7 @@ Sorted by usage, so the body size usually comes first and the one-offs last. Der
 }
 ```
 
-Find the base unit that divides most values. Then measure the gap between groups against the gap within one. `better-layout` sets the yardstick at 2× or more for space to carry the grouping on its own.
+Find the base unit that divides most values. Then measure the gap between groups against the gap within one. The usual yardstick is 2× or more for space to carry the grouping on its own.
 
 ## Radii, shadows, borders
 

@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 This skill answers how something on the web was built. `/explain-interface how the gradient on example.com was built` finds the layers producing that gradient and explains what each one contributes.
 
-It explains rather than judges. There is no verdict, because how someone else built their interface is not a finding. Reviewing against a standard is `interface-review` and `better-interface`, and exploring alternatives for your own is `variant`. Name what you find in the vocabulary of the domain skill that owns it, such as `better-typography` for type or `better-colors` for palette.
+It explains rather than judges. There is no verdict, because how someone else built their interface is not a finding. Reviewing against a standard is `emil-ui-review`, and exploring alternatives for your own is `variant`. Name what you find in the vocabulary of the domain skill that owns it, such as `emil-typography` for type or `emil-color` for palette.
 
 ## Scope to the question
 

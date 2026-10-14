@@ -91,24 +91,6 @@
       "installedAt": "2026-07-18T02:59:50.326Z",
       "updatedAt": "2026-07-18T02:59:50.326Z"
     },
-    "better-typography": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-typography/SKILL.md",
-      "skillFolderHash": "25751e782efef061becc8922bb31e378d57fc7b8",
-      "installedAt": "2026-07-19T20:01:46.344Z",
-      "updatedAt": "2026-10-11T20:44:27.973Z"
-    },
-    "better-ui": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-ui/SKILL.md",
-      "skillFolderHash": "b938dbf6c6a50895f092211012546a31fc5e887e",
-      "installedAt": "2026-07-19T20:01:46.345Z",
-      "updatedAt": "2026-10-11T20:28:03.831Z"
-    },
     "component-engineering": {
       "source": "igorwarzocha/opencode-workflows",
       "sourceType": "github",
@@ -236,66 +218,12 @@
       "installedAt": "2026-10-11T20:28:03.832Z",
       "updatedAt": "2026-10-11T20:28:03.832Z"
     },
-    "better-accessibility": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-accessibility/SKILL.md",
-      "skillFolderHash": "8fdb2f25f822c2ffaca438e2d325eed9ac6e9b9b",
-      "installedAt": "2026-10-11T20:44:27.971Z",
-      "updatedAt": "2026-10-11T20:44:27.971Z"
-    },
-    "better-colors": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-colors/SKILL.md",
-      "skillFolderHash": "1f96b150ca7f25fd63ba6079a2ceaf75849186f5",
-      "installedAt": "2026-10-11T20:44:27.972Z",
-      "updatedAt": "2026-10-11T20:44:27.972Z"
-    },
-    "better-interface": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-interface/SKILL.md",
-      "skillFolderHash": "c2aa3269f78969b8f51e721f5f873401916ace9a",
-      "installedAt": "2026-10-11T20:44:27.973Z",
-      "updatedAt": "2026-10-11T20:44:27.973Z"
-    },
-    "better-layout": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-layout/SKILL.md",
-      "skillFolderHash": "7ffa8ef65b63bd160eef9d32d1a4493d98260d0f",
-      "installedAt": "2026-10-11T20:44:27.973Z",
-      "updatedAt": "2026-10-11T20:44:27.973Z"
-    },
-    "better-writing": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/better-writing/SKILL.md",
-      "skillFolderHash": "4589785678cb20ee3f2dec9cbbb1149bc408fbc1",
-      "installedAt": "2026-10-11T20:44:27.974Z",
-      "updatedAt": "2026-10-11T20:44:27.974Z"
-    },
     "build-design": {
       "source": "jakubkrehel/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/jakubkrehel/skills.git",
       "skillPath": "skills/build-design/SKILL.md",
       "skillFolderHash": "efab576ec92cc8d2117c12983de445ef07f1f276",
-      "installedAt": "2026-10-11T20:44:27.974Z",
-      "updatedAt": "2026-10-11T20:44:27.974Z"
-    },
-    "interface-review": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/interface-review/SKILL.md",
-      "skillFolderHash": "b12ef009667dcb25cc816e0a71e8b5ce5156afa6",
       "installedAt": "2026-10-11T20:44:27.974Z",
       "updatedAt": "2026-10-11T20:44:27.974Z"
     }

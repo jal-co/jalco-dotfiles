@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 This skill takes one described piece of UI and builds three versions that differ on purpose. They go behind a picker in the real page, so you can flip between them and choose.
 
-It produces candidates and never ranks them. Reviewing existing UI is `interface-review` and `better-interface`, stress testing one component is `break` and working through a component's states is `state-machine`.
+It produces candidates and never ranks them. Reviewing existing UI is `emil-ui-review`, stress testing one component is `break` and working through a component's states is `state-machine`.
 
 ## Different answers, not different tints
 
@@ -16,17 +16,17 @@ Each variant is a different answer to the same brief, on an axis this collection
 
 | Axis | Owner | What varies |
 | --- | --- | --- |
-| Structure | `better-layout` | Grouping, order, column count, what collapses |
-| Density | `better-layout` | Spacing scale, how much fits |
-| Emphasis | `better-colors` | Where filled color goes, what recedes |
-| Type | `better-typography` | Scale steps, weight contrast, measure |
-| Voice | `better-writing` | Labels, tone, how much copy |
+| Structure | `emil-design-foundations` | Grouping, order, column count, what collapses |
+| Density | `emil-design-foundations` | Spacing scale, how much fits |
+| Emphasis | `emil-color` | Where filled color goes, what recedes |
+| Type | `emil-typography` | Scale steps, weight contrast, measure |
+| Voice | `emil-design-foundations` | Labels, tone, how much copy |
 
 Pick **one primary axis** and give each variant a different position on it. The axis names the picker's group heading. Secondary choices follow from it rather than varying on their own. A dense variant may need a smaller type step, and that is coherence, not a second axis.
 
 ## The floor every variant clears
 
-Before a variant enters the picker it clears `better-interface`'s escalation triggers, which are:
+Before a variant enters the picker it clears the floor below:
 
 - Every control has an accessible name and a visible focus indicator.
 - Keyboard reaches everything a pointer does.
