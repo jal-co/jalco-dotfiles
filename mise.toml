@@ -50,7 +50,11 @@ dotfiles.relative_symlinks = true
 "brew-cask:zed" = "latest"
 
 [tasks.bootstrap]
-run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.39.0 corepack superset vercel && mise run hooks"
+run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.39.0 corepack superset vercel && mise run hooks && mise run scrawl"
+
+[tasks.scrawl]
+description = "Put the Scrawl CLI from Scrawl.app on PATH"
+run = "mkdir -p ~/.local/bin && ln -sf /Applications/Scrawl.app/Contents/MacOS/scrawl ~/.local/bin/scrawl"
 
 [tasks.hooks]
 description = "Install the gitleaks pre-commit hook in the dotfiles repos"
