@@ -74,7 +74,8 @@ get() { pass-cli item view --vault-name dev --item-title "cliproxyapi-$1" --fiel
 key=$(get local)
 mgmt=$(get management)
 deepseek=$(get deepseek)
-sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" -e "s/__DEEPSEEK_API_KEY__/$deepseek/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
+openrouter=$(get openrouter)
+sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" -e "s/__DEEPSEEK_API_KEY__/$deepseek/" -e "s/__OPENROUTER_API_KEY__/$openrouter/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
 brew services restart cliproxyapi
 """
 

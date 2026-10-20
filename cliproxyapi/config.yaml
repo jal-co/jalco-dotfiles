@@ -40,6 +40,16 @@ api-keys:
           input-modalities: [text]
           thinking:
             levels: ["low", "high", "max"]
+    - name: "openrouter"
+      base-url: "https://openrouter.ai/api/v1"
+      keys:
+        - api-key: "__OPENROUTER_API_KEY__"
+      models:
+        - name: "z-ai/glm-5.3"
+          alias: "glm-5.3"
+          display-name: "GLM 5.3"
+          max-context-length: 1048576
+          input-modalities: [text]
 routing:
   strategy: "round-robin"
   session-affinity: true

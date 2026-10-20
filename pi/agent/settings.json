@@ -19,7 +19,7 @@
   "skills": [],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "1.2.0",
+  "lastChangelogVersion": "1.3.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "npm:@benvargas/pi-claude-code-use",
@@ -63,5 +63,6 @@
   "markdown": {
     "mermaid": "final"
   },
-  "doubleEscapeAction": "tree"
+  "doubleEscapeAction": "tree",
+  "tuiMode": "fullscreen"
 }

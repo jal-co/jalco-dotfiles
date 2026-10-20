@@ -59,7 +59,7 @@
       "enabled": true
     },
     "typefully": {
-      "url": "https://mcp.typefully.com/mcp?TYPEFULLY_API_KEY=${TYPEFULLY_API_KEY}"
+      "url": "https://mcp.typefully.com/mcp"
     },
     "paper": {
       "url": "http://127.0.0.1:29979/mcp"
