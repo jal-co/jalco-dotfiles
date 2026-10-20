@@ -39,6 +39,22 @@ agent-browser diff screenshot --baseline ./before-dark.png --output ./pair-check
 
 A dimension-mismatch result means the viewport, device pixel ratio, or crop drifted; recapture rather than resizing an image. Inspect the reported mismatch regions: changes outside the edited surface are unintended regressions to fix or report, not evidence to upload. The generated red-highlight diff image is a validation artifact; do not attach it to the pull request unless it illustrates a finding. Use `--selector <sel>` on `screenshot` capture and `diff screenshot` for element-scoped pairs, including Storybook's `#storybook-root`.
 
+### Full-page captures
+
+Scope the crop to the changed surface whenever possible. When the whole page must be shown, GitHub centers a shorter image vertically inside its table cell, so the tops of a before and after pair misalign. Make both files the same pixel height:
+
+1. Open both states at the same viewport and read `document.documentElement.scrollHeight` in each.
+2. In the shorter page only, append bottom-only space up to the taller height, then take both `--full` screenshots:
+
+```bash
+agent-browser eval "const d=document.createElement('div');d.style.height=(TALLER-document.documentElement.scrollHeight)+'px';document.body.append(d)"
+agent-browser screenshot --full ./after-light.png
+```
+
+3. Confirm both files have identical pixel dimensions before upload.
+
+Never add space above the page, because that shifts content and breaks the pair. Padding is an alignment aid, not a way to hide a layout change; the `diff screenshot` check still applies to the unpadded region.
+
 A motion, transition, drag-and-drop, multi-step interaction, loading animation, or timing-sensitive feedback change MUST include a short video with matching theme and viewport state:
 
 ```bash
@@ -115,6 +131,39 @@ gh issue comment 456 --attach './error.png#Settings form showing a validation er
 Images support PNG, JPEG, GIF, WebP, and SVG. Videos support MP4, MOV, and WebM. Video references MUST be the only content in their paragraph to render as a player. Alt text after `#` does not apply to video.
 
 The authenticated GitHub account MUST have write access to upload media. GitHub Enterprise Server does not support this workflow. Images and GIFs have a 10 MB limit. Videos have a 10 MB limit on Free plans and a 100 MB limit on paid plans.
+
+### Format and replace one marked block
+
+`scripts/format.mjs` (vendored from vercel-labs/before-and-after, PolyForm Shield, license beside it; we added `--grid` and the alt flags) formats existing local media and replaces one `<!-- before-and-after:start/end -->` block in the PR body, so redone screenshots never duplicate evidence. It errors on a missing file, whitespace in a path, a path outside the working directory, mismatched pair counts, an incomplete or repeated marker, and a before image paired with an after video.
+
+Run it from the directory that holds the media. `--grid` with a `--label` per theme emits the Light/Dark grid from the format section; `--before-alt` and `--after-alt` set specific alt text. Alt flags are matched to pairs by position, so pass one for every pair or none:
+
+```bash
+SCRIPT=~/.agents/skills/pr-screenshots/scripts/format.mjs
+gh pr view 123 --json body --jq .body > body.md
+node $SCRIPT --grid --body-file body.md \
+  --before before-light.png --after after-light.png --label Light \
+  --before-alt "Navigation clipped in light mode" --after-alt "Navigation fixed in light mode" \
+  --before before-dark.png --after after-dark.png --label Dark \
+  --before-alt "Navigation clipped in dark mode" --after-alt "Navigation fixed in dark mode" > next.md
+ARGS=(); while IFS= read -r f; do ARGS+=(--attach "$f"); done < <(node $SCRIPT --attach-list \
+  --before before-light.png --after after-light.png --before before-dark.png --after after-dark.png)
+gh pr edit 123 --body-file next.md "${ARGS[@]}"
+```
+
+For new UI, drop the `--before` flags and the grid gets a single Preview row. Without `--grid` each label becomes its own Before/After table, which suits one-theme surfaces. Without alt flags the alt text falls back to generic text such as `Before Light`; always pass specific alt text. With no existing block the script appends one; move it after the opening sentence or sketch and before implementation detail, never into the middle of other Markdown. Read the published body back and confirm no local `./` paths remain inside the block.
+
+### Before and after videos side by side
+
+`gh --attach` does not rewrite local paths inside `<video src>`, so a side-by-side table takes two steps:
+
+1. Upload both videos as own-line references in a temporary PR comment: `gh pr comment 123 --body-file videos.md --attach ./before.mp4 --attach ./after.mp4`.
+2. Read the comment with `gh api` and collect the `https://github.com/user-attachments/assets/...` URLs in before, after order.
+3. Build the table and edit the PR body: `node $SCRIPT --body-file body.md --before-video-url URL --after-video-url URL > next.md`, then `gh pr edit 123 --body-file next.md`.
+4. Read the edited body back and confirm both URLs are present, then delete the temporary comment. Deleting first loses the only copy of the upload if the edit failed.
+5. Open the rendered PR and confirm both players load and show controls.
+
+A single after-only video needs no table: use an own-line reference with `--attach`.
 
 Agents MUST use `gh --attach` for supported GitHub media uploads. They MUST NOT commit upload assets to an orphan branch or use browser-cookie upload endpoints as a workaround.
 
