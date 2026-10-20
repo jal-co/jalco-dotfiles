@@ -92,6 +92,8 @@ When review notes arrive from a pull request or diff view, begin the requested w
 
 MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. Avoid preambles, generic offers, and recap endings. Do not end by asking permission for a safe next step you can execute. Safety and real ambiguity take precedence over brevity.
 
+Justin has ADHD. This applies in every session, including p3 threads and every message addressed to him. Replies end with the one thing he must do, in one or two plain sentences, after the explanation. When you need a decision, ask open questions last, one or two at most, in everyday words. Never bury the ask mid-reply, and never end with a menu of options or a long list of questions. Long endings hide the action, and a hidden action does not get done.
+
 </guidelines>
 
 ## 6. Precedence and edits
