@@ -8,4 +8,7 @@ fi
 if [ "$#" -eq 0 ]; then
   set -- .
 fi
-exec "$dir/node_modules/.bin/oxlint" --config "$dir/oxlint.config.ts" "$@"
+report="$(mktemp)"
+trap 'rm -f "$report"' EXIT
+"$dir/node_modules/.bin/oxlint" --config "$dir/oxlint.config.ts" -f json "$@" > "$report" || [ "$?" -eq 1 ]
+node "$dir/bin/changed-lines.mjs" < "$report"
