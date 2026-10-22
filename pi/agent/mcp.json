@@ -85,7 +85,7 @@
     },
     "metabase": {
       "url": "https://metabase.mastra.ai/api/metabase-mcp",
-      "enabled": false
+      "enabled": true
     },
     "sentry": {
       "url": "https://mcp.sentry.dev/mcp"
@@ -98,6 +98,13 @@
     },
     "mobbin": {
       "url": "https://api.mobbin.com/mcp"
+    },
+    "cve-now": {
+      "url": "https://mcp.cve.now/mcp"
+    },
+    "factory-shipyard": {
+      "url": "https://shipyard.factory.mastra.cloud/web/factory/projects/092d313e-271d-4e0d-9fc3-1c7200b939fc/mcp",
+      "enabled": false
     }
   }
 }
