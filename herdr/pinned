@@ -90,13 +90,13 @@ split_pane() {
 }
 
 start_coordinator() {
-  local pane=$1 model attempt
+  local pane=$1 name=${2:-$COORD_NAME} model attempt
   model=$(coord_model)
   local start_args=(--timeout 120000)
   [[ -n "$model" ]] && start_args+=(-- --model "$model")
   for attempt in $(seq 1 12); do
-    if herdr_call agent start "$COORD_NAME" --kind pi --pane "$pane" "${start_args[@]}" >/dev/null 2>&1; then
-      echo "coordinator $COORD_NAME ready on $pane"
+    if herdr_call agent start "$name" --kind pi --pane "$pane" "${start_args[@]}" >/dev/null 2>&1; then
+      echo "coordinator $name ready on $pane"
       return 0
     fi
     wait_for_shell "$pane" || true
@@ -106,16 +106,57 @@ start_coordinator() {
   return 1
 }
 
+free_name() {
+  herdr_call agent list | python3 -c '
+import json, sys
+base = sys.argv[1]
+taken = {a.get("name") for a in json.load(sys.stdin)["result"]["agents"]}
+if base not in taken:
+    print(base)
+    raise SystemExit
+for index in range(2, 10):
+    candidate = f"{base}-{index}"
+    if candidate not in taken:
+        print(candidate)
+        raise SystemExit
+print(base)
+' "$COORD_NAME"
+}
+
 if ! listing=$(herdr_call workspace list 2>/dev/null); then
   echo "herdr server is not running. Start herdr first, then rerun this." >&2
   exit 1
 fi
+
+fresh=false
+case "${1:-}" in
+  fresh|--fresh|new) fresh=true ;;
+  "") ;;
+  *)
+    echo "usage: pinned [fresh]" >&2
+    echo "  pinned        attach to the coordinator, starting one if nothing is running" >&2
+    echo "  pinned fresh  start a second coordinator with a clean session beside the running one" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$ROOT"
 
 workspace=$(workspace_for_label "$LABEL" <<<"$listing")
 
 if [[ -n "$workspace" ]]; then
+  if [[ "$fresh" == true ]]; then
+    pane=$(split_pane "$workspace")
+    if ! wait_for_shell "$pane"; then
+      echo "pane $pane never reached a shell prompt" >&2
+      exit 1
+    fi
+    name=$(free_name)
+    start_coordinator "$pane" "$name"
+    herdr_call workspace focus "$workspace" >/dev/null
+    echo "fresh coordinator $name running in $workspace, pane $pane"
+    exit 0
+  fi
   running=$(occupied_pane "$workspace")
   if [[ -n "$running" ]]; then
     herdr_call workspace focus "$workspace" >/dev/null
@@ -151,9 +192,10 @@ wait_for_shell "$pane" || {
   echo "pane $pane never reached a shell prompt" >&2
   exit 1
 }
-start_coordinator "$pane"
+name=$(free_name)
+start_coordinator "$pane" "$name"
 herdr_call workspace focus "$workspace" >/dev/null
 
 model=$(coord_model)
-echo "pinned coordinator ready in $ROOT"
+echo "pinned coordinator $name ready in $ROOT"
 echo "workspace $workspace, pane $pane, model ${model:-inherited from pi}"
