@@ -36,6 +36,7 @@ Call `subagent` with:
 - `worktree` set to `{ "branch": "<type>/<slug>", "base": "<ref>" }` for anything that writes code
 - `interactive: true`, so I can work in that pane without it pinging you
 - `model` set to `task:coding` for implementation, `task:recon` for read-only mapping, `task:review` for review from a different model family, `task:qa` for verification
+- Never name a provider or a model. Those four categories and `inherit` are the only accepted values. The catalog lists `chatgpt` and `chatgpt-1` models that cannot authenticate here, and naming one is how a child dies on its first turn. On a provider or model error, report it and stop. Do not retry on another provider.
 - `name` set to the ticket or task slug with no prefix: `pltfrm-2426-fix`, `pr-3719-review`, `login-copy`. Lowercase, hyphens, at most 31 characters. herdr and the subagent widget show this name, and a child spawned without one reads as `None` in the agent list, which leaves me no way to tell children apart.
 - `task` set to the brief
 
