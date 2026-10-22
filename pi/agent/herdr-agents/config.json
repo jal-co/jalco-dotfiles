@@ -10,25 +10,25 @@
         "cliproxyapi/gpt-6.1-sol",
         "openai-codex/gpt-6.1-sol"
       ],
+      "recon": [
+        "cliproxyapi/gpt-6.1-sol",
+        "deepseek/deepseek-flash"
+      ],
+      "architecture": [
+        "cliproxyapi/gpt-6.1-sol",
+        "xai/grok-4.7"
+      ],
+      "docs": [
+        "cliproxyapi/gpt-6.1-sol",
+        "cliproxyapi/gpt-5.6-luna"
+      ],
       "review": [
         "xai/grok-4.7",
         "deepseek/deepseek-v4-pro"
       ],
-      "recon": [
-        "deepseek/deepseek-flash",
-        "cliproxyapi/gpt-5.6-luna"
-      ],
       "qa": [
         "xai/grok-4.7",
-        "deepseek/deepseek-flash"
-      ],
-      "architecture": [
-        "xai/grok-4.7",
-        "cliproxyapi/gpt-6-astra"
-      ],
-      "docs": [
-        "cliproxyapi/gpt-5.6-luna",
-        "openai-codex/gpt-6.1-sol"
+        "cliproxyapi/gpt-6.1-sol"
       ]
     },
     "tasksMeta": {
