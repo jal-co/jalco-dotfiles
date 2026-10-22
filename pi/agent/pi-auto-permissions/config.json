@@ -4,7 +4,7 @@
   },
   "reviewer": {
     "provider": "cliproxyapi",
-    "model": "claude-haiku-5-5",
+    "model": "deepseek-flash",
     "reasoningEffort": "low",
     "timeoutMs": 30000
   },
