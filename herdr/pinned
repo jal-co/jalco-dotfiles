@@ -38,17 +38,18 @@ for workspace in json.load(sys.stdin).get("result", {}).get("workspaces", []):
 ' "$1"
 }
 
-occupied_pane() {
-  python3 -c '
-import json, sys
-workspace, panes_raw, agents_raw = sys.argv[1], sys.argv[2], sys.argv[3]
-panes = [p["pane_id"] for p in json.loads(panes_raw)["result"]["panes"] if p.get("workspace_id") == workspace]
-agent_panes = {a.get("pane_id") for a in json.loads(agents_raw)["result"]["agents"]}
-for pane in panes:
-    if pane in agent_panes:
-        print(pane)
+coordinator_pane() {
+  herdr_call agent list | python3 -c '
+import json, os, re, sys
+root = os.path.realpath(sys.argv[1])
+for agent in json.load(sys.stdin)["result"]["agents"]:
+    name = agent.get("name") or ""
+    if not re.fullmatch(r"coord(-[0-9]+)?", name):
+        continue
+    if os.path.realpath(agent.get("cwd") or "") == root:
+        print(agent["pane_id"])
         break
-' "$1" "$(herdr_call pane list)" "$(herdr_call agent list)"
+' "$ROOT"
 }
 
 any_pane() {
@@ -157,7 +158,7 @@ if [[ -n "$workspace" ]]; then
     echo "fresh coordinator $name running in $workspace, pane $pane"
     exit 0
   fi
-  running=$(occupied_pane "$workspace")
+  running=$(coordinator_pane)
   if [[ -n "$running" ]]; then
     herdr_call workspace focus "$workspace" >/dev/null
     echo "pinned coordinator is up in $workspace, pane $running"
