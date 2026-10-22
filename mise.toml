@@ -5,12 +5,15 @@ dotfiles.relative_symlinks = true
 "~/.zshrc" = "zsh/.zshrc"
 "~/.config/git" = "git"
 "~/.config/ghostty" = "ghostty"
+"~/.config/herdr/config.toml" = "herdr/config.toml"
 "~/.config/eza" = "eza"
 "~/.config/mise" = "mise"
 "~/.config/ponytail" = "ponytail"
 "~/.config/starship.toml" = "starship/starship.toml"
 "~/.config/zed" = "zed"
 "~/.agents" = "agents"
+"~/.local/bin/pinned" = "herdr/pinned"
+"~/coord" = "coord"
 
 [bootstrap.packages]
 "brew:cliproxyapi" = "latest"

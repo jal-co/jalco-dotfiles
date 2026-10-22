@@ -1,0 +1,51 @@
+{
+  "status": {
+    "enabled": true
+  },
+  "models": {
+    "default": "cliproxyapi/gpt-6.1-sol",
+    "agents": {},
+    "tasks": {
+      "coding": [
+        "cliproxyapi/gpt-6.1-sol",
+        "openai-codex/gpt-6.1-sol"
+      ],
+      "review": [
+        "xai/grok-4.7",
+        "deepseek/deepseek-v4-pro"
+      ],
+      "recon": [
+        "deepseek/deepseek-flash",
+        "cliproxyapi/gpt-5.6-luna"
+      ],
+      "qa": [
+        "xai/grok-4.7",
+        "deepseek/deepseek-flash"
+      ],
+      "architecture": [
+        "xai/grok-4.7",
+        "cliproxyapi/gpt-6-astra"
+      ],
+      "docs": [
+        "cliproxyapi/gpt-5.6-luna",
+        "openai-codex/gpt-6.1-sol"
+      ]
+    },
+    "tasksMeta": {
+      "generatedAt": "2026-10-24T00:00:00Z",
+      "method": "registry-only"
+    }
+  },
+  "persistent": {
+    "maxAgents": 3
+  },
+  "supervision": {
+    "forcePolling": false,
+    "hangWarningMinutes": 15
+  },
+  "panes": {
+    "mode": "grouped",
+    "direction": "right",
+    "maxPerTab": 4
+  }
+}
