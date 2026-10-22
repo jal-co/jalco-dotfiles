@@ -20,6 +20,27 @@ Do not assume the answer. It may be the user's account or a bot account with its
 
 Check once per session, not before every post.
 
+### Mastra repositories: reviews post as the review bot
+
+In a `mastra-ai` repository the agent never posts its findings from Justin's account. They post from his review App, so an author can tell an agent's finding from a change he stands behind. The posting account there is `norman-reviewer[bot]`, resolved through `gha` once per session:
+
+```bash
+gha persona access <owner>/<repo>
+```
+
+When `norman-reviewer` is listed as available, post through the App:
+
+```bash
+gha as --name norman-reviewer gh api repos/<owner>/<repo>/pulls/<n>/reviews -X POST --input - <<'EOF'
+{"event":"COMMENT","body":"<lead, or empty>",
+ "comments":[{"path":"src/retry/policy.ts","line":41,"side":"RIGHT","body":"Advance `attempt` before this comparison."}]}
+EOF
+```
+
+- Post with `event: COMMENT`, never a verdict. Approve and request-changes are Justin's judgment and come from his own account after he reads what the bot found; a bot blocking a merge is not a review.
+- The self-review rule above compares the posting account to the PR author, so under the App it holds only when the App authored the PR. A bot review of a human PR is never a self-review comment.
+- No available persona means the App is missing or not installed for that repository: post nothing from Justin's account. Show the drafted body, name the `gha` step that failed, and let him post it himself or fix the install.
+
 ## The rule
 
 **Ask for the changes you want, and every one of them is required.** Small requests are still requests—post them. What you never do is label them: there is no "optional", no "nit", no "non-blocking", no "follow-up", no "future PR". The author satisfies the list; the review is not a menu.
@@ -79,14 +100,18 @@ Immediately before each autonomous post or edit, refresh the target PR with `gh 
 
 This exception authorizes review communication only—not code changes or pushes, issue creation or issue comments, merging, closing, or marking the PR ready. Those actions still require separate authorization.
 
-Never `gh pr review --comment`; use `gh pr comment` for review findings only under the self-review fallback below. Otherwise a review with requests is **REQUEST_CHANGES**; a review with none is **APPROVE**.
+Never `gh pr review --comment`; use `gh pr comment` for review findings only under the self-review fallback below. Otherwise a review with requests is **REQUEST_CHANGES**; a review with none is **APPROVE**. In a `mastra-ai` repository the agent posts its findings as `COMMENT` under the review App instead, as described above.
 
 ```bash
 # Body from file (write it, check quality and posting authorization, then post)
 gh pr review <n> --request-changes --body-file /tmp/review-body.md
 gh pr review <n> --approve --body-file /tmp/review-body.md
 
-# Inline comments attached to the request-changes review (REST). `line` is the head-side line; always set `side` (`RIGHT` for added/context lines, `LEFT` for deletions), and `start_line`/`start_side` for multi-line ranges — GitHub rejects or mis-anchors comments without them.
+# Same body with no verdict, posted by the review App in a mastra-ai repository
+gha as --name norman-reviewer gh api repos/<owner>/<repo>/pulls/<n>/reviews -X POST \
+  -f event=COMMENT -f body=@/tmp/review-body.md
+
+# Inline comments attached to the request-changes review (REST). `line` is the head-side line; always set `side` (`RIGHT` for added/context lines, `LEFT` for deletions), and `start_line`/`start_side` for multi-line ranges — GitHub rejects or mis-anchors comments without them. Prefix the same command with `gha as --name norman-reviewer` in a mastra-ai repository, and set `"event":"COMMENT"`.
 gh api repos/<owner>/<repo>/pulls/<n>/reviews -X POST --input - <<'EOF'
 {"event":"REQUEST_CHANGES","body":"<requests not tied to a line, or empty>",
  "comments":[{"path":"src/retry/policy.ts","line":41,"side":"RIGHT","body":"Advance `attempt` before this comparison; the second call sees `attempt === max` and stops."}]}
