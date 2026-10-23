@@ -10,7 +10,9 @@
     "cliproxyapi/claude-opus-5-5",
     "cliproxyapi/gpt-6-astra",
     "cliproxyapi/deepseek-flash",
-    "cliproxyapi/gpt-6.1-sol"
+    "cliproxyapi/gpt-6.1-sol",
+    "cliproxyapi/kimi-k3.1-pro",
+    "cliproxyapi/kimi-k3.1-pro-highspeed"
   ],
   "enableSkillCommands": true,
   "skills": [],

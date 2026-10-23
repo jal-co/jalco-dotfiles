@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+if [ "${AI_AGENT:-}" = pi ] || [ "${PI_CODING_AGENT:-}" = true ]; then
+  if ! OP_SERVICE_ACCOUNT_TOKEN=$(/usr/bin/security find-generic-password -a "$(/usr/bin/id -un)" -s 1password-coding-agents -w 2>/dev/null); then
+    printf '%s\n' 'Coding-agent 1Password token is unavailable in macOS Keychain. Personal-vault authentication was not attempted.' >&2
+    exit 1
+  fi
+  case "$OP_SERVICE_ACCOUNT_TOKEN" in
+    ops_?*) ;;
+    *)
+      printf '%s\n' 'Coding-agent 1Password token is invalid. Personal-vault authentication was not attempted.' >&2
+      exit 1
+      ;;
+  esac
+  unset OP_ACCOUNT OP_CONNECT_HOST OP_CONNECT_TOKEN OP_SESSION
+  OP_BIOMETRIC_UNLOCK_ENABLED=false
+  export OP_SERVICE_ACCOUNT_TOKEN OP_BIOMETRIC_UNLOCK_ENABLED
+fi
+
+exec /opt/homebrew/bin/op "$@"

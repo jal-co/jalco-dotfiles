@@ -1,7 +1,7 @@
 onboarding = false
 
 [ui.toast]
-delivery = "terminal"
+delivery = "system"
 
 [ui.sound]
 enabled = true
@@ -10,7 +10,7 @@ enabled = true
 status_indicators = "dots"
 
 [theme]
-name = "catppuccin"
+name = "terminal"
 auto_switch = false
 
 [[keys.command]]
@@ -24,3 +24,9 @@ key = "prefix+i"
 type = "plugin_action"
 command = "speardragon.herdr-island.toggle"
 description = "Herdr Island"
+
+[[keys.command]]
+key = "prefix+p"
+type = "plugin_action"
+command = "ray.plugin-manager.open"
+description = "open plugin manager"

@@ -1,0 +1,133 @@
+{
+  "styles": {
+    "3OZB-1": {
+      "display": "flex",
+      "overflow": "clip",
+      "width": "960px",
+      "height": "fit-content",
+      "fontFamily": "var(--font-body)",
+      "left": 0,
+      "top": 3577,
+      "flexDirection": "column",
+      "padding": "32px",
+      "gap": "24px",
+      "position": "absolute",
+      "backgroundColor": "#FAFAFA"
+    },
+    "3P1D-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#98BFFE1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#F4F8FF"
+    },
+    "3P12-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#89D2981F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#F3FBF4"
+    },
+    "3P0R-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#FEDE8E1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF9E8"
+    },
+    "3P0G-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#FEA19A1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF6F5"
+    },
+    "3P08-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "600px",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#98BFFE1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#F4F8FF"
+    },
+    "3P01-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "width": "360px",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#FEDE8E1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF9E8"
+    },
+    "3OZO-1": {
+      "display": "flex",
+      "alignItems": "start",
+      "width": "360px",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "left": 30,
+      "top": 3606,
+      "boxShadow": "#89D2981F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#F3FBF4"
+    },
+    "3OZE-1": {
+      "display": "flex",
+      "alignItems": "start",
+      "width": "360px",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "flexShrink": "0",
+      "boxShadow": "#FEA19A1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF6F5"
+    },
+    "3PAW-0": {
+      "display": "flex",
+      "alignItems": "start",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#FEDE8E1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF9E8"
+    },
+    "3PBB-0": {
+      "display": "flex",
+      "alignItems": "start",
+      "width": "100%",
+      "padding": "12px",
+      "borderRadius": "var(--radius-lg)",
+      "gap": "12px",
+      "boxShadow": "#FEA19A1F 0px 0px 0px 1px inset, #00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFF6F5"
+    },
+    "3P0I-1": {
+      "display": "flex",
+      "alignItems": "center",
+      "justifyContent": "center",
+      "flexShrink": "0",
+      "height": "var(--spacing-control-md)",
+      "fontFamily": "var(--font-body)",
+      "paddingInline": "11.7px",
+      "borderRadius": "calc(infinity * 1px)",
+      "boxShadow": "#00000014 0px 0px 0px 1px inset, #0000000D 0px 1px 2px -1px, #0000000A 0px 1px 3px -2px",
+      "backgroundColor": "#FFFFFF"
+    }
+  }
+}

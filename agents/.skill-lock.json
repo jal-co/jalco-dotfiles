@@ -226,6 +226,15 @@
       "skillFolderHash": "efab576ec92cc8d2117c12983de445ef07f1f276",
       "installedAt": "2026-10-11T20:44:27.974Z",
       "updatedAt": "2026-10-11T20:44:27.974Z"
+    },
+    "create-canvas": {
+      "source": "ibelick/ui-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ibelick/ui-skills.git",
+      "skillPath": "skills/create-canvas/SKILL.md",
+      "skillFolderHash": "4e4a80a6dbfa80f9ffd01970e152b1839c1d0502",
+      "installedAt": "2026-10-20T15:02:53.438Z",
+      "updatedAt": "2026-10-20T15:02:53.438Z"
     }
   },
   "dismissed": {
