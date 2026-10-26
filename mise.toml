@@ -12,7 +12,12 @@ dotfiles.relative_symlinks = true
 "~/.config/starship.toml" = "starship/starship.toml"
 "~/.config/zed" = "zed"
 "~/.agents" = "agents"
-"~/.local/bin/pinned" = "herdr/pinned"
+"~/.local/bin/pinned" = "rex/pinned"
+"~/.local/bin/pinned-rex" = "rex/pinned"
+"~/.local/bin/pinned-herdr" = "herdr/pinned"
+"~/.local/bin/rex" = "/Applications/Rex Beta.app/Contents/Helpers/Rex Server.rex/Contents/MacOS/rex"
+"~/rex-coord/AGENTS.md" = "rex/coordinator/AGENTS.md"
+"~/rex-coord/.pi/settings.json" = "rex/coordinator/settings.json"
 "~/coord" = "coord"
 
 [bootstrap.packages]

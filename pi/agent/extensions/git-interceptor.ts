@@ -20,7 +20,7 @@ export function interceptGitCommand(command: string):
 		};
 	}
 
-	return { command: `${NON_INTERACTIVE_ENV} ${command}` };
+	return { command: `export ${NON_INTERACTIVE_ENV}; ${command}` };
 }
 
 export default function gitInterceptor(pi: ExtensionAPI): void {

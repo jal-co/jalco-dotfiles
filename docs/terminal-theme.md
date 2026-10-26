@@ -6,6 +6,8 @@ Ghostty loads `Pierre Dark` from `ghostty/themes/Pierre Dark`. It uses Pierre Da
 
 Herdr remains on `terminal`, with no custom palette overrides. Geist Mono, font size, keybindings, notification delivery, and the wider sidebar are unchanged.
 
+Rex is the default coordinator terminal. Its existing appearance is backed up in `rex/appearance.plist`, separately from the Pi theme. The migration does not write Rex appearance settings. See [Rex configuration](../rex/README.md#appearance) for capture, check and restore commands.
+
 ## Apply to running sessions
 
 1. In Ghostty, press Cmd+Shift+, to reload its configuration.

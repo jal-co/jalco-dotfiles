@@ -26,10 +26,16 @@ Tinycast comes from a third-party tap that mise can only read with Ruby 3, so in
 | See what is linked and what drifted | `mise dot status` |
 | Preview changes | `mise dot diff` or `mise dot apply -n` |
 | Re-link after adding an entry | `mise dot apply` |
+| Open the Rex coordinator | `pinned` |
+| Open the retained Herdr coordinator | `pinned-herdr` |
 | Add a package | `mise bootstrap packages use brew:<name>` or `brew-cask:<name>` |
 | Check packages | `mise bootstrap packages status` |
 
 To manage a new file, move it into a folder here, add a line to `[dotfiles]`, and run `mise dot apply`. Most entries link a whole folder. Pi uses a glob entry that links each top-level item in `pi/agent/` individually, so their sessions, logs, sockets, and auth stay in `~` and out of this repository. A new file added there is linked on the next `mise dot apply`.
+
+## Rex
+
+`pinned` opens the default coordinator in Rex. Tasks use separate Rex sessions and managed worktrees, with automatic results and persistent follow-up. `pinned-herdr` keeps the previous setup available. See [`rex/README.md`](rex/README.md) for ownership, cleanup, appearance backup and recovery limits.
 
 ## Private files
 
@@ -44,6 +50,8 @@ Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private
 | `ghostty/`, `eza/`, `zed/`, `ponytail/`, `mise/` | `~/.config/<name>` |
 | `starship/` | `~/.config/starship.toml` |
 | `agents/` | `~/.agents` (shared skills) |
+| `rex/` | Rex launchers, `~/rex-coord` rules and settings, appearance backup |
+| `herdr/`, `coord/` | Retained Herdr configuration and coordinator |
 | `pi/` | config entries in `~/.pi` and `~/.pi/agent` |
 | `tools/anti-slop/` | not linked; run through the `anti-slop` alias |
 
@@ -61,7 +69,7 @@ Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not
 | `skills/` | Pi-only skills |
 | `prompts/` | Prompt templates |
 | `workflows/` | Task workflows referenced by `AGENTS.md` |
-| `themes/` | `verminal`, `geist-dark` |
+| `themes/` | `pierre-dark`, `verminal`, `geist-dark` |
 | `browser-testing/` | Headless browser wrapper used by `AGENTS.md` |
 
 Pi also loads shared skills from `~/.agents/skills`. Keep each skill in one of the two roots, not both.
