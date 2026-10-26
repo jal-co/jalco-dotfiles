@@ -4,6 +4,26 @@
 
 `pinned-rex` is the same launcher. `pinned-herdr` retains the previous Herdr setup. Herdr's configuration, launcher and existing sessions are unchanged. The pre-migration snapshot is commit `efdcf6f`.
 
+## Pin sessions
+
+Select a session, open Rex's command palette and choose **Pin Session**. Use **Unpin Session** to allow normal reordering again. Multiple pins stay in the order they were pinned. There is no new keybinding, renamed label or custom sidebar section.
+
+Pins live in `~/.rex/session-pins.json`, outside Git. They use session IDs, so destroying and recreating a session requires pinning it again. Unpinning leaves the session where it is unless another pin needs to move above it.
+
+A headless LaunchAgent, `com.jalco.rex-session-pins`, listens for session creation, destruction and movement. It restores the pinned group after a drag without polling or opening a terminal. It does not create, close, select or rename sessions. launchd reconnects it after the Rex server restarts; it never starts Rex itself.
+
+`mise dot apply` links the native Lua config and LaunchAgent. On another Mac, load them once after applying the links:
+
+```sh
+rex config check
+rex config reload
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jalco.rex-session-pins.plist"
+```
+
+The service starts at subsequent logins. It uses the existing mise Node shim and logs to `~/.rex/session-pins.log`. After changing the watcher implementation, restart only that service with `launchctl kickstart -k "gui/$(id -u)/com.jalco.rex-session-pins"`. To disable enforcement, use `launchctl bootout "gui/$(id -u)/com.jalco.rex-session-pins"`; this does not close any Rex session.
+
+A corrupt pin file is reported rather than overwritten. An interrupted pin edit can leave `session-pins.json.lock/owner.json`; check its recorded PID before arranging manual recovery.
+
 ## Configuration
 
 | File | Purpose |
@@ -15,6 +35,9 @@
 | `runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
 | `worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `appearance.plist` | Rex appearance backup, including the custom theme |
+| `init.lua`, `session-pins.lua` | Native Rex command-palette actions and event subscription |
+| `session-pins.mjs` | Persistent pins and event-driven order enforcement |
+| `com.jalco.rex-session-pins.plist` | Headless pin watcher at login |
 
 `mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex Beta must already be installed at `/Applications/Rex Beta.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
 
@@ -55,7 +78,10 @@ The older proof coordinator, `rex-coordinator`, is not restarted or adopted by t
 
 ```sh
 node --test ~/dotfiles/rex/provider.test.mjs ~/dotfiles/rex/runtime.test.mjs ~/dotfiles/rex/worktrees.test.mjs
+node --test ~/dotfiles/rex/session-pins.test.mjs
 node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/git-interceptor.test.ts
 ```
+
+Run `node ~/dotfiles/rex/session-pins-live-test.mjs` before installing the production pin service, or with that service stopped. It uses an isolated pin file, creates only disposable test sessions, verifies native actions and event-driven ordering across a watcher restart, then closes those sessions and stops its test watchers. It preserves the relative order of existing sessions.
 
 `live-test.mjs` runs in a dedicated Rex terminal with `REX_PROOF_DIR` set to a fresh report directory inside the home directory. It creates a disposable Git repository and managed worktree, receives three automatic results across a coordinator reload and a confirmed-stop checkout/session reuse, rejects duplicate acquisition, checks inventory, verifies dirty-cleanup refusal, then preserves and removes its own checkout. It uses the configured model preferences and incurs model usage. Reports contain the event transcript, diagnostics and `result.json`; no user task sessions are closed.

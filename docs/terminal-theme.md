@@ -8,6 +8,8 @@ Herdr remains on `terminal`, with no custom palette overrides. Geist Mono, font 
 
 Rex is the default coordinator terminal. Its existing appearance is backed up in `rex/appearance.plist`, separately from the Pi theme. The migration does not write Rex appearance settings. See [Rex configuration](../rex/README.md#appearance) for capture, check and restore commands.
 
+Rex session pinning uses native Lua actions and a headless event watcher, separate from appearance settings. See [Pin sessions](../rex/README.md#pin-sessions) for usage and service setup. It does not change the theme or keyboard shortcuts.
+
 ## Apply to running sessions
 
 1. In Ghostty, press Cmd+Shift+, to reload its configuration.
