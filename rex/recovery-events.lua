@@ -1,0 +1,11 @@
+local function changed(ctx)
+  print(rex.json.encode({ surface = ctx.session_id and ctx.block_id and (ctx.session_id .. "/" .. ctx.block_id) or "all" }))
+end
+rex.on("session_created", function(ctx)
+  assert(rex.call("session.attach_all", { event_scope = "all" }))
+  changed(ctx)
+end)
+rex.on("terminal.process_changed", changed)
+rex.on("session_destroyed", changed)
+assert(rex.call("session.attach_all", { event_scope = "all" }))
+print('{"surface":"all"}')

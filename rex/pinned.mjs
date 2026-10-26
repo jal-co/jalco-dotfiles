@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callRex } from './provider.mjs';
+import { findCoordinator } from './coordinator-session.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const configDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'agent');
@@ -21,17 +22,14 @@ for (const [target, source] of [[settings, join(root, 'coordinator/settings.json
   }
 }
 const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
-const existing = sessions.filter((session) => session.label === label);
-if (existing.length > 1) throw new Error('Multiple pinned Rex coordinators exist. Select the intended session in Rex.');
-if (existing.length) {
-  const view = JSON.parse(callRex(['session', 'inspect', existing[0].session_id, '--json']));
-  const blocks = view.windows.flatMap((window) => window.layers.flatMap((layer) => layer.blocks));
-  const running = blocks.some((block) => {
-    const info = JSON.parse(callRex(['block', 'call', '-s', existing[0].session_id, '-b', block.block_id, 'process']));
-    return !info.last_exit && info.foreground?.argv0 === 'pi' && info.foreground.cwd === cwd;
-  });
-  if (!running) throw new Error(`Session ${existing[0].session_id} exists but its coordinator is not running. Inspect it in Rex before closing or restarting it.`);
-  console.log(`Rex coordinator already exists: ${existing[0].session_id}. Select ${label} in Rex.`);
+const existing = findCoordinator(sessions, (id) => {
+  const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
+  return view.windows.flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
+    .filter((block) => block.creator_name === 'com.superlogical.terminal')
+    .map((block) => JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])));
+}, cwd);
+if (existing) {
+  console.log(`Rex coordinator already exists: ${existing.session_id}. Select ${JSON.stringify(existing.label)} in Rex.`);
 } else {
   const config = JSON.parse(readFileSync(join(configDir, 'herdr-agents/config.json'), 'utf8'));
   const model = config.models?.default;
