@@ -3,28 +3,5 @@ font-family = Geist Mono
 font-size = 14
 font-codepoint-map = U+EC81-U+EC82=Symbols Nerd Font Mono
 
-# --- Vercel-ish / Geist-ish palette ---
-palette = 0=#000000
-palette = 1=#FF3B30
-palette = 2=#4CD964
-palette = 3=#FFCC00
-palette = 4=#0095FF
-palette = 5=#FF2D55
-palette = 6=#5AC8FA
-palette = 7=#FFFFFF
-palette = 8=#686868
-palette = 9=#FF3B30
-palette = 10=#4CD964
-palette = 11=#FFCC00
-palette = 12=#0095FF
-palette = 13=#FF2D55
-palette = 14=#5AC8FA
-palette = 15=#FFFFFF
-
-background = #000000
-foreground = #FFFFFF
-cursor-color = #0095FF
-cursor-text = #000000
-selection-background = #0061a6
-selection-foreground = #FFFFFF
+theme = Pierre Dark
 keybind = shift+enter=text:\n

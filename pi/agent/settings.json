@@ -7,12 +7,8 @@
   "defaultProvider": "cliproxyapi",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "cliproxyapi/claude-opus-5-5",
-    "cliproxyapi/gpt-6-astra",
-    "cliproxyapi/deepseek-flash",
     "cliproxyapi/gpt-6.1-sol",
-    "cliproxyapi/kimi-k3.1-pro",
-    "cliproxyapi/kimi-k3.1-pro-highspeed"
+    "cliproxyapi/gpt-6-astra"
   ],
   "enableSkillCommands": true,
   "skills": [],
@@ -51,7 +47,7 @@
   "quietStartup": "header",
   "showCacheMissNotices": true,
   "steeringMode": "all",
-  "theme": "verminal",
+  "theme": "pierre-dark",
   "warnings": {
     "anthropicExtraUsage": false
   },

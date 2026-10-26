@@ -1,13 +1,16 @@
 onboarding = false
 
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
 
 [ui.sound]
 enabled = true
 
 [ui]
 status_indicators = "dots"
+sidebar_width = 32
+sidebar_min_width = 28
+sidebar_max_width = 40
 
 [theme]
 name = "terminal"
