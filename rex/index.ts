@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
@@ -82,6 +82,32 @@ export default async function rexAgents(pi: ExtensionAPI) {
     );
     return { provider, worktrees, cleanupOperations, worktreeOperations, supervision };
   });
+  const inspectGit = worktreeModule.createWorktreeCleanupOperations(provider, {
+    manifestDir: worktrees.registry, liveHolders: () => [],
+  }).inspectGit;
+  cleanupOperations.realpath = (path) => {
+    const canonical = realpathSync(path);
+    if (canonical !== path && worktrees.records().some((record) => !record.removed && record.path === path)) {
+      throw new Error('Managed checkout path contains a symbolic link.');
+    }
+    return canonical;
+  };
+  cleanupOperations.inspectGit = (path, source) => {
+    const matches = worktrees.records().filter((record) => !record.removed && record.path === path && record.repo === source);
+    if (matches.length !== 1) throw new Error('Rex worktree ownership is missing or ambiguous.');
+    worktrees.verify(matches[0]);
+    return inspectGit(path, source);
+  };
+  cleanupOperations.listWorktrees = async (source) => {
+    const live = provider.json(['ls', '--json']).sessions;
+    return worktrees.records().filter((record) => !record.removed && record.repo === source).flatMap((record) => {
+      try { worktrees.verify(record); } catch { return []; }
+      return [{
+        path: record.path, branch: record.branch, isLinkedWorktree: true,
+        workspaceId: live.some((entry) => entry.session_id === record.workspaceId) ? record.workspaceId : undefined,
+      }];
+    });
+  };
   pi.on('before_agent_start', (event) => {
     if (event.systemPromptOptions.appendSystemPrompt.startsWith('This is the experimental Rex coordinator,')) {
       event.systemPromptOptions.appendSystemPrompt = '';
