@@ -60,7 +60,7 @@ test('overview updates from filesystem events and disabling it preserves task me
   assert.equal(store.read('view-fixture').reason, 'Answer needed');
 });
 
-test('native task indicators preserve labels and clear only their own status when disabled', async () => {
+test('native task indicators preserve labels and remain active when overview is disabled', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'rex-status-'));
   const config = join(directory, 'modules.json');
   writeFileSync(config, '{"recovery":false,"overview":true}');
@@ -73,17 +73,20 @@ test('native task indicators preserve labels and clear only their own status whe
   let output = '';
   const original = process.stdout.write;
   try {
-    await taskStatus({ on: (name, handler) => callbacks.set(name, handler) });
+    await taskStatus({ on: (name, handler) => { callbacks.set(name, handler); return () => callbacks.delete(name); } });
     process.stdout.write = (text) => { output += text; return true; };
-    callbacks.get('session_start')();
+    callbacks.get('session_start')({}, { mode: 'tui' });
     assert.equal(JSON.parse(readFileSync(agentIdentityFile(sessionFile, 'fixture'), 'utf8')).pid, process.pid);
     callbacks.get('agent_start')();
     callbacks.get('tool_execution_end')({ toolName: 'caller_ping' });
-    callbacks.get('agent_settled')();
+    callbacks.get('agent_settled')({ aborted: false });
     assert.match(output, /state=working/); assert.match(output, /state=blocked/);
     assert.ok(!output.includes(']2;'));
     writeFileSync(config, '{"recovery":true,"overview":false}');
     callbacks.get('agent_start')();
+    assert.match(output, /state=working/);
+    assert.doesNotMatch(output, /state=clear/);
+    callbacks.get('session_shutdown')();
     assert.match(output, /state=clear:id=rex-task/);
   } finally {
     process.stdout.write = original;

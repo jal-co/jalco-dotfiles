@@ -44,7 +44,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `tasks.mjs`, `recovery.mjs`, `recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
 | `task-overview.lua`, `overview*.mjs` | Native Task Overview action and read-only live view |
 | `task.ts` | Package-owned child process attestation and native status indicators |
-| `../pi/agent/extensions/rex-task.ts` | Compatibility entry for task agents launched before this fork |
+| `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `appearance.plist` | Rex appearance backup, including the custom theme |
 | `init.lua`, `session-pins.lua` | Native Rex command-palette actions and event subscription |
@@ -113,7 +113,7 @@ On first installation, reload the coordinator and any already-running task agent
 
 Choose **Task Overview** in Rex's command palette to open a read-only live session showing state, blockers, branch and task session ID. It pins itself only when the separate pin actions are installed. Opening it again reuses the same view, including after a rename. It adds no sidebar section, shortcuts or appearance changes. `/rex-tasks` shows the saved task list in Pi.
 
-New or reloaded task agents emit Rex's native working, blocked, done and error indicators when overview is enabled. Disabling overview clears only this extension's indicator on the next task event. An open overview stops its own watchers when disabled; agents continue running.
+New or reloaded Pi sessions in Rex emit native idle, working, blocked, done and error indicators independently of both module switches. This covers the coordinator, managed task agents and ordinary Pi sessions. Questions and confirmation dialogs stay blocked until answered. An open overview still stops its own watchers when disabled; agents continue running.
 
 Receipts prevent routine completion replay across restarts. If the coordinator dies between queuing a result and recording its receipt, recovery flags delivery as uncertain instead of blindly sending it again. A partially written dispatch is also held for inspection rather than retried. Transcript summaries read at most the last 128 KiB instead of scanning session history.
 

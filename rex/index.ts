@@ -11,11 +11,13 @@ import { coordinatorInstructions } from './instructions.mjs';
 import { readModules } from './module-config.mjs';
 import { processBirth, TaskStore } from './tasks.mjs';
 import { RexRecovery } from './recovery.mjs';
+import rexTask from './task.ts';
 import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.mjs';
 
 export default async function rexAgents(pi: ExtensionAPI) {
   if (process.env.PI_SUBAGENT_ID) return;
+  await rexTask(pi);
   if (!process.env.REX_SESSION) throw new Error('Load this extension inside a Rex terminal.');
   if (process.env.HERDR_ENV === '1') throw new Error('Rex coordinator cannot run in a Herdr pane.');
   const root = fileURLToPath(new URL('./host/', import.meta.url));
