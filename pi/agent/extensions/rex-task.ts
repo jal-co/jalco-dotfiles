@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export default async function rexTask(pi: ExtensionAPI) {
-  if (!process.env.REX_SESSION || !process.env.PI_SUBAGENT_ID) return;
+  if (process.env.PI_REX_AGENT === '1' || !process.env.REX_SESSION || !process.env.PI_SUBAGENT_ID) return;
   const { readModules } = await import(pathToFileURL(join(homedir(), 'dotfiles/rex/module-config.mjs')).href);
   const { processBirth, writeAgentIdentity } = await import(pathToFileURL(join(homedir(), 'dotfiles/rex/tasks.mjs')).href);
   const initial = readModules();

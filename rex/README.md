@@ -1,4 +1,8 @@
-# Rex coordinator
+# pi-rex-agents
+
+A Rex-native fork of [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents), based on version **3.3.1**, with Justin's existing Rex session, recovery and worktree integration. This is a fork, not a clean-room implementation. The upstream MIT license and source attribution are retained in [`host/LICENSE`](host/LICENSE) and [`host/PROVENANCE.md`](host/PROVENANCE.md).
+
+The local Pi package owns its host source under `host/`; it does not import or patch the installed Herdr package. Herdr remains installed separately for fallback use.
 
 `pinned` starts or finds the coordinator in Rex. New sessions default to **pinned**. The launcher finds a running coordinator by its process and directory, even after a label change. It never steals focus, renames an existing session or starts a second writer when inspection is uncertain.
 
@@ -29,14 +33,18 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | File | Purpose |
 | --- | --- |
 | `coordinator/AGENTS.md` | Dispatch, follow-up, ownership and cleanup rules |
-| `coordinator/settings.json` | Inherits normal Pi resources and replaces only the Herdr host extension with the Rex wrapper |
-| `index.ts` | Injects Rex infrastructure into the shared agent host |
+| `package.json` | Local `pi-rex-agents` package manifest |
+| `coordinator/settings.json` | Loads this package and disables only the upstream Herdr host in the coordinator |
+| `index.ts`, `host/` | Package-owned agent host and Rex lifecycle integration |
+| `pull-requests.mjs`, `pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
+| `history.mjs` | Private task/coordinator transcript archives and searchable metadata |
 | `provider.mjs` | Rex session, terminal and process adapter |
 | `runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
 | `modules.json` | Independent recovery and overview switches |
 | `tasks.mjs`, `recovery.mjs`, `recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
 | `task-overview.lua`, `overview*.mjs` | Native Task Overview action and read-only live view |
-| `../pi/agent/extensions/rex-task.ts` | Child process attestation and optional native status indicators |
+| `task.ts` | Package-owned child process attestation and native status indicators |
+| `../pi/agent/extensions/rex-task.ts` | Compatibility entry for task agents launched before this fork |
 | `worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `appearance.plist` | Rex appearance backup, including the custom theme |
 | `init.lua`, `session-pins.lua` | Native Rex command-palette actions and event subscription |
@@ -45,17 +53,35 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 
 `mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex Beta must already be installed at `/Applications/Rex Beta.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
 
-The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings disable the stock Herdr host extension only for the Rex coordinator. The wrapper reuses `pi-herdr-agents` 3.3.1 for the agent protocol and rejects other versions because its injection interfaces are private. Shared model preferences remain in `pi/agent/herdr-agents/config.json`; there is no second model-routing configuration to keep synchronized.
+The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings load the local `pi-rex-agents` package and disable the stock Herdr host extension only for this coordinator. The runtime lives in this package, so upstream package updates no longer replace or patch it. Shared model preferences remain in `pi/agent/herdr-agents/config.json` for compatibility with pstack and the fallback host; there is no second model-routing configuration to keep synchronized.
+
+Run `/reload` in the coordinator to load package changes. This does not restart task agents. New children load the fork's child protocol and `task.ts`; existing children keep their original protocol until they exit. Compatible sidecar names and policy hashes are retained so recovery can verify existing processes without changing their identity.
 
 ## Tasks and worktrees
 
 An approved implementation request authorizes one persistent task agent without another dispatch-permission question. Each task gets its own Rex session and, except for the existing dotfiles and local-only repository exceptions, an isolated worktree.
+
+The persistent-completion fix is built into the fork's child handler. Repeated `subagent_done`, completion after automatic settlement, and completion after reload keep persistent agents alive. Only an explicit stop shuts them down. Ordinary agents still exit normally. Startup no longer modifies the installed Herdr host.
 
 Use `subagent` with `persistent:true`, `interactive:true` and `worktree:{branch,base}`. Use `subagent_send` for follow-up work on the same idle agent. Results arrive automatically, including after `/reload`; do not poll session logs. Task completion does not stop the agent or authorize cleanup.
 
 Checkouts live under `~/.rex/worktrees`. Ownership records, terminal bindings, manifests and coordinator leases live under `~/.rex/registry`. These runtime files are not committed. A matching retained task can reuse its checkout and shell after the previous owner confirms exit. Another task's branch, an unmanaged checkout, a closed pull request, unknown process state or a live lease blocks reuse.
 
 `worktree_list` is read-only. `worktree_remove` requires explicit approval and a confirmation dialog. It checks ownership, processes and Git state before removal. Dirty checkouts block removal unless `preserve:true` creates a preservation commit. Ignored files are not included in that commit. Branches and commits remain after removal. Cleanup is limited to source repositories inside the home directory.
+
+## PR tracking and retained memory
+
+The coordinator checks managed task branches through read-only `gh` queries once a minute while it is running. After authorized publication, `rex_pr_track` registers a task ID and canonical GitHub PR URL explicitly; automatic discovery also catches PRs created in task sessions. Repository and head branch must match the managed task. Multiple matching PRs require explicit selection rather than a guess.
+
+PR records live in `~/.rex/pull-requests`, outside Git. Watches resume on coordinator reload or restart and check immediately. They do not run while the coordinator is closed. GitHub authentication or network failures are reported and do not count as merges. Closed-but-unmerged PRs do not trigger cleanup prompts.
+
+A verified merge sends one coordinator message asking whether to clean up the task. Nothing is stopped or removed automatically. `/rex-prs` shows PR state, notification delivery and cleanup state. `/rex-pr-retain <URL>` records a decision to keep the task without further cleanup prompts. After approval, the coordinator follows the existing process-ownership and worktree-removal checks; successful removal updates the saved cleanup state.
+
+Notification receipts prevent routine replay after restart. If the coordinator crashes between queuing a notification and saving its receipt, it reports delivery as uncertain rather than silently sending it again. A busy or stale PR-check lock is reported with its path; verify the recorded PID/start time before recovering it.
+
+Before approved checkout removal, the extension copies the task's Pi JSONL logs and the coordinator's current transcript into `~/.rex/history`, with private permissions, SHA-256 verification and an index linking the task, branch, checkout and tracked PRs. Original Pi logs stay untouched. Failed or missing archives block cleanup for launched tasks. Snapshots capture the transcript before removal; the original coordinator log continues recording afterward.
+
+Use `rex_task_history` to find archived logs by task name, branch, checkout or PR URL. The tool returns metadata and paths, not customer data or transcript contents. History is retained independently of terminal sessions, checkouts and PR state; no automatic pruning is installed.
 
 ## Appearance
 
@@ -103,6 +129,8 @@ The launcher does not restart a running coordinator or adopt its tasks behind it
 node --test ~/dotfiles/rex/*.test.mjs
 node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/git-interceptor.test.ts
 ```
+
+Run `node ~/dotfiles/rex/package-live-test.mjs` for a model-free check that the coordinator's package configuration loads exactly one set of agent, PR and memory tools before and after `/reload`. It creates and closes only a disposable Rex session and retains its evidence under `~/.local/state/pi-rex-package-proof-*`.
 
 Run `node ~/dotfiles/rex/recovery-live-test.mjs` for the model-free restart proof. It uses real Pi coordinator processes and a deterministic Node worker in disposable Rex sessions. It checks reconnection to the same PID, two automatic results, follow-up, native status, opening the overview and confirmed graceful stop. It closes its own sessions and retains the report under `~/.local/state/rex-recovery-proof`.
 

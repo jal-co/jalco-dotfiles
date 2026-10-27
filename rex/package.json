@@ -1,0 +1,44 @@
+{
+  "name": "pi-rex-agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rex-native fork of pi-herdr-agents with persistent task recovery, PR merge notifications and retained Pi history",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "rex",
+    "subagents"
+  ],
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "files": [
+    "index.ts",
+    "host/",
+    "provider.mjs",
+    "worktrees.mjs",
+    "runtime.mjs",
+    "tasks.mjs",
+    "recovery.mjs",
+    "recovery-events.lua",
+    "module-config.mjs",
+    "modules.json",
+    "instructions.mjs",
+    "task.ts",
+    "pull-requests.ts",
+    "pull-requests.mjs",
+    "history.mjs"
+  ]
+}

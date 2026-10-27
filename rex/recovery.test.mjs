@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { RexRecovery } from './recovery.mjs';
-import { TaskStore, boundedSummary, cleanText, taskState, writeAgentIdentity } from './tasks.mjs';
+import { agentIdentityFile, TaskStore, boundedSummary, cleanText, taskState, writeAgentIdentity } from './tasks.mjs';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-recovery-'));
@@ -41,6 +41,22 @@ test('child attestation binds recovery to its original process and refuses overw
   writeAgentIdentity(identity);
   assert.throws(() => writeAgentIdentity({ ...identity, pid: 999 }), /different task process/);
   assert.equal(f.recovery.claim(f.record).identity.pid, 222);
+});
+
+test('distinct runs can retain identities for the same Pi session without overwriting prior evidence', () => {
+  const f = fixture();
+  const original = { version: 1, id: f.record.id, sessionFile: f.record.sessionFile, surface: f.record.surface, pid: 222, birth: 'agent', generationId: f.record.generationId, policyHash: f.record.policyHash };
+  writeAgentIdentity(original);
+  writeAgentIdentity({ ...original, id: 'run-b', pid: 444, birth: 'new-agent' });
+  assert.equal(JSON.parse(readFileSync(agentIdentityFile(original.sessionFile, original.id), 'utf8')).pid, 222);
+  assert.equal(JSON.parse(readFileSync(agentIdentityFile(original.sessionFile, 'run-b'), 'utf8')).pid, 444);
+});
+
+test('legacy pre-fork process attestations remain recoverable', () => {
+  const f = fixture(); delete f.record.identity; f.store.write(f.record);
+  writeFileSync(`${f.record.sessionFile}.rex-process.json`, JSON.stringify({ version: 1, id: f.record.id, sessionFile: f.record.sessionFile, surface: f.record.surface, pid: 222, birth: 'agent', generationId: f.record.generationId, policyHash: f.record.policyHash }));
+  assert.equal(f.recovery.claim(f.record).identity.pid, 222);
+  f.recovery.close();
 });
 
 test('retained persistent agents still count toward the configured capacity', () => {

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, watch } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.mjs';
-import { boundedSummary, processBirth, taskState } from './tasks.mjs';
+import { agentIdentityFile, boundedSummary, processBirth, taskState } from './tasks.mjs';
 
 export class RexRecovery {
   constructor({ store, provider, worktrees, protocol, activity, running, send, notify, flags, owner, originCwd, birth = processBirth }) {
@@ -58,7 +58,8 @@ export class RexRecovery {
     return policy;
   }
   attest(record) {
-    const file = `${record.sessionFile}.rex-process.json`;
+    const current = agentIdentityFile(record.sessionFile, record.id);
+    const file = existsSync(current) ? current : `${record.sessionFile}.rex-process.json`;
     if (record.identity || !existsSync(file)) return false;
     const identity = JSON.parse(readFileSync(file, 'utf8'));
     if (identity.version !== 1 || identity.id !== record.id || identity.sessionFile !== record.sessionFile || identity.surface !== record.surface || identity.generationId !== record.generationId || identity.policyHash !== record.policyHash) throw new Error('Task process attestation does not match the saved launch');
@@ -123,7 +124,7 @@ export class RexRecovery {
   observe() {
     const directories = new Map();
     for (const record of this.store.list().filter((row) => row.originCwd === this.originCwd)) {
-      for (const path of [record.activityFile, `${record.sessionFile}.rex-process.json`, `${record.sessionFile}.tasks`, `${record.sessionFile}.ledger`, `${record.sessionFile}.exit`]) {
+      for (const path of [record.activityFile, agentIdentityFile(record.sessionFile, record.id), `${record.sessionFile}.rex-process.json`, `${record.sessionFile}.tasks`, `${record.sessionFile}.ledger`, `${record.sessionFile}.exit`]) {
         const directory = dirname(path);
         if (!directories.has(directory)) directories.set(directory, new Map());
         const names = directories.get(directory);

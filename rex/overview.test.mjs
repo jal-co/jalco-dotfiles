@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { TaskStore } from './tasks.mjs';
+import { agentIdentityFile, TaskStore } from './tasks.mjs';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { readModules } from './module-config.mjs';
 import { renderOverview } from './overview.mjs';
-import taskStatus from '../pi/agent/extensions/rex-task.ts';
+import taskStatus from './task.ts';
 
 test('overview prioritizes blocked tasks and strips terminal control sequences', () => {
   const text = renderOverview([
@@ -76,7 +76,7 @@ test('native task indicators preserve labels and clear only their own status whe
     await taskStatus({ on: (name, handler) => callbacks.set(name, handler) });
     process.stdout.write = (text) => { output += text; return true; };
     callbacks.get('session_start')();
-    assert.equal(JSON.parse(readFileSync(`${sessionFile}.rex-process.json`, 'utf8')).pid, process.pid);
+    assert.equal(JSON.parse(readFileSync(agentIdentityFile(sessionFile, 'fixture'), 'utf8')).pid, process.pid);
     callbacks.get('agent_start')();
     callbacks.get('tool_execution_end')({ toolName: 'caller_ping' });
     callbacks.get('agent_settled')();

@@ -18,11 +18,16 @@ export function processBirth(pid) {
   }
 }
 
+export function agentIdentityFile(sessionFile, id) {
+  assert.match(id, /^[a-zA-Z0-9-]+$/, 'Invalid task identity ID');
+  return `${sessionFile}.rex-process-${id}.json`;
+}
+
 export function writeAgentIdentity(value) {
   assert.equal(value.version, 1);
   assert.ok(value.id && value.surface && isAbsolute(value.sessionFile));
   assert.ok(value.birth && Number.isInteger(value.pid) && value.pid > 0);
-  const file = `${value.sessionFile}.rex-process.json`;
+  const file = agentIdentityFile(value.sessionFile, value.id);
   const temporary = `${file}.${randomUUID()}.tmp`;
   writeFileSync(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' });
   try {

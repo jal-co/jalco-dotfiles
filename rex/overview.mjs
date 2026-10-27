@@ -38,7 +38,6 @@ export function overview() {
     } catch (error) { console.error(`Task overview cannot read its registry: ${cleanText(error)}`); }
   };
   mkdirSync(store.root, { recursive: true, mode: 0o700 });
-  draw();
   const watcher = watch(store.root, (_event, name) => {
     if (!String(name).endsWith('.json') || pending) return;
     pending = true;
@@ -59,6 +58,7 @@ export function overview() {
   process.stdout.on('resize', draw);
   process.once('SIGTERM', stop);
   process.once('SIGINT', stop);
+  draw();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) overview();

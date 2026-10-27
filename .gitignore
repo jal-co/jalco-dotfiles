@@ -8,6 +8,7 @@ Icon[]
 # Node.js
 node_modules/
 package.json
+!/rex/package.json
 bun.lock
 pnpm-lock.yaml
 package-lock.json

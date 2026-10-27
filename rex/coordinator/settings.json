@@ -3,9 +3,9 @@
     {
       "source": "npm:pi-herdr-agents",
       "extensions": []
+    },
+    {
+      "source": "~/dotfiles/rex"
     }
-  ],
-  "extensions": [
-    "~/dotfiles/rex/index.ts"
   ]
 }

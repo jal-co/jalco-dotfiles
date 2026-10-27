@@ -1,8 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { processBirth, TaskStore, writeAgentIdentity } from './tasks.mjs';
 
 export default async function recoveryProof(pi: ExtensionAPI) {
@@ -11,7 +9,7 @@ export default async function recoveryProof(pi: ExtensionAPI) {
   const store = new TaskStore();
   const seed = JSON.parse(readFileSync(join(fixture, 'worker-ready.json'), 'utf8'));
   if (!existsSync(store.file(seed.id))) {
-    const module = await import(pathToFileURL(join(homedir(), '.pi/agent/npm/node_modules/pi-herdr-agents/maestro/adapters/pi/session.ts')).href);
+    const module = await import('./host/maestro/adapters/pi/session.ts');
     const policy = module.writeSubagentSessionPolicy(seed.sessionFile, { owner: 'public', tools: [], deniedTools: [], persistent: true, logicalId: seed.id, generationId: seed.generationId });
     writeAgentIdentity({ version: 1, id: seed.id, sessionFile: seed.sessionFile, surface: seed.surface, pid: seed.pid, birth: processBirth(seed.pid), generationId: seed.generationId, policyHash: policy.policyHash });
     store.write({ ...seed, version: 1, persistent: true, logicalId: seed.id, policyHash: policy.policyHash,
