@@ -24,7 +24,7 @@ for (const [target, source] of [[settings, join(root, 'coordinator/settings.json
 const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
 const existing = findCoordinator(sessions, (id) => {
   const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
-  return view.windows.flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
+  return (view.windows ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
     .filter((block) => block.creator_name === 'com.superlogical.terminal')
     .map((block) => JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])));
 }, cwd);

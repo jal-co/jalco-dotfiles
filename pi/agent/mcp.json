@@ -105,6 +105,12 @@
     "factory-shipyard": {
       "url": "https://shipyard.factory.mastra.cloud/web/factory/projects/092d313e-271d-4e0d-9fc3-1c7200b939fc/mcp",
       "enabled": false
+    },
+    "railway": {
+      "url": "https://mcp.railway.com"
+    },
+    "superlogical": {
+      "url": "https://www.superlogical.com/rex/community-mcp"
     }
   }
 }

@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { PullRequestWatcher, PullRequestStore } from './pull-requests.mjs';
-import { TaskStore } from './tasks.mjs';
+import { TaskStore } from './tasks.ts';
 
 export function registerPullRequests(pi: ExtensionAPI, records: () => unknown[]) {
   const store = new PullRequestStore();

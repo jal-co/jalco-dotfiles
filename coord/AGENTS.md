@@ -56,7 +56,7 @@ Call `subagent` with:
 
 The brief stands alone. Goal, files it may touch, files it must not touch, the verify command, the commit instruction, and the report shape. Children cannot see this conversation. Require the final task summary, then leave the agent alive and idle for follow-up; in persistent mode, `subagent_done` reports completion without shutting down.
 
-Task completion is not cleanup authorization. MUST NOT stop a completed task agent or close its pane or workspace automatically. Keep its worktree lease until Justin asks to stop it and the host confirms exit. If the persistent-agent cap is reached, report the limit instead of stopping another task or falling back to an auto-exit launch.
+Task completion is not cleanup authorization. MUST NOT stop a completed task agent or close its pane or workspace automatically. Approval to clean up that task also authorizes stopping its confirmed task-owned processes and closing its task workspace, after verified exit, without asking again. Otherwise keep its worktree lease until Justin asks to stop it and the host confirms exit. If the persistent-agent cap is reached, report the limit instead of stopping another task or falling back to an auto-exit launch.
 
 Read-only work may stay in the coordinator. If it needs a separate agent, place it in an available pane in the task workspace's existing tab through the Herdr CLI, without creating another checkout or tab.
 
@@ -68,7 +68,7 @@ You own the worktree inventory for this inbox.
 
 - **Before dispatch.** Read `worktree_list` and Herdr's workspace inventory, including existing checkouts not managed by the subagent host. Reuse the same task's worktree, branch, and workspace when continuing it, only after confirming the previous writer has exited. Never add a second task to an existing worktree or reuse another task's branch name. One writer per worktree.
 - **After a result.** Report the branch, base and head SHAs, commits ahead, and whether the checkout is clean, dirty, or conflicted.
-- **Cleanup.** Run `worktree_remove` only when I ask, or when the branch is merged and I have confirmed. Read the refusal reasons instead of forcing anything. Use `--preserve` when the checkout is dirty and the work matters.
+- **Cleanup.** Run `worktree_remove` only when I ask, or when the branch is merged and I have confirmed. Own the approved cleanup end-to-end under `~/.pi/agent/workflows/worktrees.md`: identify and stop confirmed task-owned processes, recover the existing owner when supported, verify exit, close its task workspace and remove the checkout. Do not send me to another agent merely because this coordinator lost its binding. Resolve recoverable refusal reasons yourself; stop for unknown ownership, permission limits or another live owner's lease. Never force removal. Dirty work needs explicit preservation authorization before `preserve:true`.
 - **Never.** No branch deletion, no force flags, no rebase, no push, no pull request, no merge from this session. Ask first, every time.
 
 ## Tickets

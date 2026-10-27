@@ -4,11 +4,11 @@ import { existsSync, readFileSync, watch } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.mjs';
-import { agentIdentityFile, boundedSummary, processBirth, taskState } from './tasks.mjs';
+import { agentIdentityFile, boundedSummary, processBirth, taskState } from './tasks.ts';
 
 export class RexRecovery {
-  constructor({ store, provider, worktrees, protocol, activity, running, send, notify, flags, owner, originCwd, birth = processBirth }) {
-    Object.assign(this, { store, provider, worktrees, protocol, activity, running, send, notify, flags, owner, originCwd, birth });
+  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth }) {
+    Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth });
     this.recovered = new Set();
     this.watchers = new Map();
     this.pending = new Set();
@@ -249,8 +249,43 @@ export class RexRecovery {
       if (ids.size >= capacity) throw new Error(`Persistent specialist cap (${capacity}) reached, including retained agents. Stop an existing specialist before dispatching another.`);
     }
   }
-  resolve(params) {
-    const candidates = this.store.list().filter((row) => row.originCwd === this.originCwd && !this.running().has(row.id) && (params.id ? row.id === params.id || row.logicalId === params.id : row.name === params.name));
+  async stopMissing(params) {
+    const record = this.resolve(params, true);
+    if (!record?.persistent) return undefined;
+    const { session } = surfaceTarget(record.surface);
+    const sessions = this.provider.json(['ls', '--json']).sessions;
+    if (!Array.isArray(sessions) || sessions.some((row) => typeof row.session_id !== 'string')) throw new Error('Rex session inventory is invalid; nothing was retired');
+    const surface = sessions.some((row) => row.session_id === session)
+      ? await this.provider.inspectSurface(record.surface)
+      : { kind: 'missing' };
+    if (surface.kind === 'unavailable') throw new Error(`Rex terminal absence is unconfirmed: ${surface.error}`);
+    if (surface.kind !== 'missing') return undefined;
+    return this.store.exclusive(record.id, () => {
+      const current = this.store.read(record.id);
+      if (current.surface !== record.surface || current.sessionFile !== record.sessionFile) throw new Error('Task binding changed during stop verification');
+      if (!this.owned(current)) {
+        const stamp = this.birth(current.owner.pid);
+        if (stamp && (!current.owner.birth || stamp === current.owner.birth)) throw new Error('Another live coordinator owns this task');
+      }
+      this.checkPolicy(current);
+      this.attest(current);
+      if (!current.identity?.birth) throw new Error('Original agent process identity is unavailable; nothing was retired');
+      if (this.birth(current.identity.pid) === current.identity.birth) throw new Error('Original agent process is still alive; nothing was retired');
+      if (this.running().has(current.id)) this.retireStopped(current.id);
+      current.owner = this.owner;
+      current.stopRequested = true;
+      current.stopConfirmed = true;
+      current.state = 'stopped';
+      current.reason = 'Rex terminal is missing and original agent process exit is confirmed';
+      delete current.failure;
+      current.updatedAt = Date.now();
+      this.store.write(current);
+      this.liveness.delete(current.id);
+      return { id: current.id, name: current.name, status: 'stopped', facts: { logicalId: current.logicalId }, sessionFile: current.sessionFile, reason: current.reason };
+    });
+  }
+  resolve(params, includeRunning = false) {
+    const candidates = this.store.list().filter((row) => row.originCwd === this.originCwd && (includeRunning || !this.running().has(row.id)) && (params.id ? row.id === params.id || row.logicalId === params.id : row.name === params.name));
     if (candidates.length > 1) throw new Error('Recovered task name is ambiguous; use its exact ID');
     return candidates[0];
   }

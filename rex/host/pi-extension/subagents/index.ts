@@ -1967,7 +1967,18 @@ function startStatusRefresh(pi: ExtensionAPI) {
 	writeGlobalSlot(STATUS_INTERVAL_KEY, statusInterval);
 }
 
-export const runtimeState = { runningSubagents };
+export const runtimeState = {
+	runningSubagents,
+	retireStopped(id: string) {
+		const running = runningSubagents.get(id);
+		if (!running) return;
+		const taskId = runtime.session?.getControlTaskId(id);
+		if (taskId) runtime.session!.suppress(taskId);
+		if (running.stopTimeout) clearTimeout(running.stopTimeout);
+		runningSubagents.delete(id);
+		updateWidget();
+	},
+};
 
 export const __test__ = {
 	borderLine,

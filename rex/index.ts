@@ -9,11 +9,11 @@ import { RexWorktrees } from './worktrees.mjs';
 import { infrastructureFor, releaseInfrastructure } from './runtime.mjs';
 import { coordinatorInstructions } from './instructions.mjs';
 import { readModules } from './module-config.mjs';
-import { processBirth, TaskStore } from './tasks.mjs';
-import { RexRecovery } from './recovery.mjs';
-import rexTask from './task.ts';
+import { processBirth, TaskStore } from './tasks.ts';
 import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.mjs';
+import { RexRecovery } from './recovery.ts';
+import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
   if (process.env.PI_SUBAGENT_ID) return;
@@ -133,7 +133,9 @@ export default async function rexAgents(pi: ExtensionAPI) {
     registerTool(tool) {
       const description = tool.name === 'subagent'
         ? 'Launch a Pi task agent in its own Rex session. Use worktree:{branch,base?} for isolated code changes. Reuse the same task branch and session; never start a second writer. Set persistent:true and interactive:true for follow-ups. Approved implementation authorizes dispatch without another permission question. Results arrive automatically; never poll or invent results. Keep task sessions and checkouts after completion. Cleanup needs separate user approval.'
-        : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
+        : tool.name === 'subagent_stop'
+          ? 'Gracefully stop a persistent specialist. For a missing Rex terminal, verify saved policy, coordinator ownership and original process exit, then retire stale supervision and free its capacity. Logs and checkouts stay. Live or unverified processes block cleanup.'
+          : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
       pi.registerTool({
         ...tool,
         description,
@@ -159,6 +161,13 @@ export default async function rexAgents(pi: ExtensionAPI) {
           if (tool.name === 'subagent' && recovery) {
             const capacity = params.persistent ? persistentConfig.loadPersistentConfig(configPaths.getSubagentsConfigDir(), configPaths.getSubagentsConfigExamplePath()).maxAgents : undefined;
             recovery.assertNew(params, capacity);
+          }
+          if (tool.name === 'subagent_stop') {
+            const stopped = await recovery?.stopMissing(params);
+            if (stopped) {
+              worktrees.release({ customType: 'subagent_stop', details: stopped });
+              return { content: [{ type: 'text', text: `Specialist "${stopped.name}" stopped. ${stopped.reason}. Logs and checkout are retained.` }], details: stopped };
+            }
           }
           if (['subagent_send', 'subagent_stop', 'subagent_interrupt', 'subagent_cancel'].includes(tool.name)) {
             const recovered = recovery?.control(tool.name, params);
@@ -203,6 +212,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     recovery = new RexRecovery({
       store: new TaskStore(), provider, worktrees, protocol, activity,
       running: () => hostState.runningSubagents,
+      retireStopped: (id) => hostState.retireStopped(id),
       send: (message, options) => pi.sendMessage(message, options),
       notify: (message) => ctx.ui.notify(message, 'warning'),
       flags, originCwd: ctx.cwd,

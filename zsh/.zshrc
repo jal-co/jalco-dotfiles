@@ -74,8 +74,7 @@ plugins=(
 # di=directory (blue), ln=symlink (cyan), ex=executable (green)
 # or=orphan (red), mi=missing (bright red), sn=socket (yellow)
 export EZA_COLORS="di=34:ln=36:ex=32:or=31:mi=1;31:sn=33:bd=33:cd=33:pi=33:so=35"
-export ZOXIDE_CMD_OVERRIDE=cd
-eval "$(zoxide init zsh)"
+eval "$(zoxide init zsh --cmd cd)"
 
 zi() {
     local dir

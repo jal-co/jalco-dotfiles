@@ -9,6 +9,7 @@ Icon[]
 node_modules/
 package.json
 !/rex/package.json
+!/rex-plugins/package.json
 bun.lock
 pnpm-lock.yaml
 package-lock.json
@@ -136,3 +137,7 @@ pi/agent/chatgpt-pool.json
 # CLIProxyAPI tokens and generated config (secrets come from Keychain via `mise run cliproxy`)
 .cli-proxy-api/
 cliproxyapi/*.conf
+/pi/agent/extensions/runbook/
+/pi/agent/extensions/shared/exec.ts
+/pi/agent/extensions/shared/link.ts
+/pi/agent/extensions/shared/message.ts

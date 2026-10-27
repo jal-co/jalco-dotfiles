@@ -1,0 +1,4 @@
+node_modules/
+.state/
+coverage/
+.DS_Store

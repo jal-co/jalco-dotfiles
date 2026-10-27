@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
@@ -44,6 +44,46 @@ test('the native package loads lifecycle and PR tools without modifying the inst
   const ctx = { sessionManager: { getBranch: () => [] }, ui: { setWidget() {}, notify() {}, setStatus() {} } };
   for (const handler of extension.handlers.get('session_shutdown') ?? []) await handler({ reason: 'quit' }, ctx);
   assert.equal(existsSync(installed) ? readFileSync(installed, 'utf8') : null, before);
+});
+
+test('reload picks up recovery methods added after the module was already loaded', async (context) => {
+  const fixture = mkdtempSync(join(tmpdir(), 'rex-recovery-upgrade-'));
+  for (const name of readdirSync(root)) {
+    if (!['index.ts', 'recovery.ts', 'tasks.ts'].includes(name)) symlinkSync(join(root, name), join(fixture, name));
+  }
+  const entry = join(fixture, 'index.ts');
+  const module = join(fixture, 'recovery.ts');
+  writeFileSync(entry, readFileSync(join(root, 'index.ts')));
+  writeFileSync(module, 'export class RexRecovery { start() {} close() {} }');
+  const tasks = join(fixture, 'tasks.ts');
+  const initialTasks = 'export class TaskStore {} export const processBirth = () => "fixture-birth";';
+  writeFileSync(tasks, initialTasks);
+  const old = { REX_SESSION: process.env.REX_SESSION, HERDR_ENV: process.env.HERDR_ENV, REX_MODULES_CONFIG: process.env.REX_MODULES_CONFIG };
+  process.env.REX_SESSION = 'session:upgrade-test'; delete process.env.HERDR_ENV;
+  process.env.REX_MODULES_CONFIG = join(fixture, 'flags.json');
+  writeFileSync(process.env.REX_MODULES_CONFIG, '{"recovery":true,"overview":false}');
+  context.after(() => {
+    for (const [key, value] of Object.entries(old)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  });
+  const ctx = { cwd: fixture, sessionManager: { getBranch: () => [] }, ui: { setWidget() {}, notify() {}, setStatus() {} } };
+  const load = async () => {
+    const loaded = await loadExtensions([entry], fixture);
+    assert.deepEqual(loaded.errors, []);
+    const extension = loaded.extensions[0];
+    await extension.handlers.get('session_start').at(-1)({}, ctx);
+    return extension;
+  };
+  const first = await load();
+  await first.handlers.get('session_shutdown').at(-1)({ reason: 'reload' }, ctx);
+  writeFileSync(tasks, initialTasks + ' export const agentIdentityFile = () => "updated-module";');
+  writeFileSync(module, 'import { agentIdentityFile } from "./tasks.ts"; export class RexRecovery { start() {} close() {} stopMissing() { return { name: "upgrade-fixture", status: "stopped", reason: agentIdentityFile() }; } }');
+  const second = await load();
+  const result = await second.tools.get('subagent_stop').definition.execute('upgrade-test', { name: 'upgrade-fixture' }, undefined, undefined, ctx);
+  assert.equal(result.details.status, 'stopped');
+  assert.equal(result.details.reason, 'updated-module');
+  for (const handler of second.handlers.get('session_shutdown') ?? []) await handler({ reason: 'quit' }, ctx);
 });
 
 test('cleanup isolates unrelated identity failures and refreshes retained adapters on reload', async (context) => {

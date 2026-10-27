@@ -8,7 +8,8 @@
   "defaultThinkingLevel": "medium",
   "enabledModels": [
     "cliproxyapi/gpt-6.1-sol",
-    "cliproxyapi/gpt-6-astra"
+    "cliproxyapi/gpt-6-astra",
+    "cliproxyapi/claude-opus-5-5"
   ],
   "enableSkillCommands": true,
   "skills": [],

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { RexRecovery } from './recovery.mjs';
+import { RexRecovery } from './recovery.ts';
 import { agentIdentityFile, TaskStore, boundedSummary, cleanText, taskState, writeAgentIdentity } from './tasks.mjs';
 
 function fixture() {
@@ -17,7 +17,7 @@ function fixture() {
   const events = []; const ledger = []; const messages = []; const inbox = [];
   const policy = { version: 2, logicalId: record.logicalId, generationId: record.generationId, policyHash: record.policyHash, persistent: true };
   const recovery = new RexRecovery({ store,
-    provider: { process: () => ({ foreground: { pid: 222 } }), sessions: new Set(), sendKeys: () => {} },
+    provider: { process: () => ({ foreground: { pid: 222 } }), sessions: new Set(), sendKeys: () => {}, json: () => ({ sessions: [{ session_id: 'session:a' }] }) },
     worktrees: {}, protocol: { readSubagentSessionPolicy: () => policy, readPersistentTaskEvents: () => events, readPersistentDeliveryLedger: () => ledger,
       appendPersistentDeliveryLedger: (_file, row) => ledger.push(row), writePersistentTaskInbox: (_file, sequence, row) => inbox.push({ sequence, ...row }) },
     activity: { readSubagentActivityFile: () => ({ ok: true, activity: { phase: 'waiting' } }) },
@@ -158,4 +158,86 @@ test('bounded summary never reads the full historical transcript or later task o
   writeFileSync(f.record.sessionFile, 'x'.repeat(150000) + '\n' + JSON.stringify({ type: 'message', timestamp: '2026-01-01', message: { role: 'assistant', content: [{ type: 'text', text: 'first' }] } }) + '\n' + JSON.stringify({ type: 'message', timestamp: '2026-02-01', message: { role: 'assistant', content: [{ type: 'text', text: 'later' }] } }) + '\n');
   assert.equal(boundedSummary(f.record.sessionFile, '2026-01-02'), 'first');
   assert.ok(readFileSync(f.record.sessionFile).length > 128000);
+});
+
+test('stop retires a missing terminal only after verifying the original process exited', async () => {
+  const f = fixture();
+  f.record.owner = f.recovery.owner; f.store.write(f.record);
+  const running = new Map([[f.record.id, { ...f.record, persistent: true }]]);
+  const retired = [];
+  f.recovery.running = () => running;
+  f.recovery.retireStopped = (id) => { retired.push(id); running.delete(id); };
+  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+  f.recovery.birth = (pid) => pid === 222 ? null : 'new';
+  const result = await f.recovery.stopMissing({ name: 'fixture' });
+  assert.equal(result.status, 'stopped');
+  assert.deepEqual(retired, ['run-a']);
+  assert.equal(f.store.read('run-a').stopConfirmed, true);
+  assert.equal(f.store.read('run-a').state, 'stopped');
+  assert.equal(f.inbox.length, 0);
+  f.recovery.assertNew({ name: 'another', persistent: true }, 1);
+  assert.equal((await f.recovery.stopMissing({ id: 'logical-a' })).status, 'stopped');
+  assert.deepEqual(retired, ['run-a']);
+});
+
+test('missing terminal cleanup can claim a dead owner without an exit sidecar', async () => {
+  const f = fixture();
+  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+  f.recovery.birth = (pid) => pid === 222 ? 'reused-pid' : pid === 333 ? 'new' : null;
+  const result = await f.recovery.stopMissing({ id: 'logical-a' });
+  assert.equal(result.status, 'stopped');
+  assert.equal(f.store.read('run-a').owner.pid, 333);
+  assert.equal(f.store.read('run-a').identity.pid, 222);
+});
+
+test('missing terminal cleanup refuses live, unattested and unreadable process identities', async () => {
+  for (const mode of ['alive', 'unattested', 'unreadable']) {
+    const f = fixture();
+    f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+    if (mode === 'unattested') { delete f.record.identity; f.store.write(f.record); }
+    if (mode === 'unreadable') f.recovery.birth = () => { throw new Error('process inspection unavailable'); };
+    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
+    assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+    assert.equal(f.inbox.length, 0);
+  }
+});
+
+test('missing terminal cleanup preserves ownership, generation and transport safety checks', async () => {
+  for (const mode of ['owner', 'policy', 'transport', 'changed']) {
+    const f = fixture();
+    f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
+    f.recovery.provider.inspectSurface = async () => {
+      if (mode === 'changed') f.store.write({ ...f.record, surface: 'session:new/block:new' });
+      return mode === 'transport' ? { kind: 'unavailable', error: 'offline' } : { kind: 'missing' };
+    };
+    if (mode === 'owner') f.recovery.birth = (pid) => pid === 111 ? 'old' : null;
+    if (mode === 'policy') f.policy.policyHash = 'changed';
+    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
+    assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+    assert.equal(f.inbox.length, 0);
+  }
+});
+
+test('present terminals retain the existing graceful stop path', async () => {
+  const f = fixture();
+  f.recovery.provider.inspectSurface = async () => ({ kind: 'present' });
+  assert.equal(await f.recovery.stopMissing({ name: 'fixture' }), undefined);
+  assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+});
+
+test('a missing session does not inspect unrelated windowless sessions', async () => {
+  const f = fixture();
+  f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
+  f.recovery.provider.json = () => ({ sessions: [{ session_id: 'session:unrelated' }] });
+  f.recovery.provider.inspectSurface = () => { throw new Error('view.windows is not iterable'); };
+  assert.equal((await f.recovery.stopMissing({ name: 'fixture' })).status, 'stopped');
+});
+
+test('unavailable and malformed session inventories never prove terminal absence', async () => {
+  for (const inventory of [undefined, {}, { sessions: null }, { sessions: [{}] }]) {
+    const f = fixture();
+    f.recovery.provider.json = () => inventory;
+    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
+    assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+  }
 });

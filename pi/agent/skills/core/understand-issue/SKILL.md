@@ -1,6 +1,6 @@
 ---
 name: understand-issue
-description: Investigate a GitHub issue or reported bug the way a seasoned maintainer would — form an independent model before reading the thread's theories, trace the mechanism and history, verify the diagnosis, and return a concise briefing with a verdict and fix direction. Use for triage, root-cause analysis, or re-investigation.
+description: Investigate a GitHub issue or reported bug the way a seasoned maintainer would — form an independent model before reading the thread's theories, trace the mechanism and history, verify the diagnosis, and return a concise briefing with a verdict and fix direction. Use for triage, root-cause analysis, or re-investigation, including Sazabi issues and Mastra Platform bug reports.
 metadata:
   goal: true
 ---
@@ -85,6 +85,14 @@ History answers whether the current behavior is an accident or a decision, and w
 Use blame, `git log -S`, originating PRs, and linked issues. End with the implication for this issue. "Nothing notable" is a valid result. Recipes live in `references/recipes.md`.
 
 Once the thread is open, `mastra_expert` may help orient you on Mastra-specific history. Verify its leads yourself; it is not required.
+
+## Mastra Platform and Sazabi operational evidence
+
+For Sazabi issues or Mastra Platform bugs whose diagnosis depends on deployed state, load `~/.pi/agent/skills/work/admin-cli/SKILL.md` and its command-selection reference. Use the repository-local admin CLI to inspect the affected project, environment, deployment, logs or runtime instead of guessing from source alone. Pure local UI bugs do not require production access.
+
+Start with `auth whoami` against the intended environment and verify the account and organization before querying customer state. A production login for Justin was verified previously, but recheck it rather than treating saved credentials as valid. Normal admin API commands use that login; do not request a Railway token by default. Only direct Railway operations require `SERVER_PROVIDER_TOKEN`; load it through an approved secret reference if actually needed, never print or store its value in task artifacts.
+
+Keep investigation read-only, resolve exact project/environment/deployment identities, and follow the admin skill's safety rules. A bug report does not authorize stopping services, redeploying, cleanup, credential changes or other mutations. If authentication fails, report the failure before initiating browser login. Separate observed operational evidence from source-confirmed behavior and unverified hypotheses in the briefing.
 
 ## 5. Verify the diagnosis
 
