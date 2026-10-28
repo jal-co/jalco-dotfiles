@@ -1,0 +1,1 @@
+exec node "$HOME/dotfiles/rex/src/pinned.mjs" "$@"

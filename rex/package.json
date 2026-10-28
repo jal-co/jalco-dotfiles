@@ -11,7 +11,10 @@
     "subagents"
   ],
   "scripts": {
-    "test": "node --test *.test.mjs"
+    "test": "node --test test/*.test.mjs task-runtime/test/*.test.mjs",
+    "test:live": "node task-runtime/test/live.mjs",
+    "task-runtime": "node task-runtime/src/cli.mjs",
+    "mcp": "node task-runtime/src/mcp.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -21,25 +24,15 @@
   },
   "pi": {
     "extensions": [
-      "./index.ts"
+      "./src/index.ts"
     ]
   },
   "files": [
-    "index.ts",
+    "src/",
     "host/",
-    "provider.mjs",
-    "worktrees.mjs",
-    "runtime.mjs",
-    "tasks.mjs",
-    "tasks.ts",
-    "recovery.ts",
-    "recovery-events.lua",
-    "module-config.mjs",
-    "modules.json",
-    "instructions.mjs",
-    "task.ts",
-    "pull-requests.ts",
-    "pull-requests.mjs",
-    "history.mjs"
-  ]
+    "config/modules.json"
+  ],
+  "engines": {
+    "node": ">=24.2"
+  }
 }

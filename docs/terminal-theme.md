@@ -6,11 +6,11 @@ Ghostty loads `Pierre Dark` from `ghostty/themes/Pierre Dark`. It uses Pierre Da
 
 Herdr remains on `terminal`, with no custom palette overrides. Geist Mono, font size, keybindings, notification delivery, and the wider sidebar are unchanged.
 
-Rex is the default coordinator terminal. Its existing appearance is backed up in `rex/appearance.plist`, separately from the Pi theme. The migration does not write Rex appearance settings. See [Rex configuration](../rex/README.md#appearance) for capture, check and restore commands.
+Rex is the default coordinator terminal. Its existing appearance is backed up in `rex/appearance/appearance.plist`, separately from the Pi theme. The migration does not write Rex appearance settings. See [Rex configuration](../rex/README.md#appearance) for capture, check and restore commands.
 
 Rex session pinning uses native Lua actions and a headless event watcher, separate from appearance settings. See [Pin sessions](../rex/README.md#pin-sessions) for usage and service setup. It does not change the theme or keyboard shortcuts.
 
-Rex recovery and Task Overview are independently switchable in `rex/modules.json`. The overview uses a normal pinned session and native program-status indicators, not a custom sidebar or renamed sessions. Both leave appearance settings and the pin service alone. A guarded 3.3.1 compatibility fix keeps repeated persistent task completion from shutting down an agent; existing task sessions need `/reload` to load it. See [Recovery and task overview](../rex/README.md#recovery-and-task-overview) for activation and limits.
+Rex recovery and Task Overview are independently switchable in `rex/config/modules.json`. The overview uses a normal pinned session and native program-status indicators, not a custom sidebar or renamed sessions. Both leave appearance settings and the pin service alone. A guarded 3.3.1 compatibility fix keeps repeated persistent task completion from shutting down an agent; existing task sessions need `/reload` to load it. See [Recovery and task overview](../rex/README.md#recovery-and-task-overview) for activation and limits.
 
 ## Apply to running sessions
 

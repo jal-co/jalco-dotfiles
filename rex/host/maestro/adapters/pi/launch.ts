@@ -842,7 +842,7 @@ function buildPiCommand(
 		shellQuote(artifacts.sessionFile),
 		...(request.handoff
 			? []
-			: ["-e", shellQuote(join(SUBAGENTS_DIR, "child", "subagent-done.ts")), "-e", shellQuote(join(SUBAGENTS_DIR, "../../../../task.ts"))]),
+			: ["-e", shellQuote(join(SUBAGENTS_DIR, "child", "subagent-done.ts")), "-e", shellQuote(join(SUBAGENTS_DIR, "../../../../src/task.ts"))]),
 		"--model",
 		shellQuote(request.runtimePlan.model),
 		"--thinking",
@@ -1082,7 +1082,7 @@ async function launchResumedPiSubagent(
 			"-e",
 			shellQuote(join(SUBAGENTS_DIR, "child", "subagent-done.ts")),
 			"-e",
-			shellQuote(join(SUBAGENTS_DIR, "../../../../task.ts")),
+			shellQuote(join(SUBAGENTS_DIR, "../../../../src/task.ts")),
 			...(messageFile ? [shellQuote(`@${messageFile}`)] : []),
 		].join(" ");
 		const launchScriptFile = await operations.runScript(

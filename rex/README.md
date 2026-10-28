@@ -35,21 +35,25 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `coordinator/AGENTS.md` | Dispatch, follow-up, ownership and cleanup rules |
 | `package.json` | Local `pi-rex-agents` package manifest |
 | `coordinator/settings.json` | Loads this package and disables only the upstream Herdr host in the coordinator |
-| `index.ts`, `host/` | Package-owned agent host and Rex lifecycle integration |
-| `pull-requests.mjs`, `pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
-| `history.mjs` | Private task/coordinator transcript archives and searchable metadata |
-| `provider.mjs` | Rex session, terminal and process adapter |
-| `runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
-| `modules.json` | Independent recovery and overview switches |
-| `tasks.ts`, `recovery.ts`, `recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
-| `task-overview.lua`, `overview*.mjs` | Native Task Overview action and read-only live view |
-| `task.ts` | Package-owned child process attestation and native status indicators |
+| `host/` | Package-owned agent host |
+| `src/pull-requests.mjs`, `src/pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
+| `src/index.ts` | Pi extension entry for the package |
+| `src/history.mjs` | Private task/coordinator transcript archives and searchable metadata |
+| `src/provider.mjs` | Rex session, terminal and process adapter |
+| `src/runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
+| `src/tasks.ts`, `src/recovery.ts`, `src/recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
+| `src/overview*.mjs`, `config/task-overview.lua` | Native Task Overview action and read-only live view |
+| `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
-| `worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
-| `appearance.plist` | Rex appearance backup, including the custom theme |
-| `init.lua`, `session-pins.lua` | Native Rex command-palette actions and event subscription |
-| `session-pins.mjs` | Persistent pins and event-driven order enforcement |
-| `com.jalco.rex-session-pins.plist` | Headless pin watcher at login |
+| `src/worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
+| `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
+| `config/modules.json` | Independent recovery and overview switches |
+| `config/init.lua` | Native Rex command-palette actions |
+| `plugins/session-pins/` | Persistent pins, event-driven order enforcement and the Lua actions |
+| `launchd/` | Headless pin watcher at login |
+| `appearance/` | Rex appearance backup and the script that captures and restores it |
+| `task-runtime/` | Agent-independent task CLI, MCP server and optional Pi adapter. See its [README](task-runtime/README.md) |
+| `test/`, `test/live/` | Unit tests and live Rex proofs |
 
 `mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex Beta must already be installed at `/Applications/Rex Beta.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
 
@@ -90,15 +94,15 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 No Rex appearance settings were changed. Capture or check the dotfiles backup with:
 
 ```sh
-python3 ~/dotfiles/rex/preferences.py capture
-python3 ~/dotfiles/rex/preferences.py check
+python3 ~/dotfiles/rex/appearance/preferences.py capture
+python3 ~/dotfiles/rex/appearance/preferences.py check
 ```
 
-To restore that appearance on another installation, run `python3 ~/dotfiles/rex/preferences.py restore`. It merges the saved appearance into existing preferences without importing session history, connection data or window positions. Reopen Rex when convenient; the script does not stop it.
+To restore that appearance on another installation, run `python3 ~/dotfiles/rex/appearance/preferences.py restore`. It merges the saved appearance into existing preferences without importing session history, connection data or window positions. Reopen Rex when convenient; the script does not stop it.
 
 ## Recovery and task overview
 
-`modules.json`, linked at `~/.config/rex/modules.json`, has two independent boolean switches:
+`config/modules.json`, linked at `~/.config/rex/modules.json`, has two independent boolean switches:
 
 ```json
 {
@@ -113,7 +117,7 @@ Recovery saves task metadata under `~/.rex/tasks`. After a coordinator process r
 
 On first installation, reload the coordinator and any already-running task agents before relying on restart recovery. Old children without process attestation remain unverified. Reloading a task agent publishes its identity without starting a new process. This does not restore agents whose Rex terminals or processes have been destroyed.
 
-Task Overview is disabled and its command-palette action is no longer loaded by `init.lua`. Task recovery, existing agents and session pinning remain enabled. `/rex-tasks` still shows the saved task list in Pi.
+Task Overview is disabled and its command-palette action is no longer loaded by `config/init.lua`. Task recovery, existing agents and session pinning remain enabled. `/rex-tasks` still shows the saved task list in Pi.
 
 New or reloaded Pi sessions in Rex emit native idle, working, blocked, done and error indicators independently of both module switches. This covers the coordinator, managed task agents and ordinary Pi sessions. Questions and confirmation dialogs stay blocked until answered. An open overview still stops its own watchers when disabled; agents continue running.
 
@@ -128,14 +132,14 @@ The launcher does not restart a running coordinator or adopt its tasks behind it
 ## Checks
 
 ```sh
-node --test ~/dotfiles/rex/*.test.mjs
+cd ~/dotfiles/rex && npm test
 node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/git-interceptor.test.ts
 ```
 
-Run `node ~/dotfiles/rex/package-live-test.mjs` for a model-free check that the coordinator's package configuration loads exactly one set of agent, PR and memory tools before and after `/reload`. It creates and closes only a disposable Rex session and retains its evidence under `~/.local/state/pi-rex-package-proof-*`.
+Run `node ~/dotfiles/rex/test/live/package-live-test.mjs` for a model-free check that the coordinator's package configuration loads exactly one set of agent, PR and memory tools before and after `/reload`. It creates and closes only a disposable Rex session and retains its evidence under `~/.local/state/pi-rex-package-proof-*`.
 
-Run `node ~/dotfiles/rex/recovery-live-test.mjs` for the model-free restart proof. It uses real Pi coordinator processes and a deterministic Node worker in disposable Rex sessions. It checks reconnection to the same PID, two automatic results, follow-up, native status, opening the overview and confirmed graceful stop. It closes its own sessions and retains the report under `~/.local/state/rex-recovery-proof`.
+Run `node ~/dotfiles/rex/test/live/recovery-live-test.mjs` for the model-free restart proof. It uses real Pi coordinator processes and a deterministic Node worker in disposable Rex sessions. It checks reconnection to the same PID, two automatic results, follow-up, native status, opening the overview and confirmed graceful stop. It closes its own sessions and retains the report under `~/.local/state/rex-recovery-proof`.
 
-Run `node ~/dotfiles/rex/session-pins-live-test.mjs` before installing the production pin service, or with that service stopped. It uses an isolated pin file, creates only disposable test sessions, verifies native actions and event-driven ordering across a watcher restart, then closes those sessions and stops its test watchers. It preserves the relative order of existing sessions.
+Run `node ~/dotfiles/rex/test/live/session-pins-live-test.mjs` before installing the production pin service, or with that service stopped. It uses an isolated pin file, creates only disposable test sessions, verifies native actions and event-driven ordering across a watcher restart, then closes those sessions and stops its test watchers. It preserves the relative order of existing sessions.
 
-`live-test.mjs` runs in a dedicated Rex terminal with `REX_PROOF_DIR` set to a fresh report directory inside the home directory. It creates a disposable Git repository and managed worktree, receives three automatic results across a coordinator reload and a confirmed-stop checkout/terminal reuse, rejects duplicate acquisition, checks inventory, verifies dirty-cleanup refusal, then preserves and removes its own checkout. It uses the configured model preferences and incurs model usage. Reports contain the event transcript, diagnostics and `result.json`; no user task sessions are closed.
+`test/live/live-test.mjs` runs in a dedicated Rex terminal with `REX_PROOF_DIR` set to a fresh report directory inside the home directory. It creates a disposable Git repository and managed worktree, receives three automatic results across a coordinator reload and a confirmed-stop checkout/terminal reuse, rejects duplicate acquisition, checks inventory, verifies dirty-cleanup refusal, then preserves and removes its own checkout. It uses the configured model preferences and incurs model usage. Reports contain the event transcript, diagnostics and `result.json`; no user task sessions are closed.

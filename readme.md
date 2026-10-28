@@ -50,7 +50,7 @@ Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private
 | `ghostty/`, `eza/`, `zed/`, `ponytail/`, `mise/` | `~/.config/<name>` |
 | `starship/` | `~/.config/starship.toml` |
 | `agents/` | `~/.agents` (shared skills) |
-| `rex/` | Rex launchers, `~/rex-coord` rules and settings, appearance backup |
+| `rex/` | Rex agent host, task runtime, session pins, launcher, `~/rex-coord` rules and settings, appearance backup |
 | `herdr/`, `coord/` | Retained Herdr configuration and coordinator |
 | `pi/` | config entries in `~/.pi` and `~/.pi/agent` |
 | `tools/anti-slop/` | not linked; run through the `anti-slop` alias |

@@ -5,6 +5,6 @@ import { pathToFileURL } from 'node:url';
 
 export default async function rexTask(pi: ExtensionAPI) {
   if (process.env.PI_REX_AGENT === '1' || !process.env.REX_SESSION) return;
-  const { default: register } = await import(pathToFileURL(join(homedir(), 'dotfiles/rex/task.ts')).href);
+  const { default: register } = await import(pathToFileURL(join(homedir(), 'dotfiles/rex/src/task.ts')).href);
   await register(pi);
 }
