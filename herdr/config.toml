@@ -23,12 +23,6 @@ command = "herdr-bar.open"
 description = "command bar"
 
 [[keys.command]]
-key = "prefix+i"
-type = "plugin_action"
-command = "speardragon.herdr-island.toggle"
-description = "Herdr Island"
-
-[[keys.command]]
 key = "prefix+p"
 type = "plugin_action"
 command = "ray.plugin-manager.open"
