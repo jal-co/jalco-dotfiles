@@ -37,7 +37,7 @@
     }
   },
   "persistent": {
-    "maxAgents": 3
+    "maxAgents": 8
   },
   "supervision": {
     "forcePolling": false,

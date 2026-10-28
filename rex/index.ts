@@ -4,7 +4,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { RexSurfaceProvider } from './provider.mjs';
+import { RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.mjs';
 import { RexWorktrees } from './worktrees.mjs';
 import { infrastructureFor, releaseInfrastructure } from './runtime.mjs';
 import { coordinatorInstructions } from './instructions.mjs';
@@ -75,7 +75,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     };
     worktrees.checkHolders = async (record) => {
       const live = provider.json(['ls', '--json']).sessions;
-      const present = live.some((entry) => entry.session_id === record.workspaceId);
+      const present = record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session);
       return processHolders({ path: record.path, workspaceId: present ? record.workspaceId : undefined });
     };
     const supervision = new SupervisionCoordinator(
@@ -84,6 +84,10 @@ export default async function rexAgents(pi: ExtensionAPI) {
     );
     return { provider, worktrees, cleanupOperations, worktreeOperations, supervision };
   });
+  Object.setPrototypeOf(provider, RexSurfaceProvider.prototype);
+  provider.root ??= join(homedir(), '.rex');
+  provider.repository ??= repositoryFor;
+  Object.setPrototypeOf(worktrees, RexWorktrees.prototype);
   const inspectGit = worktreeModule.createWorktreeCleanupOperations(provider, {
     manifestDir: worktrees.registry, liveHolders: () => [],
   }).inspectGit;
@@ -106,7 +110,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
       try { worktrees.verify(record); } catch { return []; }
       return [{
         path: record.path, branch: record.branch, isLinkedWorktree: true,
-        workspaceId: live.some((entry) => entry.session_id === record.workspaceId) ? record.workspaceId : undefined,
+        workspaceId: record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session) ? record.workspaceId : undefined,
       }];
     });
   };
@@ -132,7 +136,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     },
     registerTool(tool) {
       const description = tool.name === 'subagent'
-        ? 'Launch a Pi task agent in its own Rex session. Use worktree:{branch,base?} for isolated code changes. Reuse the same task branch and session; never start a second writer. Set persistent:true and interactive:true for follow-ups. Approved implementation authorizes dispatch without another permission question. Results arrive automatically; never poll or invent results. Keep task sessions and checkouts after completion. Cleanup needs separate user approval.'
+        ? 'Launch a Pi task agent in its own tab within the repository Rex session. Use worktree:{branch,base?} for isolated code changes. Reuse the same task branch and tab; never start a second writer. Set persistent:true and interactive:true for follow-ups. Approved implementation authorizes dispatch without another permission question. Results arrive automatically; never poll or invent results. Keep task tabs and checkouts after completion. Cleanup needs separate user approval.'
         : tool.name === 'subagent_stop'
           ? 'Gracefully stop a persistent specialist. For a missing Rex terminal, verify saved policy, coordinator ownership and original process exit, then retire stale supervision and free its capacity. Logs and checkouts stay. Live or unverified processes block cleanup.'
           : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');

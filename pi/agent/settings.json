@@ -9,7 +9,8 @@
   "enabledModels": [
     "cliproxyapi/gpt-6.1-sol",
     "cliproxyapi/gpt-6-astra",
-    "cliproxyapi/claude-opus-5-5"
+    "cliproxyapi/claude-opus-5-5",
+    "cliproxyapi/claude-sonnet-5-5"
   ],
   "enableSkillCommands": true,
   "skills": [],
@@ -42,7 +43,11 @@
     "git:github.com/mastra-ai/pi-alexandria",
     "npm:pi-title-renamer",
     "npm:@router-for-me/pi-cliproxyapi-provider",
-    "npm:pi-herdr-agents",
+    {
+      "source": "npm:pi-herdr-agents",
+      "extensions": [],
+      "skills": []
+    },
     "npm:pi-herdr-pstack"
   ],
   "quietStartup": "header",

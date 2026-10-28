@@ -166,8 +166,18 @@ test('cleanup isolates unrelated identity failures and refreshes retained adapte
   const rejected = (await inventory(first)).find((row) => row.path === good.path);
   assert.equal(rejected.classification, 'unknown');
   assert.ok(rejected.blockers.some((value) => /identity changed|Retained checkout is missing|symbolic link|source repository/.test(value)), JSON.stringify(rejected));
+  const staleProvider = Object.create(Object.getPrototypeOf(provider));
+  const staleWorktrees = Object.create(Object.getPrototypeOf(worktrees));
+  Object.setPrototypeOf(provider, staleProvider);
+  Object.setPrototypeOf(worktrees, staleWorktrees);
+  delete provider.root;
+  delete provider.repository;
   for (const handler of first.handlers.get('session_shutdown') ?? []) await handler({ reason: 'reload' }, ctx);
   const second = await load();
+  assert.notEqual(Object.getPrototypeOf(provider), staleProvider);
+  assert.notEqual(Object.getPrototypeOf(worktrees), staleWorktrees);
+  assert.equal(provider.root, join(homedir(), '.rex'));
+  assert.equal(provider.repository(repo), repo);
   assert.equal(globalThis[Symbol.for('justin.rex.agent-infrastructure')].get(session), infrastructure);
   assert.equal(infrastructure.provider, provider);
   assert.equal(infrastructure.supervision, supervision);

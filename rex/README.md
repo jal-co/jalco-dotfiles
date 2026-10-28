@@ -59,11 +59,13 @@ Run `/reload` in the coordinator to load package changes. This does not restart 
 
 ## Tasks and worktrees
 
-An approved implementation request authorizes one persistent task agent without another dispatch-permission question. Each task gets its own Rex session and, except for the existing dotfiles and local-only repository exceptions, an isolated worktree.
+An approved implementation request authorizes one persistent task agent without another dispatch-permission question. Rex uses one session per repository, named after the repository. Each task opens a background tab with its own Pi conversation and, except for the existing dotfiles and local-only repository exceptions, an isolated worktree. Task names belong on tabs, not the shared session.
 
 The persistent-completion fix is built into the fork's child handler. Repeated `subagent_done`, completion after automatic settlement, and completion after reload keep persistent agents alive. Only an explicit stop shuts them down. Ordinary agents still exit normally. Startup no longer modifies the installed Herdr host.
 
-Use `subagent` with `persistent:true`, `interactive:true` and `worktree:{branch,base}`. Use `subagent_send` for follow-up work on the same idle agent. Results arrive automatically, including after `/reload`; do not poll session logs. Task completion does not stop the agent or authorize cleanup.
+Use `subagent` with `persistent:true`, `interactive:true` and `worktree:{branch,base}`. Use `subagent_send` for follow-up work on the same idle agent. Results arrive automatically, including after `/reload`; do not poll session logs. Task completion does not stop the agent or authorize cleanup. Approved task cleanup closes only that task's terminal, never the shared repository session.
+
+Repository session bindings live under `~/.rex/repositories`, keyed by canonical repository path. They survive coordinator reloads and restarts. Repositories with the same name remain separate. Non-Git directories group by their canonical directory path. Existing task sessions remain unchanged; only new task launches use repository grouping. A closed repository session is recreated on the next launch.
 
 Checkouts live under `~/.rex/worktrees`. Ownership records, terminal bindings, manifests and coordinator leases live under `~/.rex/registry`. These runtime files are not committed. A matching retained task can reuse its checkout and shell after the previous owner confirms exit. Another task's branch, an unmanaged checkout, a closed pull request, unknown process state or a live lease blocks reuse.
 
@@ -136,4 +138,4 @@ Run `node ~/dotfiles/rex/recovery-live-test.mjs` for the model-free restart proo
 
 Run `node ~/dotfiles/rex/session-pins-live-test.mjs` before installing the production pin service, or with that service stopped. It uses an isolated pin file, creates only disposable test sessions, verifies native actions and event-driven ordering across a watcher restart, then closes those sessions and stops its test watchers. It preserves the relative order of existing sessions.
 
-`live-test.mjs` runs in a dedicated Rex terminal with `REX_PROOF_DIR` set to a fresh report directory inside the home directory. It creates a disposable Git repository and managed worktree, receives three automatic results across a coordinator reload and a confirmed-stop checkout/session reuse, rejects duplicate acquisition, checks inventory, verifies dirty-cleanup refusal, then preserves and removes its own checkout. It uses the configured model preferences and incurs model usage. Reports contain the event transcript, diagnostics and `result.json`; no user task sessions are closed.
+`live-test.mjs` runs in a dedicated Rex terminal with `REX_PROOF_DIR` set to a fresh report directory inside the home directory. It creates a disposable Git repository and managed worktree, receives three automatic results across a coordinator reload and a confirmed-stop checkout/terminal reuse, rejects duplicate acquisition, checks inventory, verifies dirty-cleanup refusal, then preserves and removes its own checkout. It uses the configured model preferences and incurs model usage. Reports contain the event transcript, diagnostics and `result.json`; no user task sessions are closed.

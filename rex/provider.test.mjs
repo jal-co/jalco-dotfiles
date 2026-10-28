@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmdirSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { RexSurfaceProvider, surfaceTarget } from './provider.mjs';
+import { RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.mjs';
 
 const session = 'session:test-1';
 const block = 'block:test-1';
@@ -16,10 +16,11 @@ function fixture() {
     if (args[0] === 'new') return JSON.stringify({ session_id: session, initial_windows: [{ block_ids: [block] }] });
     if (args[0] === 'ls') return JSON.stringify({ sessions: [{ session_id: session }, { session_id: 'session:user' }] });
     if (args[0] === 'session') return JSON.stringify({ windows: [{ window_id: 'window:test', layers: [{ blocks: [{ block_id: block, label: 'task' }] }] }] });
+    if (args[0] === 'window') return JSON.stringify({ block_ids: ['block:test-2'] });
     if (args[0] === 'capture') return 'first\nsecond\nthird';
     if (args[0] === 'block' && args[1] === 'call') return JSON.stringify({ child: { pid: 1 }, foreground: { pid: 2, name: 'zsh', argv0: '-zsh' } });
     return '{}';
-  }, () => 2);
+  }, () => 2, { root: mkdtempSync(join(tmpdir(), 'rex-provider-registry-')), repository: (cwd) => cwd });
   return { provider, calls };
 }
 
@@ -30,10 +31,10 @@ test('surface IDs require full session and block IDs', () => {
   }
 });
 
-test('each child creates a dedicated background session with an explicit cwd', () => {
+test('first task creates a repository session with an explicitly named task tab', () => {
   const { provider, calls } = fixture();
   assert.equal(provider.createSurface({ name: 'task', cwd: '/tmp/task' }), id);
-  assert.deepEqual(calls[0], ['new', 'task', '-c', '/tmp/task', '--window', 'task', '--json']);
+  assert.deepEqual(calls[1], ['new', 'task', '-c', '/tmp/task', '--window', 'task', '--json']);
   assert.throws(() => provider.closeSurface('session:user/block:user'), /not owned/);
 });
 
@@ -116,4 +117,72 @@ test('worktree operations fail closed when no manager is configured', () => {
   assert.throws(() => provider.createWorktreeSurface(), /not configured/);
   assert.throws(() => provider.removeWorktreeSurface(), /not configured/);
   assert.equal(calls.length, 0);
+});
+
+test('tasks in the same repository open background tabs and survive provider reload', () => {
+  const { provider, calls } = fixture();
+  provider.createSurface({ name: 'stage', cwd: '/tmp/repo', repo: '/tmp/repo' });
+  const restarted = new RexSurfaceProvider(provider.call, provider.processGroup, { root: provider.root });
+  assert.equal(restarted.createSurface({ name: 'build', cwd: '/tmp/worktree', repo: '/tmp/repo' }), `${session}/block:test-2`);
+  assert.deepEqual(calls.at(-1), ['window', 'new', '-s', session, 'build', '-c', '/tmp/worktree', '--focus=false', '--json']);
+  assert.equal(calls.filter((args) => args[0] === 'new').length, 1);
+});
+
+test('different repositories with the same basename never share a session record', () => {
+  const { provider, calls } = fixture();
+  provider.createSurface({ name: 'first', cwd: '/tmp/one/repo' });
+  provider.createSurface({ name: 'second', cwd: '/tmp/two/repo' });
+  assert.equal(calls.filter((args) => args[0] === 'new').length, 2);
+  assert.equal(calls.some((args) => args[0] === 'window'), false);
+});
+
+test('a closed repository session is recreated rather than adding a tab elsewhere', () => {
+  const { provider, calls } = fixture();
+  provider.createSurface({ name: 'first', cwd: '/tmp/repo' });
+  const call = provider.call;
+  provider.call = (args) => args[0] === 'ls' ? '{"sessions":[]}' : call(args);
+  provider.createSurface({ name: 'second', cwd: '/tmp/repo' });
+  assert.equal(calls.filter((args) => args[0] === 'new').length, 2);
+});
+
+test('an unavailable inventory never creates a replacement session', () => {
+  const { provider, calls } = fixture();
+  provider.createSurface({ name: 'first', cwd: '/tmp/repo' });
+  const call = provider.call;
+  provider.call = (args) => {
+    if (args[0] === 'ls') throw new Error('server unreachable');
+    return call(args);
+  };
+  assert.throws(() => provider.createSurface({ name: 'second', cwd: '/tmp/repo' }), /server unreachable/);
+  assert.equal(calls.filter((args) => args[0] === 'new').length, 1);
+});
+
+test('shared session inventory keeps each task cleanup identity separate', async () => {
+  const { provider } = fixture();
+  const surface = provider.createSurface({ name: 'first', cwd: '/tmp/repo' });
+  provider.worktrees = { records: () => [{ workspaceId: surface, surfaceId: surface }] };
+  const surfaces = await provider.listSurfaces();
+  assert.equal(surfaces[0].workspaceId, surface);
+  provider.worktrees = { records: () => [{ workspaceId: session, surfaceId: surface }] };
+  assert.equal((await provider.listSurfaces())[0].workspaceId, session);
+});
+
+test('non-repository directories group by their canonical path', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'rex-directory-'));
+  assert.equal(repositoryFor(directory), directory.startsWith('/var/') ? `/private${directory}` : directory);
+  rmdirSync(directory);
+});
+
+
+test('a corrupt repository binding blocks launch rather than duplicating its session', () => {
+  const { provider, calls } = fixture();
+  provider.createSurface({ name: 'first', cwd: '/tmp/repo' });
+  const directory = join(provider.root, 'repositories');
+  const file = join(directory, readdirSync(directory)[0]);
+  for (const invalid of ['null', '{"repo":"/tmp/another","session":"session:test-1"}', '{']) {
+    writeFileSync(file, invalid);
+    assert.throws(() => provider.createSurface({ name: 'second', cwd: '/tmp/repo' }));
+    assert.equal(calls.filter((args) => args[0] === 'new').length, 1);
+    assert.equal(readFileSync(file, 'utf8'), invalid);
+  }
 });

@@ -1,7 +1,7 @@
 # Rex coordinator
 
 <context>
-This session is the inbox. Rex is the default terminal. Herdr remains installed as a fallback. Task execution belongs in persistent task sessions, not this inbox.
+This session is the inbox. Rex is the default terminal. Herdr remains installed as a fallback. Task execution belongs in persistent task tabs in repository sessions, not this inbox.
 </context>
 
 <rules>
@@ -16,12 +16,12 @@ This session is the inbox. Rex is the default terminal. Herdr remains installed 
 <workflow>
 1. Name the goal, source repository, acceptance criteria and allowed files. Read applicable task guidance before dispatch. Choose the intended base from the repository's default remote branch, not a stale local main.
 2. Inspect `worktree_list`. For an existing task, use its idle persistent owner through `subagent_send`. A busy owner must finish first. MUST NOT create another writer or use raw terminal input to bypass the host.
-3. For a new repository task, call `subagent` from its principal checkout with `worktree:{branch,base}`, `persistent:true`, `interactive:true`, an explicit task model category and thinking level. One task gets one Rex session and one worktree. Dotfiles and local-only repositories retain their direct-checkout exceptions.
+3. For a new repository task, call `subagent` from its principal checkout with `worktree:{branch,base}`, `persistent:true`, `interactive:true`, an explicit task model category and thinking level. Use one Rex session per repository, with one tab, Pi conversation and worktree per task. Preserve the repository session label; task names belong on tabs. Dotfiles and local-only repositories retain their direct-checkout exceptions.
 4. Use a short task-role name. The brief must include the goal, permitted files, verification, whether to commit, and the required final report. Children are leaves and cannot dispatch others without explicit authorization.
-5. Report the returned Rex session ID, branch and checkout path. A launch timeout is not proof of failure. Inspect once before retrying and never start a duplicate while the first agent might be alive.
+5. Report the returned Rex task surface ID, branch and checkout path. A launch timeout is not proof of failure. Inspect once before retrying and never start a duplicate while the first agent might be alive.
 6. Results arrive automatically. MUST NOT poll logs or repeatedly inspect sessions to wait for completion. Relay the result when delivered. A task agent should summarize its work and call `subagent_done`; persistent mode keeps it available for follow-up.
 7. After implementation, inspect the handoff and require relevant verification in the task session. Report clean, dirty or conflicted state, base and head SHAs, and commits ahead when available. Do not claim unrun checks passed.
-8. Keep the task session and worktree after completion. Only stop an agent when Justin requests it or approves cleanup of that task. Cleanup approval covers stopping confirmed task-owned processes, closing the task session and removing its checkout; do not ask again for those same steps. Follow `~/.pi/agent/workflows/worktrees.md` for the end-to-end cleanup procedure. Do not delete branches or force removal.
+8. Keep the task tab and worktree after completion. Only stop an agent when Justin requests it or approves cleanup of that task. Cleanup approval covers stopping confirmed task-owned processes, closing only the task tab and removing its checkout; do not ask again for those same steps. Follow `~/.pi/agent/workflows/worktrees.md` for the end-to-end cleanup procedure. Do not close the shared repository session, delete branches or force removal.
 </workflow>
 
 ## Failure evidence

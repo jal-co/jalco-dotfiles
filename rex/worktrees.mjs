@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, sep } from 'node:path';
+import { surfaceTarget } from './provider.mjs';
 
 export function git(cwd, args) {
   return execFileSync('git', args, {
@@ -167,8 +168,8 @@ export class RexWorktrees {
       try {
         const live = this.provider.json(['ls', '--json']).sessions;
         let surface = record.surfaceId;
-        if (record.workspaceId && live.some((entry) => entry.session_id === record.workspaceId)) {
-          this.provider.sessions.add(record.workspaceId);
+        if (record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session)) {
+          this.provider.sessions.add(surfaceTarget(record.surfaceId).session);
           const surfaces = await this.provider.listSurfaces();
           if (!surfaces.some((entry) => entry.id === surface)) {
             throw new Error('The retained task pane is missing. Inspect the task session before continuing.');
@@ -179,9 +180,8 @@ export class RexWorktrees {
             throw new Error('Retained Rex shell is not in its recorded worktree. Inspect it before continuing.');
           }
         } else {
-          surface = this.provider.createSurface({ name, cwd: record.path });
-          const slash = surface.indexOf('/');
-          record.workspaceId = surface.slice(0, slash);
+          surface = this.provider.createSurface({ name, cwd: record.path, repo });
+          record.workspaceId = surface;
           record.surfaceId = surface;
         }
         record.error = undefined;
@@ -230,7 +230,7 @@ export class RexWorktrees {
       this.verify(record);
       return {
         path: record.path, branch: record.branch, label: record.branch, isLinkedWorktree: true,
-        workspaceId: live.some((entry) => entry.session_id === record.workspaceId) ? record.workspaceId : undefined,
+        workspaceId: record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session) ? record.workspaceId : undefined,
       };
     });
   }
@@ -244,6 +244,6 @@ export class RexWorktrees {
     git(record.repo, ['worktree', 'remove', '--', record.path]);
     record.removed = true;
     this.save(record);
-    this.provider.call(['kill', workspaceId]);
+    this.provider.closeSurface(record.surfaceId);
   }
 }

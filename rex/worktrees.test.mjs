@@ -30,7 +30,9 @@ function fixture(t) {
     listSurfaces: async () => [...sessions.values()],
     waitForShellReady: async () => {},
     process: (surface) => ({ foreground: { cwd: [...sessions.values()].find((entry) => entry.id === surface)?.cwd } }),
-    call: ([command, session]) => { assert.equal(command, 'kill'); sessions.delete(session); },
+    closeSurface: (surface) => {
+      for (const [session, entry] of sessions) if (entry.id === surface) sessions.delete(session);
+    },
   };
   const manager = new RexWorktrees(provider, { root: join(root, 'rex') });
   manager.checkHolders = async () => ({ blockers: [], warnings: [] });
@@ -121,7 +123,7 @@ test('a missing old session can be replaced without creating a second checkout',
   const { create, complete, sessions, repo } = fixture(t);
   const first = await create();
   complete(first);
-  sessions.delete(first.workspaceId);
+  sessions.delete(first.surfaceId.split('/')[0]);
   const second = await create();
   assert.equal(second.path, first.path);
   assert.notEqual(second.workspaceId, first.workspaceId);
@@ -179,4 +181,51 @@ test('one operation lock serializes acquisition and cleanup', async (t) => {
   await first;
   assert.equal(existsSync(owner), false);
   await manager.exclusive(async () => {});
+});
+
+test('repository identity is passed through while each task retains a unique cleanup target', async (t) => {
+  const { create, complete, provider, manager, repo, base, sessions } = fixture(t);
+  const surfaces = new Map();
+  let count = 0;
+  provider.createSurface = ({ cwd, repo: source }) => {
+    assert.equal(source, repo);
+    const id = `session:shared/block:task-${++count}`;
+    surfaces.set(id, { id, cwd });
+    sessions.set('session:shared', {});
+    return id;
+  };
+  provider.listSurfaces = async () => [...surfaces.values()];
+  provider.process = (surface) => ({ foreground: { cwd: surfaces.get(surface)?.cwd } });
+  provider.closeSurface = (surface) => { surfaces.delete(surface); };
+  const first = await create();
+  const second = await create('feat/second');
+  assert.notEqual(first.workspaceId, second.workspaceId);
+  assert.equal(sessions.size, 1);
+  complete(first);
+  await manager.removeWorkspace(first.workspaceId);
+  assert.equal(surfaces.has(second.surfaceId), true);
+  assert.equal(existsSync(second.path), true);
+  assert.equal(sessions.size, 1);
+  assert.equal((await manager.list({ cwd: repo }))[0].workspaceId, second.workspaceId);
+  await assert.rejects(manager.create({ name: 'second', cwd: repo, branch: 'feat/second', base }), /live Rex coordinator/);
+});
+
+test('legacy session-scoped task identities still reuse their original terminal', async (t) => {
+  const { create, complete, manager } = fixture(t);
+  const first = await create();
+  const record = manager.records()[0];
+  record.workspaceId = first.surfaceId.split('/')[0];
+  manager.save(record);
+  complete(first);
+  const reused = await create();
+  assert.equal(reused.workspaceId, record.workspaceId);
+  assert.equal(reused.surfaceId, first.surfaceId);
+});
+
+test('linked worktrees resolve to the same canonical repository', async (t) => {
+  const { repositoryFor } = await import('./provider.mjs');
+  const { repo, create } = fixture(t);
+  const first = await create();
+  assert.equal(repositoryFor(first.path), repo);
+  assert.equal(repositoryFor(repo), repo);
 });

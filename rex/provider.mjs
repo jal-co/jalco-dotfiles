@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 
 export function rexBinary() {
   const binary = process.env.REX_BIN ?? (process.env.REX_BIN_DIR
@@ -24,6 +25,18 @@ export function surfaceTarget(id) {
   return { session: match[1], block: match[2] };
 }
 
+export function repositoryFor(cwd) {
+  try {
+    const output = execFileSync('git', ['-C', cwd, 'worktree', 'list', '--porcelain', '-z'], {
+      encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return realpathSync(output.split('\0')[0].slice(9));
+  } catch (error) {
+    if (error.status === 128 && String(error.stderr).includes('not a git repository')) return realpathSync(cwd);
+    throw error;
+  }
+}
+
 const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
 export class RexSurfaceProvider {
@@ -31,7 +44,9 @@ export class RexSurfaceProvider {
   sessions = new Set();
   launchBoundaries = new Map();
 
-  constructor(call = callRex, processGroup = (pid) => Number(execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8', timeout: 5_000 }).trim())) {
+  constructor(call = callRex, processGroup = (pid) => Number(execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8', timeout: 5_000 }).trim()), { root = join(homedir(), '.rex'), repository = repositoryFor } = {}) {
+    this.root = root;
+    this.repository = repository;
     this.call = call;
     this.processGroup = processGroup;
   }
@@ -53,12 +68,45 @@ export class RexSurfaceProvider {
     return 'Start the Rex coordinator with node ~/dotfiles/rex/pinned.mjs.';
   }
 
-  createSurface({ name, cwd }) {
-    const created = this.json(['new', name, '-c', cwd, '--window', name, '--json']);
-    this.sessions.add(created.session_id);
-    const block = created.initial_windows?.[0]?.block_ids?.[0];
-    if (!block) throw new Error(`Rex created ${created.session_id} without a terminal. Inspect it before retrying.`);
-    return `${created.session_id}/${block}`;
+  createSurface({ name, cwd, repo = this.repository(cwd) }) {
+    const directory = join(this.root, 'repositories');
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const file = join(directory, `${createHash('sha256').update(repo).digest('hex')}.json`);
+    const lock = `${file}.lock`;
+    try {
+      mkdirSync(lock, { mode: 0o700 });
+    } catch (error) {
+      if (error.code === 'EEXIST') throw new Error(`Rex repository launch is locked at ${lock}. Verify its owner has exited before recovery.`);
+      throw error;
+    }
+    const owner = join(lock, 'owner.json');
+    try {
+      writeFileSync(owner, JSON.stringify({ pid: process.pid, session: process.env.REX_SESSION }), { mode: 0o600 });
+      const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
+      if (saved !== undefined && (saved?.repo !== repo || !/^session:[a-zA-Z0-9-]+$/.test(saved?.session))) {
+        throw new Error(`Invalid Rex repository session record: ${file}`);
+      }
+      const live = this.json(['ls', '--json']).sessions;
+      let session = saved?.session;
+      let block;
+      if (session && live.some((entry) => entry.session_id === session)) {
+        const created = this.json(['window', 'new', '-s', session, name, '-c', cwd, '--focus=false', '--json']);
+        block = created.block_ids?.[0];
+      } else {
+        const created = this.json(['new', basename(repo), '-c', cwd, '--window', name, '--json']);
+        session = created.session_id;
+        block = created.initial_windows?.[0]?.block_ids?.[0];
+        const temp = `${file}.${randomUUID()}.tmp`;
+        writeFileSync(temp, `${JSON.stringify({ repo, session })}\n`, { mode: 0o600 });
+        renameSync(temp, file);
+      }
+      this.sessions.add(session);
+      if (!block) throw new Error(`Rex created a tab in ${session} without a terminal. Inspect it before retrying.`);
+      return `${session}/${block}`;
+    } finally {
+      if (existsSync(owner)) unlinkSync(owner);
+      rmdirSync(lock);
+    }
   }
 
   target(id) {
@@ -99,8 +147,9 @@ export class RexSurfaceProvider {
 
   async listSurfaces() {
     const live = this.json(['ls', '--json']).sessions;
-    for (const record of this.worktrees?.records() ?? []) {
-      if (!record.removed && record.workspaceId) this.sessions.add(record.workspaceId);
+    const records = this.worktrees?.records() ?? [];
+    for (const record of records) {
+      if (!record.removed && record.workspaceId) this.sessions.add(surfaceTarget(record.surfaceId).session);
     }
     const surfaces = [];
     for (const session of live) {
@@ -111,7 +160,9 @@ export class RexSurfaceProvider {
           for (const block of layer.blocks) {
             surfaces.push({
               id: `${session.session_id}/${block.block_id}`,
-              name: block.label, group: window.window_id, workspaceId: session.session_id,
+              name: block.label, group: window.window_id,
+              workspaceId: records.find((record) => !record.removed
+                && record.surfaceId === `${session.session_id}/${block.block_id}`)?.workspaceId,
             });
           }
         }
