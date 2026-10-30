@@ -64,6 +64,8 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 <instructions>
 
+For interface design questions and before designing or building any interface, MUST check Interface Lineage first: search, then fetch relevant dossiers to ground decisions in the designs and lessons it holds. Answer from those sources with their actual diagrams and verbatim quotes, and play their demos in the chat when available (use the tool's link fallback if inline playback is unsupported). If the tools are unavailable, say so rather than inventing source use. Keep local design-system and Emil guidance in force.
+
 Load only the guidance relevant to the task. Load the matching `emil-*` skill: `emil-surfaces` for cards, borders, shadows, and depth; `emil-animations` for motion, gestures, drag, and `clip-path`; `emil-typography`; `emil-color`; `emil-design-foundations` for layout, hierarchy, icons, and interface copy; `emil-touch-and-accessibility`; `emil-forms-and-inputs`; `emil-component-design` for component APIs; `emil-performance`; `emil-ui-polish` for the final pass; `emil-ui-review` to review a UI diff; `emil-design-system-docs` when writing a DESIGN.md; `emil-unslop-code` and `emil-unslop-writing` for cleanup; `emil-writing-skills` for skill authoring. Ignore any Emil skill's Initial Response and its Before/After table format (the `emil-animations` review checklist), which override the communication rules below. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
 
 | Task | Required guidance |
