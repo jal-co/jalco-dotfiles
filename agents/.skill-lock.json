@@ -1,15 +1,6 @@
 {
   "version": 3,
   "skills": {
-    "polish": {
-      "source": "pbakaus/impeccable",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/pbakaus/impeccable.git",
-      "skillPath": ".agents/skills/polish/SKILL.md",
-      "skillFolderHash": "cc7e1c10570b85152cdfe23228741e93a8985b12",
-      "installedAt": "2026-03-21T22:58:40.316Z",
-      "updatedAt": "2026-03-21T22:58:40.316Z"
-    },
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
@@ -19,24 +10,6 @@
       "installedAt": "2026-03-21T23:01:35.372Z",
       "updatedAt": "2026-10-11T20:44:56.270Z"
     },
-    "latex-document": {
-      "source": "ndpvt-web/latex-document-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ndpvt-web/latex-document-skill.git",
-      "skillPath": "SKILL.md",
-      "skillFolderHash": "15420755f068253f98a1ec51e632bf028504130c",
-      "installedAt": "2026-03-23T04:52:37.167Z",
-      "updatedAt": "2026-03-23T04:52:37.167Z"
-    },
-    "color-accessibility": {
-      "source": "aj-geddes/useful-ai-prompts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/aj-geddes/useful-ai-prompts.git",
-      "skillPath": "skills/color-accessibility/SKILL.md",
-      "skillFolderHash": "4944b29afcb6131a3a69284f9e12f77bd31f480f",
-      "installedAt": "2026-04-28T22:53:43.610Z",
-      "updatedAt": "2026-04-28T22:53:43.610Z"
-    },
     "thesvg": {
       "source": "glincker/thesvg",
       "sourceType": "github",
@@ -45,69 +18,6 @@
       "skillFolderHash": "b4f4cb3f18089415ab439f85b25e86fb1b9ac00a",
       "installedAt": "2026-05-30T22:50:43.632Z",
       "updatedAt": "2026-10-11T20:45:09.905Z"
-    },
-    "ship-or-skip": {
-      "source": "jal-co/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jal-co/skills.git",
-      "skillPath": "skills/ship-or-skip/SKILL.md",
-      "skillFolderHash": "969f48341729c4dbd27e4ff668d1327dec0da9d0",
-      "installedAt": "2026-06-16T20:55:46.110Z",
-      "updatedAt": "2026-06-18T01:25:49.929Z"
-    },
-    "stack-up": {
-      "source": "jal-co/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jal-co/skills.git",
-      "skillPath": "skills/stack-up/SKILL.md",
-      "skillFolderHash": "d7abdc57054aecc406a02a51fc3fe35a16159aaf",
-      "installedAt": "2026-06-18T01:25:49.931Z",
-      "updatedAt": "2026-06-18T01:25:49.931Z"
-    },
-    "interactivity-best-practices": {
-      "source": "kapishdima/remocn",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/kapishdima/remocn.git",
-      "skillPath": ".claude/skills/interactivity-best-practices/SKILL.md",
-      "skillFolderHash": "c084b649c0c9dcda0a88507d13e9647cf8d070fd",
-      "installedAt": "2026-07-02T02:06:40.292Z",
-      "updatedAt": "2026-07-02T02:06:40.292Z"
-    },
-    "impeccable-design-polish": {
-      "source": "nexu-io/open-design",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/nexu-io/open-design.git",
-      "skillPath": "skills/impeccable-design-polish/SKILL.md",
-      "skillFolderHash": "cf5ddea01c692e77bbc29937199886d7db732a16",
-      "installedAt": "2026-07-18T02:53:30.697Z",
-      "updatedAt": "2026-07-18T02:53:30.697Z"
-    },
-    "12-principles-of-animation": {
-      "source": "raphaelsalaja/skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/raphaelsalaja/skill.git",
-      "skillPath": "skills/12-principles-of-animation/SKILL.md",
-      "skillFolderHash": "32035d7af8365a229a4f4eb337c9cbe15d0b65c5",
-      "installedAt": "2026-07-18T02:59:50.326Z",
-      "updatedAt": "2026-07-18T02:59:50.326Z"
-    },
-    "component-engineering": {
-      "source": "igorwarzocha/opencode-workflows",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/igorwarzocha/opencode-workflows.git",
-      "skillPath": "agents/component-engineer/.opencode/skill/component-engineering/SKILL.md",
-      "skillFolderHash": "b9ad1c622f0692d6aa071c0b861920cd2954414a",
-      "installedAt": "2026-07-26T18:32:46.819Z",
-      "updatedAt": "2026-07-26T18:32:46.819Z"
-    },
-    "building-components": {
-      "source": "vercel/components.build",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/vercel/components.build.git",
-      "skillPath": "skills/building-components/SKILL.md",
-      "skillFolderHash": "b7f8c5d9010b2f8cd1b4c9f250886264d5ce6d15",
-      "installedAt": "2026-07-26T18:37:10.483Z",
-      "updatedAt": "2026-07-26T18:37:10.483Z"
     },
     "pr-screenshots": {
       "source": "github/awesome-copilot",
@@ -127,61 +37,6 @@
       "installedAt": "2026-09-01T15:37:27.901Z",
       "updatedAt": "2026-10-11T20:45:28.228Z"
     },
-    "storybook-story-writing": {
-      "source": "thebushidocollective/han",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/thebushidocollective/han.git",
-      "skillPath": "plugins/tools/storybook/skills/storybook-story-writing/SKILL.md",
-      "skillFolderHash": "1e8ba921f37b5dde7d68b1b395459d3b634df378",
-      "installedAt": "2026-09-17T14:58:56.404Z",
-      "updatedAt": "2026-09-17T14:58:56.404Z"
-    },
-    "web-perf": {
-      "source": "cloudflare/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/cloudflare/skills.git",
-      "skillPath": "skills/web-perf/SKILL.md",
-      "skillFolderHash": "c4c15a909ae86c00d4fbf841238bbf56eb505ac8",
-      "installedAt": "2026-09-21T14:25:30.127Z",
-      "updatedAt": "2026-09-21T14:25:30.127Z"
-    },
-    "layout-grid": {
-      "source": "owl-listener/designer-skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/owl-listener/designer-skills.git",
-      "skillPath": "ui-design/skills/layout-grid/SKILL.md",
-      "skillFolderHash": "5eef4985ac94ae7b40ff8764c5ba9dfc87deffa2",
-      "installedAt": "2026-09-21T21:30:31.910Z",
-      "updatedAt": "2026-09-21T21:30:31.910Z"
-    },
-    "explain-interface": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/explain-interface/SKILL.md",
-      "skillFolderHash": "23885e8a5cf9e1a3b9b4959afaecc88f3e2b385e",
-      "installedAt": "2026-09-29T15:56:17.532Z",
-      "updatedAt": "2026-10-11T20:45:23.599Z"
-    },
-    "teach": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/teach/SKILL.md",
-      "skillFolderHash": "3fd617b610e59acbb99644de1ef37e394ff53cd1",
-      "installedAt": "2026-10-02T01:11:53.812Z",
-      "updatedAt": "2026-10-11T20:47:34.840Z"
-    },
-    "wait-what": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/wait-what/SKILL.md",
-      "skillFolderHash": "c8b050e6b8c711be1a9008ceacb2126914f0763e",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-10-02T01:11:53.813Z",
-      "updatedAt": "2026-10-02T01:11:53.813Z"
-    },
     "shadcn": {
       "source": "shadcn-ui/ui",
       "sourceType": "github",
@@ -190,15 +45,6 @@
       "skillFolderHash": "58cbb5c7712d2f1ba359892c8c693d0efe96c829",
       "installedAt": "2026-10-10T20:16:26.444Z",
       "updatedAt": "2026-10-10T20:16:26.444Z"
-    },
-    "break": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/break/SKILL.md",
-      "skillFolderHash": "35be06d826768f2872e16171276ac9a8ae276f59",
-      "installedAt": "2026-10-11T20:28:03.832Z",
-      "updatedAt": "2026-10-11T20:28:03.832Z"
     },
     "state-machine": {
       "source": "jakubkrehel/skills",

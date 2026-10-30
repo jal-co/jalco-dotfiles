@@ -120,8 +120,6 @@ pi/agent/fnkey
 pi/agent/frontapp
 pi/agent/keysend
 
-# Parked skills
-pi/agent/skills-disabled/
 
 # Browser-tools scratch scripts
 pi/agent/skills/browser-tools/_*.mjs

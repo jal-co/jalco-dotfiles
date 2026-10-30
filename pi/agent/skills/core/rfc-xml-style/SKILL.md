@@ -11,7 +11,6 @@ description: |-
   - user: "Add XML structure to this prompt" → wrap sections in semantic XML tags
   - user: "Review my SKILL.md formatting" → audit RFC keyword usage and XML structure
   - user: "Convert this doc to RFC+XML style" → full transformation with style guide
-  - user: "/refactor-rfc-xml ./prompts" → batch refactor all markdown in a folder
 ---
 
 <overview>

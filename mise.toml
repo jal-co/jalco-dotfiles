@@ -5,7 +5,6 @@ dotfiles.relative_symlinks = true
 "~/.zshrc" = "zsh/.zshrc"
 "~/.config/git" = "git"
 "~/.config/ghostty" = "ghostty"
-"~/.config/herdr/config.toml" = "herdr/config.toml"
 "~/.config/rex/init.lua" = "rex/config/init.lua"
 "~/.config/rex/session-pins.lua" = "rex/plugins/session-pins/session-pins.lua"
 "~/.config/rex/task-overview.lua" = "rex/config/task-overview.lua"
@@ -19,11 +18,9 @@ dotfiles.relative_symlinks = true
 "~/.agents" = "agents"
 "~/.local/bin/pinned" = "rex/bin/pinned"
 "~/.local/bin/pinned-rex" = "rex/bin/pinned"
-"~/.local/bin/pinned-herdr" = "herdr/pinned"
 "~/.local/bin/rex" = "/Applications/Rex Beta.app/Contents/Helpers/Rex Server.rex/Contents/MacOS/rex"
 "~/rex-coord/AGENTS.md" = "rex/coordinator/AGENTS.md"
 "~/rex-coord/.pi/settings.json" = "rex/coordinator/settings.json"
-"~/coord" = "coord"
 
 [bootstrap.packages]
 "brew:cliproxyapi" = "latest"

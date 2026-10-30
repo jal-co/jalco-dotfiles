@@ -27,7 +27,6 @@ Tinycast comes from a third-party tap that mise can only read with Ruby 3, so in
 | Preview changes | `mise dot diff` or `mise dot apply -n` |
 | Re-link after adding an entry | `mise dot apply` |
 | Open the Rex coordinator | `pinned` |
-| Open the retained Herdr coordinator | `pinned-herdr` |
 | Add a package | `mise bootstrap packages use brew:<name>` or `brew-cask:<name>` |
 | Check packages | `mise bootstrap packages status` |
 
@@ -35,7 +34,7 @@ To manage a new file, move it into a folder here, add a line to `[dotfiles]`, an
 
 ## Rex
 
-`pinned` opens the default coordinator in Rex. Tasks use separate Rex sessions and managed worktrees, with automatic results and persistent follow-up. `pinned-herdr` keeps the previous setup available. See [`rex/README.md`](rex/README.md) for ownership, cleanup, appearance backup and recovery limits.
+`pinned` opens the default coordinator in Rex. Tasks use separate Rex sessions and managed worktrees, with automatic results and persistent follow-up. See [`rex/README.md`](rex/README.md) for ownership, cleanup, appearance backup and recovery limits.
 
 ## Private files
 
@@ -51,7 +50,6 @@ Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private
 | `starship/` | `~/.config/starship.toml` |
 | `agents/` | `~/.agents` (shared skills) |
 | `rex/` | Rex agent host, task runtime, session pins, launcher, `~/rex-coord` rules and settings, appearance backup |
-| `herdr/`, `coord/` | Retained Herdr configuration and coordinator |
 | `pi/` | config entries in `~/.pi` and `~/.pi/agent` |
 | `tools/anti-slop/` | not linked; run through the `anti-slop` alias |
 

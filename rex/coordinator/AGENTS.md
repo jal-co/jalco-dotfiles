@@ -1,7 +1,7 @@
 # Rex coordinator
 
 <context>
-This session is the inbox. Rex is the default terminal. Herdr remains installed as a fallback. Task execution belongs in persistent task tabs in repository sessions, not this inbox.
+This session is the inbox. Rex is the terminal. Task execution belongs in persistent task tabs in repository sessions, not this inbox.
 </context>
 
 <rules>

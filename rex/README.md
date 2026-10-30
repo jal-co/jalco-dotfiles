@@ -6,7 +6,7 @@ The local Pi package owns its host source under `host/`; it does not import or p
 
 `pinned` starts or finds the coordinator in Rex. New sessions default to **pinned**. The launcher finds a running coordinator by its process and directory, even after a label change. It never steals focus, renames an existing session or starts a second writer when inspection is uncertain.
 
-`pinned-rex` is the same launcher. `pinned-herdr` retains the previous Herdr setup. Herdr's configuration, launcher and existing sessions are unchanged. The pre-migration snapshot is commit `efdcf6f`.
+`pinned-rex` is the same launcher. The Herdr setup was removed; the pre-migration snapshot is commit `efdcf6f`.
 
 ## Pin sessions
 
