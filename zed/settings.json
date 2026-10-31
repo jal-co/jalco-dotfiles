@@ -8,6 +8,10 @@
   ],
   "agent": {
     "dock": "right",
+    "threads_sidebar": {
+      "position": "right",
+      "auto_open": false,
+    },
     "favorite_models": [],
     "model_parameters": [],
   },
@@ -58,7 +62,7 @@
   "theme": {
     "mode": "dark",
     "light": "Ayu Light",
-    "dark": "Ayu Dark",
+    "dark": "Pierre Dark",
   },
   "base_keymap": "VSCode",
   "ui_font_size": 16,
@@ -139,6 +143,10 @@
 
   "project_panel": {
     "dock": "left",
+    "starts_open": true,
+    "button": true,
+    "default_width": 260,
+    "entry_spacing": "standard",
     "git_status": false,
     "auto_fold_dirs": true,
     "auto_reveal_entries": true,
@@ -152,6 +160,8 @@
   },
 
   "terminal": {
+    "dock": "bottom",
+    "starts_open": false,
     "font_family": "Geist Mono",
     "font_size": 13,
     "line_height": "comfortable",
