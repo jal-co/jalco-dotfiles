@@ -105,7 +105,10 @@ async function main(argv) {
       tailnet: !values["no-tailnet"],
     });
     log(`\nSandbox ${result.id} is running ${repo.owner}/${repo.repo}@${repo.branch}`);
-    log(`Rex host: ${result.label}  (rex -S ${result.label} ls, or Add Remote Host with ${endpoint(result.localPort)})`);
+    log(`Rex CLI host: ${result.label}  (rex -S ${result.label} ls)`);
+    log(result.phoneAddress
+      ? `Rex app (Mac or phone): Add Remote Host with ${result.phoneAddress}`
+      : `Rex app on this Mac: Add Remote Host with ${endpoint(result.localPort)}. Phone: run boat-offload phone, then add the tailnet address it prints.`);
     if (result.previewUrl) log(`Preview: ${result.previewUrl}`);
     log(`Next: boat-offload preview PORT for a frontend URL, boat-offload down when finished.`);
     return 0;
@@ -124,7 +127,7 @@ async function main(argv) {
   }
   if (command === "phone") {
     const address = await phone(deps, needEntry(), { waitSeconds: parseSeconds(values.wait) });
-    log(`Rex on your phone: add a remote host with ${address}`);
+    log(`Rex app (Mac or phone): Add Remote Host with ${address}`);
     return 0;
   }
   if (command === "session") {

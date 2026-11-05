@@ -18,7 +18,7 @@ boat-offload up --preview 3000 --dev "pnpm dev"
 5. Starts a Rex server on the sandbox, listening on the sandbox's loopback only. A background `boat forward` carries it to a free local port, and the Rex host `boat-<repo>-<branch>` is registered on the Mac.
 6. Starts Pi in a Rex session named after the repository. With `--dev`, opens the dev command in a second block of that session. With `--preview PORT`, prints a private HTTPS URL for that port.
 
-Open the Rex host from the Mac app (Add Remote Host with the printed address) or the CLI (`rex -S boat-<repo>-<branch> ls`).
+`rex hosts` is the CLI's host list; the Rex apps keep their own and do not read it yet. Use the CLI with `rex -S boat-<repo>-<branch> ls`. In the Mac or iOS app, run Add Remote Host… once per sandbox and paste the address `up` prints (the tailnet one works from both).
 
 ## Commands
 
@@ -42,7 +42,7 @@ The first message in a fork rebuilds the whole conversation for Claude Code, so 
 
 ## Phone and other devices
 
-The sandbox's Rex server joins your tailnet with Rex's built-in Tailscale, so the Rex app on your phone, or any device on that tailnet, connects straight to it. `up` turns this on and registers the Rex host with two endpoints: the tailnet address first, then the local Boat forward. Hosts live on your Rex home, so devices that follow it see the host.
+The sandbox's Rex server joins your tailnet with Rex's built-in Tailscale, so the Rex app on your phone, or any device on that tailnet, connects straight to it. `up` turns this on and registers the CLI host with two endpoints: the tailnet address first, then the local Boat forward. The apps need the address added by hand (Add Remote Host…).
 
 The first time a sandbox joins, Tailscale needs a sign-in. `up` prints the link. Open it, then run `boat-offload phone` if `up` finished before you did. A new sandbox is a new device, so each new sandbox asks once. To skip the click, store a reusable Tailscale auth key in 1Password and put its reference in `~/.config/boat-offload/config.json`:
 
