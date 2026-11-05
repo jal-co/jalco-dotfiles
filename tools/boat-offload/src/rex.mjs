@@ -1,5 +1,13 @@
 export const endpoint = (port) => `http://127.0.0.1:${port}`;
 
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 export function createRex(run) {
   const call = (port, args, options) => run("rex", ["-S", endpoint(port), ...args], options);
 
@@ -16,17 +24,19 @@ export function createRex(run) {
     },
     async registerHost(label, port, extraEndpoints = []) {
       const endpoints = [...extraEndpoints, endpoint(port)];
-      const listed = await run("rex", ["hosts", "list", "--json"]);
-      let known = false;
-      try {
-        known = JSON.parse(listed.stdout).hosts.some((entry) => entry.host?.label?.toLowerCase() === label.toLowerCase());
-      } catch {
-        throw new Error("rex hosts list returned output boat-offload could not read.");
-      }
-      const result = known
-        ? await run("rex", ["hosts", "edit", label, ...endpoints.flatMap((value) => ["--endpoint", value])])
-        : await run("rex", ["hosts", "add", label, ...endpoints]);
-      if (result.code !== 0) throw new Error(`rex hosts failed: ${result.stderr.trim().split("\n").pop()}`);
+      const status = await call(port, ["api", "call", "server.status"]);
+      const hostId = parseJson(status.stdout)?.host_id;
+      if (status.code !== 0 || !hostId) throw new Error("Could not read the sandbox's Rex host id; the Rex apps ignore hosts without one.");
+      const listed = parseJson((await run("rex", ["api", "call", "hosts.list"])).stdout);
+      if (!listed?.hosts) throw new Error("rex hosts.list returned output boat-offload could not read.");
+      const existing = listed.hosts.find((host) => host.label.toLowerCase() === label.toLowerCase());
+      const sharing = listed.hosts.find((host) => (host.endpoints ?? []).some((candidate) => extraEndpoints.includes(candidate)));
+      const match = sharing ?? existing;
+      const host = { label: match?.label ?? label, endpoints, host_id: hostId, icon: "globe" };
+      if (match) host.id = match.id;
+      const result = await run("rex", ["api", "call", "hosts.put", JSON.stringify({ host })]);
+      if (result.code !== 0) throw new Error(`rex hosts.put failed: ${result.stderr.trim().split("\n").pop()}`);
+      if (existing && sharing && existing.id !== sharing.id) await run("rex", ["api", "call", "hosts.remove", JSON.stringify({ id: existing.id })]);
     },
     async removeHost(label) {
       await run("rex", ["hosts", "remove", label]);

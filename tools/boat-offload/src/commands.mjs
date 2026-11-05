@@ -13,6 +13,15 @@ const SYNC_SCRIPT = fileURLToPath(new URL("./remote/sync-pi.cjs", import.meta.ur
 export const ENVIRONMENT = "offload";
 export const ALLOWED_HOSTS = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.on.boat.dev";
 
+export const money = (dollars) => `$${dollars < 0.1 ? dollars.toFixed(3) : dollars.toFixed(2)}`;
+
+export async function costLine(boat, id, hours) {
+  const usage = await boat.usage(id);
+  if (!usage) return "Cost: unavailable";
+  const stop = hours ? ` Stops on its own after ${hours} hour${hours === 1 ? "" : "s"} of lifetime, at most ${money(usage.perHour * hours)} more.` : "";
+  return `Cost: ${money(usage.perHour)}/hour while running, ${money(usage.dollars)} so far.${stop}`;
+}
+
 const sandboxName = ({ repo, branch }) => `${repo}-${branch}`.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 100);
 
 async function waitFor(check, attempts, delayMs) {
@@ -32,13 +41,14 @@ async function ensureSandbox(deps, options, repo, entry) {
         log(`Resuming sandbox ${entry.id}`);
         await boat.resume(entry.id);
       }
+      await boat.extend(entry.id, options.hours);
       return { ...entry, fresh: false };
     }
     log(`Sandbox ${entry.id} no longer exists; creating a new one`);
   }
   if (await boat.ensureEnvironment(ENVIRONMENT)) log(`Created Boat environment "${ENVIRONMENT}" (GitHub access only; no account secrets, agent logins or Boat credentials)`);
   log(`Creating a ${options.type} sandbox`);
-  const created = await boat.create({ name: sandboxName(repo), type: options.type, environment: ENVIRONMENT, hostPorts: [] });
+  const created = await boat.create({ name: sandboxName(repo), type: options.type, environment: ENVIRONMENT, hostPorts: [], ttlSeconds: options.hours * 3600 });
   return { id: created.id, url: created.url, fresh: true };
 }
 
@@ -126,6 +136,7 @@ export async function up(deps, options) {
   const connection = await connect(deps, sandbox, label, entry, tailscale);
   Object.assign(entry, connection);
   saveState(state);
+  log(await costLine(boat, sandbox.id, options.hours));
 
   const checkout = `${REMOTE.work}/${repo.repo}`;
   const created = await rex.ensureSession(entry.localPort, repo.repo, checkout, ["pi"]);
@@ -173,6 +184,8 @@ export async function down(deps, key, entry, { remove }) {
   if (entry.label) await rex.removeHost(entry.label);
   const info = await boat.info(entry.id);
   if (info) {
+    const usage = await boat.usage(entry.id);
+    if (usage) log(`Total cost of sandbox ${entry.id}: ${money(usage.dollars)}`);
     if (remove) {
       if (entry.phoneAddress && info.state !== "stopped") await boat.exec(entry.id, tailscaleLogoutScript(), { timeoutSeconds: 30 }).catch(() => {});
       await boat.remove(entry.id);
@@ -258,4 +271,25 @@ export async function offloadSession(deps, entry, sessionPath) {
   const created = await rex.ensureSession(entry.localPort, label, `${REMOTE.work}/${entry.repo}`, ["pi", "--fork", remote]);
   log(created ? `Forked the session into Rex session "${label}" on the sandbox. The original is untouched.` : `Rex session "${label}" already exists on the sandbox.`);
   return label;
+}
+
+export async function overview(deps) {
+  const { boat, state, log } = deps;
+  const tracked = new Set();
+  for (const [key, entry] of Object.entries(state.offloads)) {
+    tracked.add(entry.id);
+    const info = await boat.info(entry.id);
+    const usage = info ? await boat.usage(entry.id) : null;
+    const cost = usage ? ` ${money(usage.dollars)} so far, ${money(usage.perHour)}/hour while running` : "";
+    const stops = info?.archiveAfter ? `, auto-stops ${new Date(info.archiveAfter).toLocaleTimeString()}` : "";
+    log(`${key}  ${entry.id}  ${info ? info.state : "gone"}${stops}\n  rex host ${entry.label}${cost}${entry.previewUrl ? `\n  preview ${entry.previewUrl}` : ""}`);
+  }
+  if (!tracked.size) log("No offloads.");
+  const live = (await boat.list()).filter((sandbox) => !tracked.has(sandbox.id) && !["stopped", "deleted", "archived"].includes(sandbox.state));
+  if (live.length) log(`\nNot tracked by boat-offload and still on: ${live.map((sandbox) => `${sandbox.id} (${sandbox.name ?? "unnamed"}, ${sandbox.state})`).join(", ")}. These are billed too.`);
+}
+
+export async function extend(deps, entry, hours) {
+  await deps.boat.extend(entry.id, hours);
+  deps.log(await costLine(deps.boat, entry.id, hours));
 }

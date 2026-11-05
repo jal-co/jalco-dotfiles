@@ -15,14 +15,15 @@ Run `boat-offload` inside the repository. The full behavior and limits are in `~
 | Reconnect after sleep or reboot | `boat-offload attach` |
 | Finish phone or tailnet sign-in | `boat-offload phone` |
 | Fork the current Pi session onto the sandbox | `boat-offload session` |
-| Show offloads | `boat-offload status` |
+| Show offloads, costs and stray sandboxes | `boat-offload status` |
+| Give the sandbox more time | `boat-offload extend <hours>` |
 | Pause | `boat-offload down` |
 | Remove the sandbox | `boat-offload down --delete` |
 
 ## Rules
 
 - Push the branch to GitHub first. The command refuses an unpushed branch and does not copy local changes.
-- Creating a sandbox costs money. Use the default `--type small` unless the work needs more, and ask before `default`.
+- Creating a sandbox costs money while it runs ($0.018/hour `small`, $0.036/hour `default`). Use the default `--type small` unless the work needs more, and ask before `default`. Keep `--hours` at the default of 1 unless Justin asks for longer, report the cost line `up` prints, and run `boat-offload status` before finishing to confirm nothing is left running.
 - Stop with `down` when the work is finished. Run `down --delete` only when Justin asks to delete.
 - Never print, log or paste token values, and never copy Pi `auth.json`, Keychain data or a 1Password service-account token to a sandbox. The command already delivers only the pool's Claude tokens.
 - `session` copies conversation history to the sandbox. Run it only when Justin asks, and tell him a long session costs a lot of quota on its first turn there.

@@ -18,7 +18,7 @@ boat-offload up --preview 3000 --dev "pnpm dev"
 5. Starts a Rex server on the sandbox, listening on the sandbox's loopback only. A background `boat forward` carries it to a free local port, and the Rex host `boat-<repo>-<branch>` is registered on the Mac.
 6. Starts Pi in a Rex session named after the repository. With `--dev`, opens the dev command in a second block of that session, with `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.on.boat.dev` set so Vite accepts the preview host (Vite otherwise answers 403). With `--preview PORT`, prints a private HTTPS URL for that port.
 
-`rex hosts` is the CLI's host list; the Rex apps keep their own and do not read it yet. Use the CLI with `rex -S boat-<repo>-<branch> ls`. In the Mac or iOS app, run Add Remote Host… once per sandbox and paste the address `up` prints (the tailnet one works from both).
+The Rex apps list a host only when its record carries the remote server's `host_id`; `rex hosts add` leaves it out, so `up` writes the host with `rex api call hosts.put` and includes it. The app then adds its own entry named after the tailnet address (with a globe icon), and `up` updates that entry instead of creating a duplicate. This was checked by the "Switch Host" action becoming available, not by looking at the app, so confirm the host appears. If it does not, use Add Remote Host… and paste the address `up` prints. The CLI works either way: `rex -S boat-<repo>-<branch> ls`.
 
 ## Commands
 
@@ -33,6 +33,16 @@ boat-offload up --preview 3000 --dev "pnpm dev"
 | `down [--delete]` | Stop the sandbox (kept 14 days) and the local forward, or delete it |
 
 Sizes are `small` (2 vCPU, 4 GB, $0.018/h) and `default` (4 vCPU, 8 GB, $0.036/h). The trial account cannot use larger ones.
+
+## Cost
+
+Sandboxes bill by the second while running: `small` is $0.018/hour, `default` is $0.036/hour. Stopped sandboxes cost nothing for compute.
+
+- `up` sets a lifetime of `--hours N` (default 1, up to 12) so a forgotten sandbox stops itself, and prints the hourly rate, the cost so far and the most it can still add. Rerunning `up` or `attach` resets the lifetime.
+- `extend HOURS` changes how much longer it may run.
+- `status` shows each offload's state, cost so far and auto-stop time, and flags any other running sandbox on the account that `boat-offload` did not create.
+- `down` prints the sandbox's total cost. It stops by default; `--delete` removes it and its Tailscale device.
+- Use `small` unless the work needs more. Builds and browsers on `small` are slow, but the Claude calls are the same.
 
 ## Offloading a session
 

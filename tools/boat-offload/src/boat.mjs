@@ -12,8 +12,8 @@ export function createBoat(run) {
   }
 
   return {
-    async create({ name, type, environment, hostPorts }) {
-      const args = ["new", "--json", "--name", name, "--type", type, "--environment", environment];
+    async create({ name, type, environment, hostPorts, ttlSeconds }) {
+      const args = ["new", "--json", "--name", name, "--type", type, "--environment", environment, "--ttl", String(ttlSeconds)];
       for (const port of hostPorts) args.push("--host", String(port));
       const events = parseLines((await call(args, { timeoutMs: 300_000 })).stdout);
       const ready = events.find((event) => event.event === "ready");
@@ -24,6 +24,19 @@ export function createBoat(run) {
       const result = await run("boat", ["info", id, "--json", "--no-update"]);
       if (result.code !== 0) return null;
       return parseLines(result.stdout)[0]?.sandbox ?? null;
+    },
+    async usage(id) {
+      const result = await run("boat", ["usage", id, "--json", "--no-update"]);
+      const usage = parseLines(result.stdout)[0];
+      if (result.code !== 0 || !usage) return null;
+      return { dollars: usage.dollars, seconds: usage.seconds, running: usage.running, perHour: (usage.billingMultiplier * 3600) / usage.secondsPerDollar };
+    },
+    async extend(id, hours) {
+      await call(["extend", id, "--hours", String(hours), "--json"]);
+    },
+    async list() {
+      const result = await call(["list", "--json"]);
+      return JSON.parse(result.stdout).sandboxes;
     },
     async resume(id) {
       await call(["resume", id, "--json"], { timeoutMs: 300_000 });

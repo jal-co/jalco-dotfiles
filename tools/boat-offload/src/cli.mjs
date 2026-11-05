@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { createAccounts } from "./accounts.mjs";
 import { createBoat } from "./boat.mjs";
-import { attach, down, offloadSession, phone, preview, summary, up } from "./commands.mjs";
+import { attach, down, extend, offloadSession, overview, phone, preview, summary, up } from "./commands.mjs";
 import { freePort } from "./free-port.mjs";
 import { isForwarding, startForward, stopForward } from "./forward.mjs";
 import { createRex, endpoint } from "./rex.mjs";
@@ -15,8 +15,9 @@ import { defaultStatePath, loadState, offloadKey, saveState } from "./state.mjs"
 const HELP = `boat-offload: run a branch on a Boat sandbox with Rex, Pi and your Claude subscriptions
 
 Usage (run inside the repository):
-  boat-offload up [--type small|default] [--dev "command"] [--preview PORT] [--plan pro|max] [--tailscale-key op://...] [--no-tailnet]
+  boat-offload up [--type small|default] [--dev "command"] [--preview PORT] [--plan pro|max] [--tailscale-key op://...] [--no-tailnet] [--hours N]
   boat-offload status
+  boat-offload extend HOURS
   boat-offload attach
   boat-offload preview PORT
   boat-offload phone [--wait SECONDS]
@@ -29,7 +30,8 @@ preview    print a private HTTPS URL for a port on the sandbox
 phone      finish tailnet sign-in for the sandbox's Rex server (up already starts it)
 session    fork a Pi session (default: the newest one for this repository) onto the sandbox
 down       stop the sandbox (kept 14 days); --delete removes it
-status     list offloads on this Mac
+status     list offloads with state, cost so far and auto-stop time; flags other running sandboxes
+extend     set how many more hours the sandbox may run before it stops itself
 `;
 
 const OPTIONS = {
@@ -40,6 +42,7 @@ const OPTIONS = {
   "tailscale-key": { type: "string" },
   delete: { type: "boolean", default: false },
   wait: { type: "string", default: "300" },
+  hours: { type: "string", default: "1" },
   session: { type: "string" },
   "no-tailnet": { type: "boolean", default: false },
   help: { type: "boolean", short: "h", default: false },
@@ -49,6 +52,12 @@ function parseSeconds(value) {
   const seconds = Number(value);
   if (!Number.isInteger(seconds) || seconds < 1 || seconds > 3600) throw new Error(`"${value}" is not a number of seconds between 1 and 3600.`);
   return seconds;
+}
+
+function parseHours(value) {
+  const hours = Number(value);
+  if (!Number.isInteger(hours) || hours < 1 || hours > 12) throw new Error(`"${value}" is not a whole number of hours between 1 and 12.`);
+  return hours;
 }
 
 function parsePort(value) {
@@ -71,13 +80,6 @@ async function main(argv) {
   const statePath = defaultStatePath();
   const state = loadState(statePath);
   const log = (message) => process.stdout.write(`${message}\n`);
-  if (command === "status") {
-    const entries = Object.entries(state.offloads);
-    if (!entries.length) log("No offloads.");
-    for (const [key, entry] of entries) log(`${key}  ${entry.id}  rex host ${entry.label}${entry.previewUrl ? `\n  preview ${entry.previewUrl}` : ""}`);
-    return 0;
-  }
-
   const boat = createBoat(run);
   const rex = createRex(run);
   const repoInfo = () => inspectRepo(run, process.cwd());
@@ -92,6 +94,11 @@ async function main(argv) {
     today: () => new Date().toISOString().slice(0, 10),
   };
 
+  if (command === "status") {
+    await overview(deps);
+    return 0;
+  }
+
   const repo = await repoInfo();
   const key = offloadKey(repo);
   const entry = state.offloads[key];
@@ -102,7 +109,7 @@ async function main(argv) {
 
   if (command === "up") {
     const result = await up(deps, {
-      type: values.type, plan: values.plan, dev: values.dev,
+      type: values.type, plan: values.plan, dev: values.dev, hours: parseHours(values.hours),
       preview: values.preview ? parsePort(values.preview) : undefined,
       tailscaleKeyRef: values["tailscale-key"] ?? config.tailscaleKeyRef,
       tailnet: !values["no-tailnet"],
@@ -121,6 +128,10 @@ async function main(argv) {
     log(`Rex host ${result.label} reconnected at ${endpoint(result.localPort)}`);
     const text = await summary(deps, result);
     if (text) log(text);
+    return 0;
+  }
+  if (command === "extend") {
+    await extend(deps, needEntry(), parseHours(rest[0] ?? values.hours));
     return 0;
   }
   if (command === "preview") {

@@ -5,7 +5,7 @@ import { stageFiles } from "../src/accounts.mjs";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { down, offloadSession, phone, up } from "../src/commands.mjs";
+import { costLine, down, extend, money, offloadSession, overview, phone, up } from "../src/commands.mjs";
 
 const repo = { owner: "o", repo: "r", branch: "feat/x", name: "N", email: "e@x.y", remoteBranchExists: true, pushed: true, dirty: false };
 
@@ -13,6 +13,7 @@ function harness(overrides = {}) {
   const calls = [];
   const logs = [];
   const staged = [];
+  const created = [];
   const state = { offloads: {} };
   const deps = {
     log: (message) => logs.push(message),
@@ -33,7 +34,10 @@ function harness(overrides = {}) {
     },
     boat: {
       ensureEnvironment: async () => false,
-      create: async () => { calls.push("create"); return { id: "bx_1", url: "https://x" }; },
+      create: async (options) => { calls.push("create"); created.push(options); return { id: "bx_1", url: "https://x" }; },
+      usage: async () => ({ dollars: 0.05, seconds: 5000, running: true, perHour: 0.036 }),
+      extend: async (_id, hours) => calls.push(`extend ${hours}`),
+      list: async () => overrides.sandboxes ?? [],
       info: async () => overrides.info ?? { state: "ready" },
       exec: async (_id, script) => {
         if (script.includes("tailscale pair")) return { code: 0, stdout: JSON.stringify({ url: "https://boat-r-feat-x.tail1.ts.net" }), stderr: "" };
@@ -57,12 +61,12 @@ function harness(overrides = {}) {
       runBlock: async (_port, _session, command) => calls.push(`block ${command}`),
     },
   };
-  return { deps, calls, logs, staged, state };
+  return { deps, calls, logs, staged, state, created };
 }
 
 test("up provisions in a safe order and leaves no staged token files", async () => {
   const { deps, calls, logs, staged } = harness();
-  const entry = await up(deps, { type: "small", plan: "max", preview: 3000, dev: "pnpm dev", pollMs: 1 });
+  const entry = await up(deps, { type: "small", plan: "max", hours: 1, preview: 3000, dev: "pnpm dev", pollMs: 1 });
   assert.deepEqual(calls.filter((call) => !["save", "probe"].includes(call)).slice(0, 14), [
     "create", "prepare", "push-pool", "push-pool", "push-pool", "push-pool", "copy /home/user/dotfiles/tools/anti-slop/package.json", "copy /home/user/dotfiles/tools/anti-slop/package-lock.json", "copy /home/user/.local/share/boat-offload/sync-pi.cjs",
     "copy /home/user/.config/boat-offload/claude-one.token", "copy /home/user/.config/boat-offload/claude-two.token",
@@ -77,18 +81,18 @@ test("up provisions in a safe order and leaves no staged token files", async () 
 
 test("up refuses a branch origin does not have", async () => {
   const { deps, calls } = harness({ repo: { pushed: false } });
-  await assert.rejects(up(deps, { type: "small", plan: "max" }), /Push it first/);
+  await assert.rejects(up(deps, { type: "small", plan: "max", hours: 1 }), /Push it first/);
   assert.deepEqual(calls, []);
 });
 
 test("up reuses a live sandbox and resumes a stopped one", async () => {
   const live = harness();
   live.state.offloads["o/r#feat/x"] = { id: "bx_9", createdAt: "t" };
-  await up(live.deps, { type: "small", plan: "max", pollMs: 1 });
+  await up(live.deps, { type: "small", plan: "max", hours: 1, pollMs: 1 });
   assert.ok(!live.calls.includes("create") && !live.calls.includes("resume"));
   const stopped = harness({ info: { state: "stopped" } });
   stopped.state.offloads["o/r#feat/x"] = { id: "bx_9", createdAt: "t" };
-  await up(stopped.deps, { type: "small", plan: "max", pollMs: 1 });
+  await up(stopped.deps, { type: "small", plan: "max", hours: 1, pollMs: 1 });
   assert.ok(stopped.calls.includes("resume") && !stopped.calls.includes("create"));
 });
 
@@ -110,7 +114,7 @@ test("down stops by default and deletes only when asked", async () => {
 test("up stops a port forward it started when Rex registration fails", async () => {
   const { deps, calls } = harness();
   deps.rex.registerHost = async () => { throw new Error("rex hosts failed"); };
-  await assert.rejects(up(deps, { type: "small", plan: "max", pollMs: 1 }), /rex hosts failed/);
+  await assert.rejects(up(deps, { type: "small", plan: "max", hours: 1, pollMs: 1 }), /rex hosts failed/);
   assert.ok(calls.includes("stop-forward 4242"));
 });
 
@@ -119,7 +123,7 @@ test("rerunning up keeps a live port forward instead of starting a second one", 
   deps.state.offloads["o/r#feat/x"] = { id: "bx_9", createdAt: "t", localPort: 6001, forwardPid: 99 };
   deps.forward.isForwarding = async (pid) => pid === 99;
   deps.forward.start = () => { calls.push("start-forward"); return 1; };
-  const entry = await up(deps, { type: "small", plan: "max", pollMs: 1 });
+  const entry = await up(deps, { type: "small", plan: "max", hours: 1, pollMs: 1 });
   assert.equal(entry.localPort, 6001);
   assert.equal(entry.forwardPid, 99);
   assert.ok(!calls.includes("start-forward"));
@@ -210,4 +214,53 @@ test("a failing Tailscale cleanup is reported but does not undo the delete", asy
   assert.ok(calls.includes("delete"));
   assert.ok(logs.some((line) => line.includes("Delete it in the Tailscale admin page")));
   assert.equal(deps.state.offloads.k, undefined);
+});
+
+test("a new sandbox gets a lifetime and the cost is printed", async () => {
+  const { deps, created, logs } = harness();
+  await up(deps, { type: "small", plan: "max", hours: 2, pollMs: 1 });
+  assert.equal(created[0].ttlSeconds, 7200);
+  assert.ok(logs.some((line) => /Cost: \$0\.036\/hour.*\$0\.050 so far.*after 2 hours.*at most \$0\.072/.test(line)), logs.join("\n"));
+});
+
+test("reusing a sandbox resets its lifetime so it does not stop mid-work", async () => {
+  const { deps, calls } = harness();
+  deps.state.offloads["o/r#feat/x"] = { id: "bx_9", createdAt: "t" };
+  await up(deps, { type: "small", plan: "max", hours: 3, pollMs: 1 });
+  assert.ok(calls.includes("extend 3"));
+});
+
+test("money keeps sub-dime amounts readable", () => {
+  assert.equal(money(0.00749), "$0.007");
+  assert.equal(money(1.5), "$1.50");
+});
+
+test("costLine degrades instead of failing when usage is unavailable", async () => {
+  assert.equal(await costLine({ usage: async () => null }, "bx_1", 1), "Cost: unavailable");
+});
+
+test("status shows each offload's cost and flags untracked running sandboxes", async () => {
+  const { deps, logs } = harness({ info: { state: "idle", archiveAfter: "2026-11-05T18:00:00Z" }, sandboxes: [{ id: "bx_1", state: "idle" }, { id: "bx_stray", name: "old", state: "idle" }, { id: "bx_done", state: "stopped" }] });
+  deps.state.offloads["o/r#b"] = { id: "bx_1", label: "boat-r-b" };
+  await overview(deps);
+  const text = logs.join("\n");
+  assert.match(text, /o\/r#b\s+bx_1\s+idle, auto-stops/);
+  assert.match(text, /\$0\.050 so far, \$0\.036\/hour/);
+  assert.match(text, /Not tracked.*bx_stray \(old, idle\)/);
+  assert.doesNotMatch(text, /bx_done/);
+});
+
+test("extend sets the remaining lifetime and reports the cap", async () => {
+  const { deps, calls, logs } = harness();
+  await extend(deps, { id: "bx_1" }, 4);
+  assert.ok(calls.includes("extend 4"));
+  assert.ok(logs.some((line) => line.includes("after 4 hours")));
+});
+
+test("down reports what the sandbox cost in total", async () => {
+  const { deps, logs } = harness();
+  const entry = { id: "bx_1", label: "boat-r-x" };
+  deps.state.offloads.k = entry;
+  await down(deps, "k", entry, { remove: false });
+  assert.ok(logs.some((line) => line.includes("Total cost of sandbox bx_1: $0.05")));
 });
