@@ -300,7 +300,7 @@ export async function offerPhone(deps, label, address, { force }) {
   const { rex, state, saveState, log } = deps;
   state.phoneOffered ??= [];
   if (!force && state.phoneOffered.includes(address)) return;
-  const outcome = await rex.offerToPhone(address, label);
+  const outcome = await rex.offerToPhone(address, label, { waitSeconds: force ? 90 : 0 });
   if (outcome === "sent") {
     if (!state.phoneOffered.includes(address)) state.phoneOffered.push(address);
     saveState(state);
@@ -308,6 +308,6 @@ export async function offerPhone(deps, label, address, { force }) {
     return;
   }
   log(outcome === "asleep"
-    ? `Your phone's Rex is in the background. Open it and run boat-offload phone to get the Add Remote Host prompt for ${address}.`
+    ? `Your phone's Rex was not connected when the prompt was sent, so it may not have appeared. Keep Rex open on the phone and run boat-offload phone to send it again (it waits up to 90 seconds for the phone). Address: ${address}`
     : `Rex on your phone is not connected to this Mac. Connect it once, then run boat-offload phone to get the Add Remote Host prompt for ${address}.`);
 }

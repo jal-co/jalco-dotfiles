@@ -58,7 +58,7 @@ function harness(overrides = {}) {
       registerHost: async (label, _port, extra = []) => calls.push(`host ${label}${extra.length ? ` +${extra.join(",")}` : ""}`),
       removeHost: async (label) => calls.push(`unhost ${label}`),
       ensureSession: async () => { calls.push("session"); return true; },
-      offerToPhone: async (address) => { calls.push(`offer ${address}`); return overrides.phone ?? "sent"; },
+      offerToPhone: async (address, _label, options) => { calls.push(`offer ${address}${options?.waitSeconds ? " wait" : ""}`); return overrides.phone ?? "sent"; },
       runBlock: async (_port, _session, command) => calls.push(`block ${command}`),
     },
   };
@@ -278,7 +278,7 @@ test("up opens Add Remote Host on the phone once per address", async () => {
 });
 
 test("a sleeping or unconnected phone gets a hint and is not marked as offered", async () => {
-  for (const [phoneState, text] of [["asleep", /in the background/], ["no-phone", /not connected to this Mac/]]) {
+  for (const [phoneState, text] of [["asleep", /was not connected when the prompt was sent/], ["no-phone", /not connected to this Mac/]]) {
     const { deps, logs } = harness({ phone: phoneState });
     await offerPhone(deps, "boat-r", "https://x.ts.net", { force: false });
     assert.ok(logs.some((line) => text.test(line)), phoneState);
@@ -295,5 +295,5 @@ test("phone command re-sends the prompt even if it was offered before", async ()
     return { code: 0, stdout: JSON.stringify({ url: "https://boat-r.tail1.ts.net" }), stderr: "" };
   };
   await phone(deps, { id: "bx_1", label: "boat-r", localPort: 5000 }, { waitSeconds: 5, intervalMs: 1 });
-  assert.ok(calls.includes("offer https://boat-r.tail1.ts.net"));
+  assert.ok(calls.includes("offer https://boat-r.tail1.ts.net wait"));
 });

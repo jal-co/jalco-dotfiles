@@ -38,13 +38,24 @@ export function createRex(run) {
       if (result.code !== 0) throw new Error(`rex hosts.put failed: ${result.stderr.trim().split("\n").pop()}`);
       if (existing && sharing && existing.id !== sharing.id) await run("rex", ["api", "call", "hosts.remove", JSON.stringify({ id: existing.id })]);
     },
-    async offerToPhone(address, label) {
-      const clients = parseJson((await run("rex", ["client", "ls", "--json"])).stdout)?.clients ?? [];
-      const phone = clients.find((client) => client.info?.platform === "ios");
+    async offerToPhone(address, label, { waitSeconds = 0, settleMs = 2000, intervalMs = 2000 } = {}) {
+      const phoneClient = async () => {
+        const clients = parseJson((await run("rex", ["client", "ls", "--json"])).stdout)?.clients ?? [];
+        return clients.find((client) => client.info?.platform === "ios");
+      };
+      const deadline = Date.now() + waitSeconds * 1000;
+      let phone = await phoneClient();
       if (!phone) return "no-phone";
+      while (phone.connection_state !== "connected" && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        phone = await phoneClient();
+      }
+      if (phone?.connection_state !== "connected") return "asleep";
       const fields = Object.fromEntries(["address", "url", "endpoint", "host", "text"].map((name) => [name, address]));
       const sent = await run("rex", ["-C", phone.client_id, "do", "client.host.add", "--args", JSON.stringify({ ...fields, label })]);
-      return sent.code === 0 ? "sent" : "asleep";
+      if (sent.code !== 0) return "asleep";
+      await new Promise((resolve) => setTimeout(resolve, settleMs));
+      return (await phoneClient())?.connection_state === "connected" ? "sent" : "asleep";
     },
     async removeHost(label) {
       await run("rex", ["hosts", "remove", label]);
