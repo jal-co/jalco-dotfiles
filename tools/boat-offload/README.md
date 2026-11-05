@@ -41,7 +41,7 @@ Sandboxes bill by the second while running: `small` is $0.018/hour, `default` is
 - `up` sets a lifetime of `--hours N` (default 1, up to 12) so a forgotten sandbox stops itself, and prints the hourly rate, the cost so far and the most it can still add. Rerunning `up` or `attach` resets the lifetime.
 - `extend HOURS` changes how much longer it may run.
 - `status` shows each offload's state, cost so far and auto-stop time, and flags any other running sandbox on the account that `boat-offload` did not create.
-- `down` prints the sandbox's total cost. It stops by default; `--delete` removes it and its Tailscale device.
+- `down` prints the sandbox's total cost. It stops by default; `--delete` removes it, its Tailscale device and its Rex host entries. The Mac app's own entry for the host is removed through the app, because the server list alone does not clear it. Hosts saved on your phone are not touched; delete them in the phone's Rex.
 - Use `small` unless the work needs more. Builds and browsers on `small` are slow, but the Claude calls are the same.
 
 ## With the laptop closed

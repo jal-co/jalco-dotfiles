@@ -112,3 +112,29 @@ test("no iOS client at all is reported separately", async () => {
   const failed = fake([phoneClient("connected"), { code: 4, stdout: "", stderr: "waiting to reconnect" }]);
   assert.equal(await failed.rex.offerToPhone("https://x.ts.net", "l", fast), "asleep");
 });
+
+test("removing a sandbox removes its CLI host and the app's tailnet entry, and nothing else", async () => {
+  const { rex, calls } = fake([
+    { code: 0, stdout: JSON.stringify({ hosts: [
+      { id: "host:cli", label: "boat-r", endpoints: ["http://127.0.0.1:99"] },
+      { id: "host:app", label: "boat-r.t.ts.net", endpoints: ["https://boat-r.t.ts.net"] },
+      { id: "host:other", label: "studio", endpoints: ["https://studio.t.ts.net"] },
+    ] }), stderr: "" },
+    { code: 0, stdout: JSON.stringify({ clients: [{ client_id: "client:mac", info: { kind: "app", platform: "macos" }, connection_state: "connected" }] }), stderr: "" },
+  ]);
+  assert.equal(await rex.removeHost("boat-r", "https://boat-r.t.ts.net"), 2);
+  const removed = calls.filter((call) => call[3] === "hosts.remove").map((call) => JSON.parse(call[4]).id);
+  assert.deepEqual(removed.sort(), ["host:app", "host:cli"]);
+  const appRemoved = calls.filter((call) => call[4] === "client.host.remove").map((call) => JSON.parse(call[6]).id);
+  assert.deepEqual(appRemoved.sort(), ["host:app", "host:cli"]);
+  assert.ok(calls.every((call) => !JSON.stringify(call).includes("host:other")));
+});
+
+test("without a connected Mac app only the server list is edited", async () => {
+  const { rex, calls } = fake([
+    { code: 0, stdout: JSON.stringify({ hosts: [{ id: "host:cli", label: "boat-r", endpoints: [] }] }), stderr: "" },
+    { code: 0, stdout: JSON.stringify({ clients: [] }), stderr: "" },
+  ]);
+  assert.equal(await rex.removeHost("boat-r"), 1);
+  assert.ok(calls.every((call) => call[4] !== "client.host.remove"));
+});

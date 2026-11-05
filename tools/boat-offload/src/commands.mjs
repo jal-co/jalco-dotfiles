@@ -182,7 +182,7 @@ export async function preview(deps, entry, port) {
 export async function down(deps, key, entry, { remove }) {
   const { boat, rex, forward, saveState, state, log } = deps;
   forward.stop(entry.forwardPid);
-  if (entry.label) await rex.removeHost(entry.label);
+  if (entry.label) await rex.removeHost(entry.label, entry.phoneAddress);
   const info = await boat.info(entry.id);
   if (info) {
     const usage = await boat.usage(entry.id);

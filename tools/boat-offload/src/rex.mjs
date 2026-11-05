@@ -57,8 +57,17 @@ export function createRex(run) {
       await new Promise((resolve) => setTimeout(resolve, settleMs));
       return (await phoneClient())?.connection_state === "connected" ? "sent" : "asleep";
     },
-    async removeHost(label) {
-      await run("rex", ["hosts", "remove", label]);
+    async removeHost(label, address) {
+      const listed = parseJson((await run("rex", ["api", "call", "hosts.list"])).stdout);
+      if (!listed?.hosts) return 0;
+      const matches = listed.hosts.filter((host) => host.label.toLowerCase() === label.toLowerCase() || (address && (host.endpoints ?? []).includes(address)));
+      const clients = parseJson((await run("rex", ["client", "ls", "--json"])).stdout)?.clients ?? [];
+      const app = clients.find((client) => client.info?.kind === "app" && client.info?.platform === "macos" && client.connection_state === "connected");
+      for (const host of matches) {
+        if (app) await run("rex", ["-C", app.client_id, "do", "client.host.remove", "--args", JSON.stringify({ id: host.id, host: host.label, label: host.label })]);
+        await run("rex", ["api", "call", "hosts.remove", JSON.stringify({ id: host.id })]);
+      }
+      return matches.length;
     },
     async hasSession(port, label) {
       const result = await call(port, ["ls", "--json"]);
