@@ -82,3 +82,16 @@ test("when the CLI host and the app's host both exist the app's is kept and the 
   assert.deepEqual(calls[3].slice(0, 4), ["rex", "api", "call", "hosts.remove"]);
   assert.deepEqual(JSON.parse(calls[3][4]), { id: "host:cli" });
 });
+
+test("pairing is suggested only when no phone is connected to this Mac's server", async () => {
+  const none = fake([
+    { code: 0, stdout: JSON.stringify({ clients: [{ info: { platform: "macos" } }] }), stderr: "" },
+    { code: 0, stdout: JSON.stringify({ url: "https://mac.t.ts.net" }), stderr: "" },
+  ]);
+  assert.equal(await none.rex.phonePairing(), "https://mac.t.ts.net");
+  const connected = fake([{ code: 0, stdout: JSON.stringify({ clients: [{ info: { platform: "ios" } }] }), stderr: "" }]);
+  assert.equal(await connected.rex.phonePairing(), undefined);
+  assert.equal(connected.calls.length, 1);
+  const off = fake([{ code: 0, stdout: JSON.stringify({ clients: [] }), stderr: "" }, { code: 1, stdout: "", stderr: "tailscale off" }]);
+  assert.equal(await off.rex.phonePairing(), undefined);
+});

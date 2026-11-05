@@ -52,6 +52,8 @@ The first message in a fork rebuilds the whole conversation for Claude Code, so 
 
 ## Phone and other devices
 
+The easy path on a phone is to connect Rex to your Mac's Rex server once, not to each sandbox. Your Mac's server keeps your host list, and every device connected to it receives changes to that list. Run `rex server tailscale pair` on the Mac and scan the QR code in Rex on the phone (or paste `https://<mac-name>.<tailnet>.ts.net`). After that every sandbox `up` registers appears on the phone by itself. `up` prints this instruction until a phone client is connected to the Mac's server. Whether the iOS app lists server-provided hosts like the Mac app does is unconfirmed.
+
 The sandbox's Rex server joins your tailnet with Rex's built-in Tailscale, so the Rex app on your phone, or any device on that tailnet, connects straight to it. `up` turns this on and registers the CLI host with two endpoints: the tailnet address first, then the local Boat forward. The apps need the address added by hand (Add Remote Host…).
 
 The first time a sandbox joins, Tailscale needs a sign-in. `up` prints the link. Open it, then run `boat-offload phone` if `up` finished before you did. A new sandbox is a new device, so each new sandbox asks once. To skip the click, store a reusable Tailscale auth key in 1Password and put its reference in `~/.config/boat-offload/config.json`:
