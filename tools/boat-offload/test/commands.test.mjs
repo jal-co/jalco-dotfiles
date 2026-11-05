@@ -5,7 +5,7 @@ import { stageFiles } from "../src/accounts.mjs";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { costLine, down, extend, money, offloadSession, overview, phone, up } from "../src/commands.mjs";
+import { costLine, down, extend, money, offerPhone, offloadSession, overview, phone, up } from "../src/commands.mjs";
 
 const repo = { owner: "o", repo: "r", branch: "feat/x", name: "N", email: "e@x.y", remoteBranchExists: true, pushed: true, dirty: false };
 
@@ -58,6 +58,7 @@ function harness(overrides = {}) {
       registerHost: async (label, _port, extra = []) => calls.push(`host ${label}${extra.length ? ` +${extra.join(",")}` : ""}`),
       removeHost: async (label) => calls.push(`unhost ${label}`),
       ensureSession: async () => { calls.push("session"); return true; },
+      offerToPhone: async (address) => { calls.push(`offer ${address}`); return overrides.phone ?? "sent"; },
       runBlock: async (_port, _session, command) => calls.push(`block ${command}`),
     },
   };
@@ -263,4 +264,36 @@ test("down reports what the sandbox cost in total", async () => {
   deps.state.offloads.k = entry;
   await down(deps, "k", entry, { remove: false });
   assert.ok(logs.some((line) => line.includes("Total cost of sandbox bx_1: $0.05")));
+});
+
+test("up opens Add Remote Host on the phone once per address", async () => {
+  const { deps, calls, logs } = harness();
+  await up(deps, { type: "small", plan: "max", hours: 1, pollMs: 1 });
+  assert.ok(calls.includes("offer https://boat-r-feat-x.tail1.ts.net"));
+  assert.ok(logs.some((line) => line.includes("Opened Add Remote Host on your phone")));
+  assert.deepEqual(deps.state.phoneOffered, ["https://boat-r-feat-x.tail1.ts.net"]);
+  calls.length = 0;
+  await up(deps, { type: "small", plan: "max", hours: 1, pollMs: 1 });
+  assert.ok(!calls.some((call) => call.startsWith("offer ")));
+});
+
+test("a sleeping or unconnected phone gets a hint and is not marked as offered", async () => {
+  for (const [phoneState, text] of [["asleep", /in the background/], ["no-phone", /not connected to this Mac/]]) {
+    const { deps, logs } = harness({ phone: phoneState });
+    await offerPhone(deps, "boat-r", "https://x.ts.net", { force: false });
+    assert.ok(logs.some((line) => text.test(line)), phoneState);
+    assert.deepEqual(deps.state.phoneOffered, []);
+  }
+});
+
+test("phone command re-sends the prompt even if it was offered before", async () => {
+  const { deps, calls } = harness();
+  deps.state.phoneOffered = ["https://boat-r.tail1.ts.net"];
+  deps.boat.exec = async (_id, script) => {
+    if (script.includes("tailscale on")) return { code: 0, stdout: "{}", stderr: "" };
+    if (script.includes("server status")) return { code: 0, stdout: JSON.stringify({ tailscale: { state: "running", dns_name: "boat-r.tail1.ts.net" } }), stderr: "" };
+    return { code: 0, stdout: JSON.stringify({ url: "https://boat-r.tail1.ts.net" }), stderr: "" };
+  };
+  await phone(deps, { id: "bx_1", label: "boat-r", localPort: 5000 }, { waitSeconds: 5, intervalMs: 1 });
+  assert.ok(calls.includes("offer https://boat-r.tail1.ts.net"));
 });

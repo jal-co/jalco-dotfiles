@@ -82,3 +82,23 @@ test("when the CLI host and the app's host both exist the app's is kept and the 
   assert.deepEqual(calls[3].slice(0, 4), ["rex", "api", "call", "hosts.remove"]);
   assert.deepEqual(JSON.parse(calls[3][4]), { id: "host:cli" });
 });
+
+test("offering a host to the phone targets the iOS client and passes the address", async () => {
+  const { rex, calls } = fake([
+    { code: 0, stdout: JSON.stringify({ clients: [{ client_id: "client:mac", info: { platform: "macos" } }, { client_id: "client:phone", info: { platform: "ios" } }] }), stderr: "" },
+    { code: 0, stdout: "null", stderr: "" },
+  ]);
+  assert.equal(await rex.offerToPhone("https://x.ts.net", "boat-r"), "sent");
+  assert.deepEqual(calls[1].slice(0, 6), ["rex", "-C", "client:phone", "do", "client.host.add", "--args"]);
+  assert.equal(JSON.parse(calls[1][6]).address, "https://x.ts.net");
+});
+
+test("a missing or sleeping phone is reported without throwing", async () => {
+  const none = fake([{ code: 0, stdout: JSON.stringify({ clients: [] }), stderr: "" }]);
+  assert.equal(await none.rex.offerToPhone("https://x.ts.net", "l"), "no-phone");
+  const asleep = fake([
+    { code: 0, stdout: JSON.stringify({ clients: [{ client_id: "client:phone", info: { platform: "ios" } }] }), stderr: "" },
+    { code: 4, stdout: "", stderr: "waiting to reconnect" },
+  ]);
+  assert.equal(await asleep.rex.offerToPhone("https://x.ts.net", "l"), "asleep");
+});

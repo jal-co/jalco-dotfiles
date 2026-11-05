@@ -151,6 +151,7 @@ export async function up(deps, options) {
     if (address) {
       await rex.registerHost(label, entry.localPort, [address]);
       log(`Rex host "${label}" is also reachable on your tailnet at ${address}`);
+      await offerPhone(deps, entry.label, address, { force: false });
     } else {
       log("Tailnet access is not set up yet. Sign in with the link above, then run boat-offload phone.");
     }
@@ -255,6 +256,7 @@ export async function phone(deps, entry, options) {
   const address = await joinTailnet(deps, entry, options);
   if (!address) throw new Error(`Tailscale did not come up within ${options.waitSeconds} seconds. Run boat-offload phone again after signing in.`);
   await deps.rex.registerHost(entry.label, entry.localPort, [address]);
+  await offerPhone(deps, entry.label, address, { force: true });
   return address;
 }
 
@@ -292,4 +294,20 @@ export async function overview(deps) {
 export async function extend(deps, entry, hours) {
   await deps.boat.extend(entry.id, hours);
   deps.log(await costLine(deps.boat, entry.id, hours));
+}
+
+export async function offerPhone(deps, label, address, { force }) {
+  const { rex, state, saveState, log } = deps;
+  state.phoneOffered ??= [];
+  if (!force && state.phoneOffered.includes(address)) return;
+  const outcome = await rex.offerToPhone(address, label);
+  if (outcome === "sent") {
+    if (!state.phoneOffered.includes(address)) state.phoneOffered.push(address);
+    saveState(state);
+    log(`Opened Add Remote Host on your phone with ${address}. Tap Add. This address stays the same for this branch, so it only asks once.`);
+    return;
+  }
+  log(outcome === "asleep"
+    ? `Your phone's Rex is in the background. Open it and run boat-offload phone to get the Add Remote Host prompt for ${address}.`
+    : `Rex on your phone is not connected to this Mac. Connect it once, then run boat-offload phone to get the Add Remote Host prompt for ${address}.`);
 }
