@@ -44,6 +44,15 @@ Sandboxes bill by the second while running: `small` is $0.018/hour, `default` is
 - `down` prints the sandbox's total cost. It stops by default; `--delete` removes it and its Tailscale device.
 - Use `small` unless the work needs more. Builds and browsers on `small` are slow, but the Claude calls are the same.
 
+## With the laptop closed
+
+The sandbox does not depend on the Mac once it is running. It joins your tailnet by itself, so a phone on the tailnet reaches `https://boat-<repo>-<branch>.<tailnet>.ts.net` directly. The `boat forward` and the host list on the Mac are only conveniences for the Mac. This was checked with the forward stopped: the Mac reached the sandbox's Rex over the tailnet alone.
+
+What still needs the Mac:
+- Running `up`, `attach`, `session` and `down`. There is no always-on controller yet.
+- Telling a new phone about a host. Rex's docs say a device keeps the list it last received when its home is away, so a phone that has already seen the host keeps working with the Mac closed. A phone that has never seen it needs the address pasted into Add Remote Host….
+- Extending the lifetime. The sandbox stops on its own at the end of `--hours`, even while you use it from the phone. Pick `--hours` for the time you will be away, for example `--hours 4`, which caps a `small` sandbox at about $0.07.
+
 ## Offloading a session
 
 `boat-offload session` copies a Pi session file (by default the newest one for this repository, or `--session PATH`) to the sandbox and starts `pi --fork` on it in a Rex session named `<repo>-fork-<id>`. The original stays on the Mac and keeps running; the fork is a separate session with the same history. Before copying, the file is scanned for credential-shaped text (Anthropic, GitHub, 1Password, Tailscale and AWS keys, JWTs, private keys). A match stops the copy and nothing is sent. The scan is a safety net, not a guarantee: session files hold everything shown in the conversation, so treat the sandbox as holding that history.
