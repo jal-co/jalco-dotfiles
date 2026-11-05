@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
-import { listeningScript, provisionScript, quote, rexStartScript, tokenPath } from "../src/scripts.mjs";
+import { listeningScript, prepareScript, provisionScript, quote, rexStartScript, tokenPath } from "../src/scripts.mjs";
 
 const base = { owner: "o", repo: "r", branch: "feat/x", gitName: "Name O'Neil", gitEmail: "a@b.c", accounts: [{ id: "one", file: tokenPath("one") }, { id: "two", file: tokenPath("two") }], plan: "max", today: "2026-11-05" };
 
@@ -55,4 +55,10 @@ test("installer failures surface the tail of their output", () => {
   assert.match(script, /quietly\(\) \{/);
   assert.match(script, /tail -n 8/);
   assert.doesNotMatch(script, /install\.sh \| sudo sh -s -- --tarball >\/dev\/null/);
+});
+
+test("prepare creates every directory later copies write into", () => {
+  const script = prepareScript();
+  execFileSync("sh", ["-n"], { input: script });
+  for (const directory of ["/home/user/dotfiles", "/home/user/.local/share/boat-offload", "/home/user/.local/share/boat-offload/sessions", "/home/user/.config/boat-offload"]) assert.ok(script.includes(`'${directory}'`), directory);
 });

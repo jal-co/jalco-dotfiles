@@ -6,6 +6,7 @@ export const REMOTE = {
   sessions: "/home/user/.local/share/boat-offload/sessions",
   tokens: "/home/user/.config/boat-offload",
   dotfiles: "/home/user/dotfiles",
+  support: "/home/user/.local/share/boat-offload",
   sync: "/home/user/.local/share/boat-offload/sync-pi.cjs",
   rexPort: 7297,
 };
@@ -13,7 +14,7 @@ export const REMOTE = {
 export const tokenPath = (id) => `${REMOTE.tokens}/claude-${id}.token`;
 
 export const prepareScript = () =>
-  `set -eu\nmkdir -p ${quote(REMOTE.tokens)} ${quote(REMOTE.work)} ${quote(REMOTE.dotfiles)}\nchmod 700 ${quote(REMOTE.tokens)}`;
+  `set -eu\nmkdir -p ${quote(REMOTE.tokens)} ${quote(REMOTE.work)} ${quote(REMOTE.dotfiles)} ${quote(REMOTE.support)} ${quote(REMOTE.sessions)}\nchmod 700 ${quote(REMOTE.tokens)}`;
 
 export function provisionScript({ owner, repo, branch, gitName, gitEmail, accounts, plan, today }) {
   const checkout = `${REMOTE.work}/${repo}`;
