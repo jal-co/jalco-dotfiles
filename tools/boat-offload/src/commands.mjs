@@ -11,6 +11,7 @@ const SYNCED_DIRECTORIES = ["pi", "agents", "rex", "tools/anti-slop"];
 const IGNORED_BUT_NEEDED = ["tools/anti-slop/package.json", "tools/anti-slop/package-lock.json"];
 const SYNC_SCRIPT = fileURLToPath(new URL("./remote/sync-pi.cjs", import.meta.url));
 export const ENVIRONMENT = "offload";
+export const ALLOWED_HOSTS = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.on.boat.dev";
 
 const sandboxName = ({ repo, branch }) => `${repo}-${branch}`.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 100);
 
@@ -131,7 +132,7 @@ export async function up(deps, options) {
   log(created ? `Started Pi in Rex session "${repo.repo}"` : `Rex session "${repo.repo}" already running`);
 
   if (options.dev) {
-    await rex.runBlock(entry.localPort, repo.repo, `cd ${quote(checkout)} && ${options.dev}`);
+    await rex.runBlock(entry.localPort, repo.repo, `export ${ALLOWED_HOSTS}; cd ${quote(checkout)} && ${options.dev}`);
     log(`Started dev command in Rex session "${repo.repo}"`);
   }
   if (options.tailnet !== false) {

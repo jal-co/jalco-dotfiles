@@ -68,7 +68,7 @@ test("up provisions in a safe order and leaves no staged token files", async () 
     "copy /home/user/.config/boat-offload/claude-one.token", "copy /home/user/.config/boat-offload/claude-two.token",
     "provision", "rex-start", "host boat-r-feat-x",
   ]);
-  assert.ok(calls.includes("session") && calls.some((call) => call.startsWith("block cd '/home/user/work/r' && pnpm dev")));
+  assert.ok(calls.includes("session") && calls.some((call) => call.startsWith("block export __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.on.boat.dev; cd '/home/user/work/r' && pnpm dev")));
   assert.equal(entry.previewUrl, "https://preview/3000");
   assert.equal(entry.localPort, 5000);
   for (const result of staged) assert.ok(result.files.every((file) => !existsSync(file.path)));
