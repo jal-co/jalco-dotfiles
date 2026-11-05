@@ -21,8 +21,9 @@ export function provisionScript({ owner, repo, branch, gitName, gitEmail, accoun
   return [
     "set -eu",
     'export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"',
-    "command -v rex >/dev/null || curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sudo sh -s -- --tarball >/dev/null",
-    "command -v pi >/dev/null || npm install -g @earendil-works/pi-coding-agent --ignore-scripts --no-audit --no-fund >/dev/null",
+    'quietly() { log=$(mktemp); if ! "$@" >"$log" 2>&1; then tail -n 8 "$log" >&2; exit 1; fi; rm -f "$log"; }',
+    "command -v rex >/dev/null || quietly sh -c 'curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sudo sh -s -- --tarball'",
+    "command -v pi >/dev/null || quietly npm install -g @earendil-works/pi-coding-agent --ignore-scripts --no-audit --no-fund",
     gitName ? `git config --global user.name ${quote(gitName)}` : "",
     gitEmail ? `git config --global user.email ${quote(gitEmail)}` : "",
     `if [ -d ${quote(`${checkout}/.git`)} ]; then`,
@@ -34,7 +35,7 @@ export function provisionScript({ owner, repo, branch, gitName, gitEmail, accoun
     `  gh repo clone ${quote(`${owner}/${repo}`)} ${quote(checkout)} -- -q --branch ${quote(branch)}`,
     "fi",
     `for dir in ${quote(`${piAgent}/packages/pi-claude-pool`)} ${quote(`${piAgent}/extensions`)}; do`,
-    '  (cd "$dir" && npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund >/dev/null)',
+    '  (cd "$dir" && quietly npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund)',
     "done",
     `chmod 600 ${accounts.map(({ file }) => quote(file)).join(" ")}`,
     `node ${quote(REMOTE.sync)} --dotfiles ${quote(REMOTE.dotfiles)} --home "$HOME" --accounts ${quote(accountEntries)} --plan ${quote(plan)} --today ${quote(today)}`,
@@ -58,3 +59,17 @@ export const listeningScript = (port) => `ss -ltn "( sport = :${Number(port)} )"
 
 export const gitSummaryScript = (repo) =>
   `cd ${quote(`${REMOTE.work}/${repo}`)} && git status --short --branch | head -20 && git log --oneline -5`;
+
+const REX_PATH = 'export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"';
+
+export const tailscaleOnScript = (hostname) =>
+  `${REX_PATH}\nrex server tailscale on --hostname ${quote(hostname)} --json`;
+
+export const tailscaleStatusScript = () => `${REX_PATH}\nrex server status --json`;
+
+export const tailscalePairScript = () => `${REX_PATH}\nrex server tailscale pair --json`;
+
+export const tailscaleRenameScript = (hostname) =>
+  `${REX_PATH}\nrex server tailscale rename ${quote(hostname)} --json`;
+
+export const tailscaleLogoutScript = () => `${REX_PATH}\nrex server tailscale logout --json`;

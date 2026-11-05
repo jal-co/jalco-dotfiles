@@ -13,6 +13,7 @@ Run `boat-offload` inside the repository. The full behavior and limits are in `~
 | Offload and start the dev server with a preview | `boat-offload up --dev "<command>" --preview <port>` |
 | Preview another port | `boat-offload preview <port>` |
 | Reconnect after sleep or reboot | `boat-offload attach` |
+| Finish phone or tailnet sign-in | `boat-offload phone` |
 | Show offloads | `boat-offload status` |
 | Pause | `boat-offload down` |
 | Remove the sandbox | `boat-offload down --delete` |
@@ -23,4 +24,5 @@ Run `boat-offload` inside the repository. The full behavior and limits are in `~
 - Creating a sandbox costs money. Use the default `--type small` unless the work needs more, and ask before `default`.
 - Stop with `down` when the work is finished. Run `down --delete` only when Justin asks to delete.
 - Never print, log or paste token values, and never copy Pi `auth.json`, Keychain data or a 1Password service-account token to a sandbox. The command already delivers only the pool's Claude tokens.
+- A new sandbox needs one Tailscale sign-in link opened by Justin. Print the link `up` or `phone` shows and wait for him; never try to sign in for him.
 - Report the Rex host label, the sandbox ID and any preview URL it prints. A preview URL contains an access token: show it to Justin only.

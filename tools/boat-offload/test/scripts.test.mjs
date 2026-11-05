@@ -48,3 +48,10 @@ test("rex start script only listens on loopback and optionally enrolls tailscale
 test("listening probe is a valid shell command", () => {
   execFileSync("sh", ["-n"], { input: listeningScript(7297) });
 });
+
+test("installer failures surface the tail of their output", () => {
+  const script = provisionScript(base);
+  assert.match(script, /quietly\(\) \{/);
+  assert.match(script, /tail -n 8/);
+  assert.doesNotMatch(script, /install\.sh \| sudo sh -s -- --tarball >\/dev\/null/);
+});

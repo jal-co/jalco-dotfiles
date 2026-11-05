@@ -1,26 +1,29 @@
 import { parseArgs } from "node:util";
 import { createAccounts } from "./accounts.mjs";
 import { createBoat } from "./boat.mjs";
-import { attach, down, preview, summary, up } from "./commands.mjs";
+import { attach, down, phone, preview, summary, up } from "./commands.mjs";
 import { freePort } from "./free-port.mjs";
 import { isForwarding, startForward, stopForward } from "./forward.mjs";
 import { createRex, endpoint } from "./rex.mjs";
 import { inspectRepo } from "./repo.mjs";
+import { loadConfig } from "./config.mjs";
 import { run } from "./runner.mjs";
 import { defaultStatePath, loadState, offloadKey, saveState } from "./state.mjs";
 
 const HELP = `boat-offload: run a branch on a Boat sandbox with Rex, Pi and your Claude subscriptions
 
 Usage (run inside the repository):
-  boat-offload up [--type small|default] [--dev "command"] [--preview PORT] [--plan pro|max] [--tailscale-key op://...]
+  boat-offload up [--type small|default] [--dev "command"] [--preview PORT] [--plan pro|max] [--tailscale-key op://...] [--no-tailnet]
   boat-offload status
   boat-offload attach
   boat-offload preview PORT
+  boat-offload phone [--wait SECONDS]
   boat-offload down [--delete]
 
 up         create or reuse the sandbox for this branch, install tools, deliver tokens, start Pi in Rex
 attach     reconnect Rex to a running or stopped sandbox for this branch
 preview    print a private HTTPS URL for a port on the sandbox
+phone      finish tailnet sign-in for the sandbox's Rex server (up already starts it)
 down       stop the sandbox (kept 14 days); --delete removes it
 status     list offloads on this Mac
 `;
@@ -32,8 +35,16 @@ const OPTIONS = {
   plan: { type: "string", default: "max" },
   "tailscale-key": { type: "string" },
   delete: { type: "boolean", default: false },
+  wait: { type: "string", default: "300" },
+  "no-tailnet": { type: "boolean", default: false },
   help: { type: "boolean", short: "h", default: false },
 };
+
+function parseSeconds(value) {
+  const seconds = Number(value);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 3600) throw new Error(`"${value}" is not a number of seconds between 1 and 3600.`);
+  return seconds;
+}
 
 function parsePort(value) {
   const port = Number(value);
@@ -51,6 +62,7 @@ async function main(argv) {
   if (!["small", "default"].includes(values.type)) throw new Error("--type must be small or default.");
   if (!["pro", "max"].includes(values.plan)) throw new Error("--plan must be pro or max.");
 
+  const config = loadConfig();
   const statePath = defaultStatePath();
   const state = loadState(statePath);
   const log = (message) => process.stdout.write(`${message}\n`);
@@ -85,7 +97,8 @@ async function main(argv) {
     const result = await up(deps, {
       type: values.type, plan: values.plan, dev: values.dev,
       preview: values.preview ? parsePort(values.preview) : undefined,
-      tailscaleKeyRef: values["tailscale-key"],
+      tailscaleKeyRef: values["tailscale-key"] ?? config.tailscaleKeyRef,
+      tailnet: !values["no-tailnet"],
     });
     log(`\nSandbox ${result.id} is running ${repo.owner}/${repo.repo}@${repo.branch}`);
     log(`Rex host: ${result.label}  (rex -S ${result.label} ls, or Add Remote Host with ${endpoint(result.localPort)})`);
@@ -103,6 +116,11 @@ async function main(argv) {
   if (command === "preview") {
     if (!rest[0]) throw new Error("Usage: boat-offload preview PORT");
     log(await preview(deps, needEntry(), parsePort(rest[0])));
+    return 0;
+  }
+  if (command === "phone") {
+    const address = await phone(deps, needEntry(), { waitSeconds: parseSeconds(values.wait) });
+    log(`Rex on your phone: add a remote host with ${address}`);
     return 0;
   }
   if (command === "down") {

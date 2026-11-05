@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostLabel, offloadKey } from "./state.mjs";
-import { REMOTE, gitSummaryScript, listeningScript, prepareScript, provisionScript, quote, rexStartScript, tokenPath } from "./scripts.mjs";
+import { REMOTE, gitSummaryScript, listeningScript, prepareScript, provisionScript, quote, rexStartScript, tailscaleLogoutScript, tailscaleOnScript, tailscalePairScript, tailscaleRenameScript, tailscaleStatusScript, tokenPath } from "./scripts.mjs";
 
 export const DOTFILES = join(homedir(), "dotfiles");
 const SYNC_SCRIPT = fileURLToPath(new URL("./remote/sync-pi.cjs", import.meta.url));
@@ -131,6 +131,15 @@ export async function up(deps, options) {
     await rex.runBlock(entry.localPort, repo.repo, `cd ${quote(checkout)} && ${options.dev}`);
     log(`Started dev command in Rex session "${repo.repo}"`);
   }
+  if (options.tailnet !== false) {
+    const address = await joinTailnet(deps, entry, { waitSeconds: tailscale ? 60 : 15, intervalMs: options.pollMs });
+    if (address) {
+      await rex.registerHost(label, entry.localPort, [address]);
+      log(`Rex host "${label}" is also reachable on your tailnet at ${address}`);
+    } else {
+      log("Tailnet access is not set up yet. Sign in with the link above, then run boat-offload phone.");
+    }
+  }
   if (options.preview) entry.previewUrl = await boat.host(sandbox.id, options.preview);
   saveState(state);
   return entry;
@@ -142,6 +151,7 @@ export async function attach(deps, entry) {
   if (!info) throw new Error(`Sandbox ${entry.id} no longer exists. Run boat-offload up from the repository to create a new one.`);
   if (["stopped", "stopping", "archived"].includes(info.state)) await boat.resume(entry.id);
   Object.assign(entry, await connect(deps, entry, entry.label, entry, undefined));
+  if (entry.phoneAddress) await deps.rex.registerHost(entry.label, entry.localPort, [entry.phoneAddress]);
   saveState(state);
   return entry;
 }
@@ -160,6 +170,7 @@ export async function down(deps, key, entry, { remove }) {
   const info = await boat.info(entry.id);
   if (info) {
     if (remove) {
+      if (entry.phoneAddress && info.state !== "stopped") await boat.exec(entry.id, tailscaleLogoutScript(), { timeoutSeconds: 30 }).catch(() => {});
       await boat.remove(entry.id);
       log(`Deleted sandbox ${entry.id}`);
     } else if (!["stopped", "stopping"].includes(info.state)) {
@@ -175,4 +186,50 @@ export async function down(deps, key, entry, { remove }) {
 export async function summary(deps, entry) {
   const result = await deps.boat.exec(entry.id, gitSummaryScript(entry.repo), { timeoutSeconds: 30 });
   return result.code === 0 ? result.stdout.trim() : "";
+}
+
+const tailnetAddress = (value) => (/^https:\/\/[A-Za-z0-9.-]+$/.test(value?.url ?? "") ? value.url : undefined);
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function joinTailnet(deps, entry, { waitSeconds, intervalMs = 3000 }) {
+  const { boat, log } = deps;
+  const started = await boat.exec(entry.id, tailscaleOnScript(entry.label), { timeoutSeconds: 60 });
+  if (started.code !== 0) throw new Error(`Enabling Tailscale in Rex failed:\n${(started.stderr || started.stdout).trim()}`);
+  const deadline = Date.now() + waitSeconds * 1000;
+  let announced = false;
+  let renamed = false;
+  do {
+    const status = parseJson((await boat.exec(entry.id, tailscaleStatusScript(), { timeoutSeconds: 30 })).stdout)?.tailscale;
+    if (status?.state === "needs_login" && status.auth_url && !announced) {
+      log(`Sign in to your tailnet so Rex on your phone can reach this sandbox:\n  ${status.auth_url}`);
+      announced = true;
+    }
+    if (status?.dns_name && !status.dns_name.startsWith(`${entry.label}.`) && !renamed) {
+      await boat.exec(entry.id, tailscaleRenameScript(entry.label), { timeoutSeconds: 30 });
+      renamed = true;
+    }
+    const pair = await boat.exec(entry.id, tailscalePairScript(), { timeoutSeconds: 30 });
+    const address = pair.code === 0 ? tailnetAddress(parseJson(pair.stdout)) : undefined;
+    if (address) {
+      entry.phoneAddress = address;
+      deps.saveState(deps.state);
+      return address;
+    }
+    if (Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  } while (Date.now() < deadline);
+  return undefined;
+}
+
+export async function phone(deps, entry, options) {
+  const address = await joinTailnet(deps, entry, options);
+  if (!address) throw new Error(`Tailscale did not come up within ${options.waitSeconds} seconds. Run boat-offload phone again after signing in.`);
+  await deps.rex.registerHost(entry.label, entry.localPort, [address]);
+  return address;
 }

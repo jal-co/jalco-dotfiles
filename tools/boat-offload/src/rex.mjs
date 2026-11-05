@@ -14,7 +14,8 @@ export function createRex(run) {
       }
       return false;
     },
-    async registerHost(label, port) {
+    async registerHost(label, port, extraEndpoints = []) {
+      const endpoints = [...extraEndpoints, endpoint(port)];
       const listed = await run("rex", ["hosts", "list", "--json"]);
       let known = false;
       try {
@@ -23,8 +24,8 @@ export function createRex(run) {
         throw new Error("rex hosts list returned output boat-offload could not read.");
       }
       const result = known
-        ? await run("rex", ["hosts", "edit", label, "--endpoint", endpoint(port)])
-        : await run("rex", ["hosts", "add", label, endpoint(port)]);
+        ? await run("rex", ["hosts", "edit", label, ...endpoints.flatMap((value) => ["--endpoint", value])])
+        : await run("rex", ["hosts", "add", label, ...endpoints]);
       if (result.code !== 0) throw new Error(`rex hosts failed: ${result.stderr.trim().split("\n").pop()}`);
     },
     async removeHost(label) {
@@ -32,11 +33,11 @@ export function createRex(run) {
     },
     async hasSession(port, label) {
       const result = await call(port, ["ls", "--json"]);
-      if (result.code !== 0) return false;
+      if (result.code !== 0) throw new Error("rex ls failed; cannot tell whether the Rex session already exists.");
       try {
-        return JSON.parse(result.stdout).some((session) => session.label === label);
+        return JSON.parse(result.stdout).sessions.some((session) => session.label === label);
       } catch {
-        return result.stdout.split("\n").some((line) => line.split(/\s+/)[0] === label);
+        throw new Error("rex ls returned output boat-offload could not read.");
       }
     },
     async ensureSession(port, label, cwd, command) {

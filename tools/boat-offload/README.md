@@ -24,7 +24,8 @@ Open the Rex host from the Mac app (Add Remote Host with the printed address) or
 
 | Command | Purpose |
 | --- | --- |
-| `up [--type small\|default] [--dev CMD] [--preview PORT] [--plan pro\|max] [--tailscale-key op://...]` | Provision and connect |
+| `up [--type small\|default] [--dev CMD] [--preview PORT] [--plan pro\|max] [--tailscale-key op://...] [--no-tailnet]` | Provision and connect |
+| `phone [--wait SECONDS]` | Finish the tailnet sign-in and register the tailnet address |
 | `attach` | Reconnect Rex to the branch's sandbox after a reboot, sleep or stop |
 | `preview PORT` | Print a private HTTPS URL for a sandbox port. Run the dev server first |
 | `status` | List offloads on this Mac |
@@ -32,14 +33,22 @@ Open the Rex host from the Mac app (Add Remote Host with the printed address) or
 
 Sizes are `small` (2 vCPU, 4 GB, $0.018/h) and `default` (4 vCPU, 8 GB, $0.036/h). The trial account cannot use larger ones.
 
-## Phone
+## Phone and other devices
 
-Rex on iOS needs the sandbox on your tailnet. Pass `--tailscale-key op://VAULT/ITEM/field` with a Tailscale auth key stored in 1Password. The key is copied to the sandbox, used once by `rex server tailscale on`, and deleted. This path is untested. Without it, only this Mac reaches the sandbox, through the Boat forward.
+The sandbox's Rex server joins your tailnet with Rex's built-in Tailscale, so the Rex app on your phone, or any device on that tailnet, connects straight to it. `up` turns this on and registers the Rex host with two endpoints: the tailnet address first, then the local Boat forward. Hosts live on your Rex home, so devices that follow it see the host.
+
+The first time a sandbox joins, Tailscale needs a sign-in. `up` prints the link. Open it, then run `boat-offload phone` if `up` finished before you did. A new sandbox is a new device, so each new sandbox asks once. To skip the click, store a reusable Tailscale auth key in 1Password and put its reference in `~/.config/boat-offload/config.json`:
+
+```json
+{ "tailscaleKeyRef": "op://VAULT_ID/ITEM_ID/credential" }
+```
+
+The key is copied to the sandbox, used once, and deleted. That key path is untested. Your tailnet needs MagicDNS and HTTPS certificates. Use `--no-tailnet` to keep a sandbox off the tailnet. `down --delete` signs the node out of Tailscale before deleting the sandbox; check the Tailscale admin page for leftover devices.
 
 ## Safety
 
 - Tokens travel through Boat's API and live on the sandbox disk in mode 600 files. Treat the sandbox like a machine holding those subscriptions: do not share it (`boat share`) or snapshot it for others. Rotate a token by running `claude setup-token` again and updating the 1Password item.
-- The sandbox Rex listener accepts anonymous callers on the sandbox's loopback. Only code running in the sandbox, and the authenticated Boat forward from this Mac, can reach it.
+- The sandbox's local Rex listener accepts anonymous callers on the sandbox's loopback. Only code running in the sandbox and the authenticated Boat forward from this Mac reach it. The tailnet listener admits only the tailnet user who signed the node in.
 - `down` stops by default. `--delete` is explicit.
 - Branch names and remotes are validated before being placed in remote shell commands, and every interpolated value is single-quoted.
 - `settings.json` on the sandbox is your dotfiles file with the default provider forced to `claude-bridge` and the model list cut to the Claude pool, because the sandbox holds no OpenAI, xAI or DeepSeek login. Log in there with `/login` for those. Anything that needs a login stays unauthenticated: OAuth MCP servers, the DeepSeek-backed auto-permission reviewer, web-search keys.
