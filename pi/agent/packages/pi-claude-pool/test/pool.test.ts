@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import { AccountPool } from "../pool.ts";
 
 const accounts = [{ id: "one", token: "test-one-secret" }, { id: "two", token: "test-two-secret" }];
@@ -81,4 +82,31 @@ test("late shorter cooldowns do not overwrite a rejected credential", (t) => {
   pool.block(accounts[0], "auth", Number.MAX_SAFE_INTEGER);
   pool.block(accounts[0], "quota", Date.now() + 60_000);
   assert.throws(() => pool.select([accounts[0]], "new", new Set()), /one: replace expired or rejected token/);
+});
+
+test("a session stays on its account across many requests while other sessions come and go", (t) => {
+  const pool = fixture(t);
+  const home = pool.select(accounts, "long-running", new Set(), 1000).id;
+  for (let request = 0; request < 60; request++) {
+    pool.select(accounts, `other-${request}`, new Set(), 1000 + request);
+    assert.equal(pool.select(accounts, "long-running", new Set(), 2000 + request).id, home);
+  }
+});
+
+test("after a quota failover the session stays on the new account when the old one resets", (t) => {
+  const pool = fixture(t);
+  const first = pool.select(accounts, "s", new Set(), 1000);
+  pool.block(first, "quota", 5000);
+  const second = pool.select(accounts, "s", new Set(), 2000);
+  assert.notEqual(second.id, first.id);
+  for (const now of [6000, 7000, 8000]) assert.equal(pool.select(accounts, "s", new Set(), now).id, second.id);
+});
+
+test("selecting for an existing session does not count as a new assignment", (t) => {
+  const pool = fixture(t);
+  pool.select(accounts, "s", new Set(), 1000);
+  const before = new DatabaseSync(pool.path).prepare("SELECT SUM(assigned) AS total FROM accounts").get()?.total;
+  for (let request = 0; request < 20; request++) pool.select(accounts, "s", new Set(), 2000 + request);
+  const after = new DatabaseSync(pool.path).prepare("SELECT SUM(assigned) AS total FROM accounts").get()?.total;
+  assert.equal(after, before);
 });

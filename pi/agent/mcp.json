@@ -13,104 +13,131 @@
         "BLENDER_PORT": "9876",
         "DISABLE_TELEMETRY": "true"
       },
-      "enabled": false
+      "enabled": false,
+      "description": "Blender 3D scene control and rendering"
     },
     "natural": {
       "url": "https://mcp.natural.com",
-      "enabled": false
+      "enabled": false,
+      "description": "Natural language data and workflow queries"
     },
     "granola": {
-      "url": "https://mcp.granola.ai/mcp"
+      "url": "https://mcp.granola.ai/mcp",
+      "description": "Granola meeting notes, transcripts and action items"
     },
     "figma": {
       "url": "http://127.0.0.1:3845/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Figma design files, frames and variables"
     },
     "figma-bridge": {
       "command": "npx",
       "args": [
         "-y",
         "@gethopp/figma-mcp-bridge"
-      ]
+      ],
+      "description": "Figma bridge for reading and editing the open design file"
     },
     "exa": {
       "command": "npx",
       "args": [
         "-y",
         "exa-mcp-server"
-      ]
+      ],
+      "description": "Exa web search and page content retrieval"
     },
     "linear": {
-      "url": "https://mcp.linear.app/mcp"
+      "url": "https://mcp.linear.app/mcp",
+      "description": "Linear issues, projects, cycles and comments"
     },
     "posthog-flags": {
       "url": "https://mcp.posthog.com/mcp?features=flags",
-      "enabled": false
+      "enabled": false,
+      "description": "PostHog feature flag management"
     },
     "posthog-read": {
       "url": "https://mcp.posthog.com/mcp?readonly=true",
-      "enabled": false
+      "enabled": false,
+      "description": "PostHog read-only analytics and insights"
     },
     "posthog": {
-      "url": "https://mcp.posthog.com/mcp"
+      "url": "https://mcp.posthog.com/mcp",
+      "description": "PostHog analytics, insights, flags and experiments"
     },
     "notion": {
       "url": "https://mcp.notion.com/mcp",
-      "enabled": true
+      "enabled": true,
+      "description": "Notion pages, databases and search"
     },
     "typefully": {
-      "url": "https://mcp.typefully.com/mcp"
+      "url": "https://mcp.typefully.com/mcp",
+      "description": "Typefully X drafts, scheduling and publishing"
     },
     "paper": {
-      "url": "http://127.0.0.1:29979/mcp"
+      "url": "http://127.0.0.1:29979/mcp",
+      "description": "Paper design canvas editing and screenshots"
     },
     "cloudflare-docs": {
-      "url": "https://docs.mcp.cloudflare.com/mcp"
+      "url": "https://docs.mcp.cloudflare.com/mcp",
+      "description": "Cloudflare documentation search"
     },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Cloudflare account API access"
     },
     "cloudflare-bindings": {
       "url": "https://bindings.mcp.cloudflare.com/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Cloudflare Workers bindings: KV, D1, R2 and Durable Objects"
     },
     "cloudflare-builds": {
       "url": "https://builds.mcp.cloudflare.com/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Cloudflare Workers builds and deployments"
     },
     "cloudflare-observability": {
       "url": "https://observability.mcp.cloudflare.com/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Cloudflare Workers logs and analytics"
     },
     "metabase": {
       "url": "https://metabase.mastra.ai/api/metabase-mcp",
-      "enabled": true
+      "enabled": true,
+      "description": "Metabase dashboards, questions and SQL queries"
     },
     "sentry": {
-      "url": "https://mcp.sentry.dev/mcp"
+      "url": "https://mcp.sentry.dev/mcp",
+      "description": "Sentry issues, events and releases"
     },
     "workos": {
-      "url": "https://mcp.workos.com/mcp"
+      "url": "https://mcp.workos.com/mcp",
+      "description": "WorkOS organizations, users, SSO, directories and webhooks"
     },
     "autumn": {
-      "url": "https://mcp.useautumn.com/mcp"
+      "url": "https://mcp.useautumn.com/mcp",
+      "description": "Autumn billing: customers, plans, features and usage"
     },
     "mobbin": {
-      "url": "https://api.mobbin.com/mcp"
+      "url": "https://api.mobbin.com/mcp",
+      "description": "Mobbin app screen and flow references"
     },
     "cve-now": {
-      "url": "https://mcp.cve.now/mcp"
+      "url": "https://mcp.cve.now/mcp",
+      "description": "cve.now vulnerability catalog search"
     },
     "factory-shipyard": {
       "url": "https://shipyard.factory.mastra.cloud/web/factory/projects/092d313e-271d-4e0d-9fc3-1c7200b939fc/mcp",
-      "enabled": false
+      "enabled": false,
+      "description": "Factory shipyard task and build orchestration"
     },
     "railway": {
-      "url": "https://mcp.railway.com"
+      "url": "https://mcp.railway.com",
+      "description": "Railway projects, services, deployments and variables"
     },
     "superlogical": {
-      "url": "https://www.superlogical.com/rex/community-mcp"
+      "url": "https://www.superlogical.com/rex/community-mcp",
+      "description": "Rex documentation, changelog and Rex Beta community feedback"
     }
   }
 }

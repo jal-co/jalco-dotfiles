@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-export const KEEP_RECENT_IMAGES = 4;
+export const KEEP_RECENT_IMAGES = 12;
+export const PRUNE_STEP = 6;
 export const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 export const OMITTED_NOTE =
 	"[Earlier image omitted to keep the request under the provider size limit. Capture it again if you still need to see it.]";
@@ -26,30 +27,28 @@ function imageBytes(part: Part): number {
 }
 
 export function pruneImages<T extends Message>(messages: T[]): { messages: T[]; omitted: number } {
-	const kept = new Set<Part>();
+	const images: Part[] = [];
+	for (const message of messages) {
+		if (!Array.isArray(message.content)) continue;
+		for (const part of message.content) if (isImage(part)) images.push(part);
+	}
+	const surplus = images.length - KEEP_RECENT_IMAGES;
+	const dropByCount = surplus > 0 ? Math.floor((surplus + PRUNE_STEP - 1) / PRUNE_STEP) * PRUNE_STEP : 0;
+
+	const dropped = new Set<Part>(images.slice(0, dropByCount));
 	let budget = MAX_IMAGE_BYTES;
-	let count = 0;
-	for (let i = messages.length - 1; i >= 0; i--) {
-		const content = messages[i].content;
-		if (!Array.isArray(content)) continue;
-		for (let j = content.length - 1; j >= 0; j--) {
-			const part = content[j];
-			if (!isImage(part)) continue;
-			const size = imageBytes(part);
-			if (count < KEEP_RECENT_IMAGES && size <= budget) {
-				kept.add(part);
-				budget -= size;
-				count++;
-			}
-		}
+	for (let i = images.length - 1; i >= dropByCount; i--) {
+		const size = imageBytes(images[i]);
+		if (size <= budget) budget -= size;
+		else dropped.add(images[i]);
 	}
 
 	let omitted = 0;
 	const next = messages.map((message) => {
 		const content = message.content;
-		if (!Array.isArray(content) || !content.some((part) => isImage(part) && !kept.has(part))) return message;
+		if (!Array.isArray(content) || !content.some((part) => isImage(part) && dropped.has(part))) return message;
 		const replaced = content.map((part) => {
-			if (!isImage(part) || kept.has(part)) return part;
+			if (!isImage(part) || !dropped.has(part)) return part;
 			omitted++;
 			return { type: "text", text: OMITTED_NOTE };
 		});
