@@ -33,7 +33,7 @@ test("actual bridge forwards the selected token to the SDK and fails over", asyn
   ] }));
   writeFileSync(join(agentDir, "claude-bridge.json"), JSON.stringify({ provider: { plan: "pro" }, startupNoticeShown: "test" }));
   const capture = join(home, "capture.json");
-  const running = run("pi", [...flags, "-e", fileURLToPath(new URL("./fixtures/bridge-smoke.ts", import.meta.url)), "--no-session", "--model", "claude-bridge/claude-sonnet-5-5", "--print", "smoke test"], {
+  const running = run("pi", [...flags, "-e", fileURLToPath(new URL("./fixtures/bridge-smoke.mjs", import.meta.url)), "--no-session", "--model", "claude-bridge/claude-sonnet-5-5", "--print", "smoke test"], {
     cwd: home, timeout: 30_000,
     env: { ...env, CLAUDE_POOL_ONE: "first-smoke-token", CLAUDE_POOL_TWO: "second-smoke-token", ANTHROPIC_API_KEY: "must-not-reach-sdk", POOL_TEST_CAPTURE: capture },
   });

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import type { AssistantMessage, AssistantMessageEvent, Model, TranscriptContext } from "@earendil-works/pi-ai";
+import { normalizeContext, type AssistantMessage, type AssistantMessageEvent, type Model } from "@earendil-works/pi-ai";
 import { AccountPool } from "../pool.ts";
 import { accountFailure, SubscriptionRouter, type BridgeStream } from "../router.ts";
 
@@ -13,7 +13,7 @@ const model: Model<"claude-bridge"> = {
   reasoning: true, input: ["text"], contextWindow: 200000, maxTokens: 1000,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 };
-const context = { messages: [{ role: "user", content: "test", timestamp: 1 }] } as TranscriptContext;
+const context = normalizeContext({ messages: [{ role: "user", content: "test", timestamp: 1 }] });
 
 function output(stopReason: AssistantMessage["stopReason"] = "stop", errorMessage?: string): AssistantMessage {
   return {
@@ -127,7 +127,7 @@ test("completed tool results stay on the parked account even if another process 
   };
   await collect(router.stream(source, model, context, { sessionId: "session" }));
   pool.block(accounts[0], "quota", Date.now() + 60_000);
-  const continuation = { messages: [...context.messages, toolMessage, { role: "toolResult", toolCallId: "tool-1", toolName: "write", content: [{ type: "text", text: "written" }], isError: false, timestamp: 2 }] } as TranscriptContext;
+  const continuation = normalizeContext({ messages: [...context.messages, toolMessage, { role: "toolResult", toolCallId: "tool-1", toolName: "write", content: [{ type: "text", text: "written" }], isError: false, timestamp: 2 }] });
   const events = await collect(router.stream(source, model, continuation, { sessionId: "session" }));
   assert.deepEqual(tokens, [accounts[0].token, accounts[0].token, accounts[1].token]);
   assert.equal(events.at(-1)?.type, "done");

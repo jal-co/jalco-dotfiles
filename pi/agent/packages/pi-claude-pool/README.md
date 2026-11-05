@@ -94,4 +94,4 @@ The tests cover account affinity, eight concurrent Pi processes, cooldowns, toke
 
 Verified on macOS and a Linux Node 24 container. Two separate, tool-free live Sonnet probes also returned the expected response using the two 1Password-backed accounts locally. Live quota exhaustion and a real Boat deployment have not been exercised.
 
-The lint review retains manual type checks at the JSON/SQLite boundaries rather than adding a schema dependency. Test-only assertions construct Pi's branded transcript fixtures and a deliberately partial SDK query double; the real bridge smoke test checks the methods that double implements. No production type assertions or lint-suppression comments are used.
+Config and routing-state boundaries are validated with TypeBox schemas. No type assertions or lint-suppression comments are used.

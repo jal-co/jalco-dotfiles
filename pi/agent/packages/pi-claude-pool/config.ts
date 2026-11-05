@@ -1,24 +1,30 @@
 import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { promisify } from "node:util";
-import { isAbsolute } from "node:path";
+import { Type, type Static } from "typebox";
+import { Value } from "typebox/value";
 
 export interface Account {
   id: string;
   token: string;
 }
 
-export interface AccountSource {
-  id: string;
-  tokenEnv?: string;
-  tokenFile?: string;
-  tokenRef?: string;
-}
+const AccountSourceSchema = Type.Object({
+  id: Type.String({ pattern: "^[a-z0-9][a-z0-9_-]{0,47}$" }),
+  tokenRef: Type.Optional(Type.String({ pattern: "^op://[^/\\r\\n]+/[^/\\r\\n]+/([^/\\r\\n]+/)?[^/\\r\\n]+$" })),
+  tokenEnv: Type.Optional(Type.String({ pattern: "^CLAUDE_POOL_[A-Z0-9_]+$" })),
+  tokenFile: Type.Optional(Type.String({ pattern: "^/" })),
+}, { additionalProperties: false });
+
+const PoolConfigSchema = Type.Object({
+  accounts: Type.Array(AccountSourceSchema, { minItems: 1 }),
+}, { additionalProperties: false });
+
+export type AccountSource = Static<typeof AccountSourceSchema>;
 
 export class PoolConfigError extends Error {}
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const INVALID_CONFIG = "claude-pool.json is invalid. Each account needs a unique lowercase id and exactly one reference: tokenRef (op://vault/item/field), tokenEnv (CLAUDE_POOL_*) or an absolute tokenFile path.";
 
 export function readSources(path: string): AccountSource[] {
   let value: unknown;
@@ -27,30 +33,14 @@ export function readSources(path: string): AccountSource[] {
   } catch {
     throw new PoolConfigError("Create a valid claude-pool.json in the Pi agent directory. See pi-claude-pool/README.md.");
   }
-  if (!isRecord(value) || Object.keys(value).some((key) => key !== "accounts") || !Array.isArray(value.accounts) || !value.accounts.length) {
-    throw new PoolConfigError("claude-pool.json must contain a nonempty accounts array, with token references rather than tokens.");
-  }
+  if (!Value.Check(PoolConfigSchema, value)) throw new PoolConfigError(INVALID_CONFIG);
   const ids = new Set<string>();
-  return value.accounts.map((entry) => {
-    if (!isRecord(entry) || Object.keys(entry).some((key) => !["id", "tokenEnv", "tokenFile", "tokenRef"].includes(key)) ||
-      typeof entry.id !== "string" || !/^[a-z0-9][a-z0-9_-]{0,47}$/.test(entry.id) || ids.has(entry.id)) {
-      throw new PoolConfigError("Each pool account needs a unique lowercase id and exactly one tokenRef, tokenEnv or tokenFile reference.");
-    }
+  for (const entry of value.accounts) {
+    const references = [entry.tokenRef, entry.tokenEnv, entry.tokenFile].filter((reference) => reference !== undefined);
+    if (ids.has(entry.id) || references.length !== 1) throw new PoolConfigError(INVALID_CONFIG);
     ids.add(entry.id);
-    if ([entry.tokenEnv, entry.tokenFile, entry.tokenRef].filter((value) => value !== undefined).length !== 1) {
-      throw new PoolConfigError(`Account ${entry.id} needs exactly one token reference.`);
-    }
-    if (typeof entry.tokenRef === "string" && /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/(?:[^/\r\n]+\/)?[^/\r\n]+$/.test(entry.tokenRef)) {
-      return { id: entry.id, tokenRef: entry.tokenRef };
-    }
-    if (typeof entry.tokenEnv === "string" && /^CLAUDE_POOL_[A-Z0-9_]+$/.test(entry.tokenEnv)) {
-      return { id: entry.id, tokenEnv: entry.tokenEnv };
-    }
-    if (typeof entry.tokenFile === "string" && isAbsolute(entry.tokenFile)) {
-      return { id: entry.id, tokenFile: entry.tokenFile };
-    }
-    throw new PoolConfigError(`Account ${entry.id} needs an op:// reference, a CLAUDE_POOL_* environment variable or an absolute tokenFile path.`);
-  });
+  }
+  return value.accounts;
 }
 
 export async function resolveAccounts(sources: AccountSource[], env: NodeJS.ProcessEnv = process.env, readSecret = readOpSecret): Promise<Account[]> {

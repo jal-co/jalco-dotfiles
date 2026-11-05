@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { query } from "@anthropic-ai/claude-agent-sdk";
 import { __test } from "pi-claude-bridge/src/index.ts";
 import pool from "../../index.ts";
 
-export default function smoke(pi: ExtensionAPI): void {
-  const attempts: string[] = [];
+export default function smoke(pi) {
+  const attempts = [];
   __test.setQuery(({ options }) => {
     const env = options?.env;
     const account = env?.CLAUDE_CODE_OAUTH_TOKEN === "first-smoke-token" ? "one" : env?.CLAUDE_CODE_OAUTH_TOKEN === "second-smoke-token" ? "two" : "unexpected";
@@ -32,7 +30,7 @@ export default function smoke(pi: ExtensionAPI): void {
     }
     const output = Object.assign(messages(), { close() {}, async interrupt() {} });
     writeFileSync(process.env.POOL_TEST_CAPTURE ?? "", JSON.stringify({ attempts }), { mode: 0o600 });
-    return output as unknown as ReturnType<typeof query>;
+    return output;
   });
   pool(pi);
 }

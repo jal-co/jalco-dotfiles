@@ -2,9 +2,17 @@ import { createHash } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { Type } from "typebox";
+import { Value } from "typebox/value";
 import type { Account } from "./config.ts";
 
 export type BlockReason = "quota" | "auth";
+
+const AccountRow = Type.Object({
+  id: Type.String(),
+  blocked_until: Type.Integer(),
+  reason: Type.Union([Type.Null(), Type.Literal("quota"), Type.Literal("auth")]),
+});
 
 export class PoolUnavailableError extends Error {}
 
@@ -55,9 +63,8 @@ export class AccountPool {
       `);
       for (const account of accounts) upsert.run(account.id, fingerprint(account));
       const rows = db.prepare("SELECT id, blocked_until, reason FROM accounts ORDER BY assigned, id").all().map((row) => {
-        if (typeof row.id !== "string" || typeof row.blocked_until !== "number" || !Number.isSafeInteger(row.blocked_until) ||
-          (row.reason !== null && row.reason !== "quota" && row.reason !== "auth")) throw new Error("Invalid Claude pool state");
-        return { id: row.id, blocked_until: row.blocked_until, reason: row.reason };
+        if (!Value.Check(AccountRow, row)) throw new Error("Invalid Claude pool state");
+        return row;
       });
       const eligible = rows.filter((row) => accounts.some((account) => account.id === row.id) && row.blocked_until <= now && !excluded.has(row.id));
       const previous = db.prepare("SELECT account FROM sessions WHERE id = ?").get(sessionId)?.account;
