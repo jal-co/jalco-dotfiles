@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createOpReader, readSources, resolveAccounts } from "./config.ts";
 import { AccountPool } from "./pool.ts";
 import { SubscriptionRouter } from "./router.ts";
+import { createTurnRecorder } from "./turn-log.ts";
 
 export default function claudePool(pi: ExtensionAPI): void {
   const agentDir = getAgentDir();
@@ -12,6 +13,7 @@ export default function claudePool(pi: ExtensionAPI): void {
   const router = new SubscriptionRouter(
     new AccountPool(join(agentDir, "state", "claude-pool.sqlite")),
     () => resolveAccounts(readSources(join(agentDir, "claude-pool.json")), process.env, readSecret),
+    createTurnRecorder(join(agentDir, "state", "claude-pool-turns.jsonl"), join(agentDir, "state", "claude-bridge-trace")),
   );
 
   function registerProvider(provider: Provider): void;

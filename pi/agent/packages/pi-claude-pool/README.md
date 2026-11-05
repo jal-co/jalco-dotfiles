@@ -17,6 +17,10 @@ State lives in `<agent-dir>/state/claude-pool.sqlite`. Transactions coordinate P
 
 Each machine has its own state. A Mac and Boat VM can use the same references, but they do not share live cooldowns or a global quota counter. Provider limits remain account-wide. Do not place the SQLite file on a shared network filesystem.
 
+## Cache-miss log
+
+Every completed request appends one JSON line to `<agent-dir>/state/claude-pool-turns.jsonl`: time, Pi session, account, model, thinking level, whether it continued a tool call, message count, and input, cache read, cache write and output tokens. A turn after the first in a session that writes 10,000 or more tokens to cache is marked `"miss": true`. The first such miss in a Pi process also switches on the bridge's trace, written to `<agent-dir>/state/claude-bridge-trace/` (64 MB cap per run; runs older than three days are deleted on the next start). The trace records, for each request, why the bridge reused or rebuilt its Claude Code session (`prompt-changed`, `history-difference`, `history-diverged`) and a digest of the system prompt, tools and messages. The log is capped at 5 MB and rotated once. It contains no prompt text and no tokens; the trace artifacts do contain conversation content, so treat that folder as private.
+
 ## Install
 
 Requires Node 24.19+ and Pi 1.4+. From this package directory:

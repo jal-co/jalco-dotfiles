@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Api, AssistantMessage, AssistantMessageEvent, Model, ProviderResponse, SimpleStreamOptions, TranscriptContext } from "@earendil-works/pi-ai";
 import { accountEnv, PoolConfigError, type Account } from "./config.ts";
 import { AccountPool, PoolUnavailableError, type BlockReason } from "./pool.ts";
+import type { TurnRecord } from "./turn-log.ts";
 
 export type BridgeStream = (model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions) => AsyncIterable<AssistantMessageEvent>;
 
@@ -42,10 +43,12 @@ export class SubscriptionRouter {
   private readonly busy = new Set<string>();
   private readonly pool: AccountPool;
   private readonly accounts: () => Account[] | Promise<Account[]>;
+  private readonly record: (record: TurnRecord) => void;
 
-  constructor(pool: AccountPool, accounts: () => Account[] | Promise<Account[]>) {
+  constructor(pool: AccountPool, accounts: () => Account[] | Promise<Account[]>, record: (record: TurnRecord) => void = () => {}) {
     this.pool = pool;
     this.accounts = accounts;
+    this.record = record;
   }
 
   release(sessionId: string): void {
@@ -73,6 +76,7 @@ export class SubscriptionRouter {
       accounts = await this.accounts();
       const attempted = new Set<string>();
       let account = this.pinned.get(sessionId);
+      const continuation = account !== undefined;
       while (attempted.size < accounts.length) {
         if (options.signal?.aborted) {
           yield errorEvent(model, "Operation aborted", true, partial);
@@ -108,6 +112,12 @@ export class SubscriptionRouter {
             start = undefined;
           }
           if (event.type === "done") {
+            const usage = event.message.usage;
+            this.record({
+              at: new Date().toISOString(), session: sessionId, account: account.id, model: model.id, reasoning: options.reasoning ?? null,
+              continuation, messages: context.messages.length, input: usage.input, cacheRead: usage.cacheRead, cacheWrite: usage.cacheWrite,
+              output: usage.output, stopReason: event.reason,
+            });
             parked = event.reason === "toolUse" && Boolean(options.sessionId) && options.cacheRetention !== "none";
             if (parked) this.pinned.set(sessionId, account);
             else this.pinned.delete(sessionId);

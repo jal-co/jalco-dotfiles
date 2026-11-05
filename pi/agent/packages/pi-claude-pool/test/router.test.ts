@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { normalizeContext, type AssistantMessage, type AssistantMessageEvent, type Model } from "@earendil-works/pi-ai";
 import { AccountPool } from "../pool.ts";
+import type { TurnRecord } from "../turn-log.ts";
 import { accountFailure, SubscriptionRouter, type BridgeStream } from "../router.ts";
 
 const accounts = [{ id: "one", token: "first-test-token" }, { id: "two", token: "second-test-token" }];
@@ -229,4 +230,18 @@ test("malformed reset headers cannot create an invalid persistent date", () => {
   for (const reset of ["Infinity", "bad", "-100", "9000000000000"]) {
     assert.deepEqual(accountFailure("Claude quota exceeded", { status: 200, headers: { "anthropic-ratelimit-unified-reset": reset } }, 1000), { reason: "quota", until: 61_000 });
   }
+});
+
+test("each completed turn is recorded with its account, usage and whether it continued a tool call", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-claude-router-turns-"));
+  t.after(() => rmSync(dir, { recursive: true }));
+  const records: TurnRecord[] = [];
+  const router = new SubscriptionRouter(new AccountPool(join(dir, "state.sqlite")), () => accounts, (record) => records.push(record));
+  const toolMessage = output("toolUse");
+  toolMessage.usage = { ...toolMessage.usage, cacheRead: 100, cacheWrite: 7 };
+  const source: BridgeStream = async function* () { yield { type: "start", partial: toolMessage }; yield { type: "done", reason: "toolUse", message: toolMessage }; };
+  await collect(router.stream(source, model, context, { sessionId: "session", reasoning: "medium" }));
+  await collect(router.stream(source, model, context, { sessionId: "session", reasoning: "medium" }));
+  assert.deepEqual(records.map((record) => [record.continuation, record.cacheRead, record.cacheWrite, record.reasoning, record.stopReason]), [[false, 100, 7, "medium", "toolUse"], [true, 100, 7, "medium", "toolUse"]]);
+  assert.equal(records[0].account, records[1].account);
 });
