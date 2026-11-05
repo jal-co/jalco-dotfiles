@@ -117,10 +117,8 @@ async function main(argv) {
     log(`\nSandbox ${result.id} is running ${repo.owner}/${repo.repo}@${repo.branch}`);
     log(`Rex CLI host: ${result.label}  (rex -S ${result.label} ls)`);
     log(result.phoneAddress
-      ? `Rex app (Mac or phone): Add Remote Host with ${result.phoneAddress}`
+      ? `Rex app (Mac or phone): Add Remote Host with ${result.phoneAddress}  (the same address every time you offload this branch, so add it once)`
       : `Rex app on this Mac: Add Remote Host with ${endpoint(result.localPort)}. Phone: run boat-offload phone, then add the tailnet address it prints.`);
-    const pairing = await rex.phonePairing();
-    if (pairing) log(`Phone: Rex on your phone is not connected to this Mac yet. Connect it once to ${pairing} (rex server tailscale pair shows a QR code). Every sandbox then appears in its host list on its own.`);
     if (result.previewUrl) log(`Preview: ${result.previewUrl}`);
     log(`Next: boat-offload preview PORT for a frontend URL, boat-offload down when finished.`);
     return 0;

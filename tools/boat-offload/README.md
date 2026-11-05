@@ -50,7 +50,36 @@ The sandbox does not depend on the Mac once it is running. It joins your tailnet
 
 What still needs the Mac:
 - Running `up`, `attach`, `session` and `down`. There is no always-on controller yet.
-- Telling a new phone about a host. Rex's docs say a device keeps the list it last received when its home is away, so a phone that has already seen the host keeps working with the Mac closed. A phone that has never seen it needs the address pasted into Add Remote Host….
+- Telling the phone about a host. Add it on the phone once (see above); after that the phone connects over the tailnet with the Mac closed.
+- Extending the lifetime. The sandbox stops on its own at the end of `--hours`, even while you use it from the phone. Pick `--hours` for the time you will be away, for example `--hours 4`, which caps a `small` sandbox at about $0.07.
+
+## Offloading a session
+
+`boat-offload session` copies a Pi session file (by default the newest one for this repository, or `--session PATH`) to the sandbox and starts `pi --fork` on it in a Rex session named `<repo>-fork-<id>`. The original stays on the Mac and keeps running; the fork is a separate session with the same history. Before copying, the file is scanned for credential-shaped text (Anthropic, GitHub, 1Password, Tailscale and AWS keys, JWTs, private keys). A match stops the copy and nothing is sent. The scan is a safety net, not a guarantee: session files hold everything shown in the conversation, so treat the sandbox as holding that history.
+
+The first message in a fork rebuilds the whole conversation for Claude Code, so a long session uses a lot of subscription quota on that turn.
+
+## Phone and other devices
+
+The sandbox's Rex server joins your tailnet with Rex's built-in Tailscale, so the Rex app on your phone, or any device on that tailnet, connects straight to it. `up` registers the host on your Mac's Rex server with two endpoints: the tailnet address first, then the local Boat forward.
+
+**The phone does not discover hosts by itself.** Rex for iOS has an Add Remote Host action and no host switcher, and a phone connected to your Mac's server was seen to get no list of hosts from it. Add the sandbox on the phone once, with the address `up` prints. The address is `https://boat-<repo>-<branch>.<tailnet>.ts.net` and stays the same each time you offload that branch, so the saved host keeps working across sandboxes. The Mac app's Switch Host list is separate and does read the Mac server's list.
+
+The first time a sandbox joins, Tailscale needs a sign-in. `up` prints the link. Open it, then run `boat-offload phone` if `up` finished before you did. Without more setup each new sandbox is a new device and asks once. To skip the click, store a reusable Tailscale auth key in 1Password and put its reference in `~/.config/boat-offload/config.json`:
+
+```json
+{ "tailscaleKeyRef": "op://VAULT_ID/ITEM_ID/credential" }
+```
+
+The key is copied to the sandbox, used once, and deleted. Your tailnet needs MagicDNS and HTTPS certificates. Use `--no-tailnet` to keep a sandbox off the tailnet. `down --delete` signs the node out of Tailscale before deleting the sandbox. A signed-out node still leaves an offline device record that would force the next sandbox onto a `-2` name. To remove the record automatically, create a Tailscale API access token that can delete devices, store it in 1Password, and set `tailscaleAdminKeyRef` in the same config file. `down --delete` then deletes the Linux device whose DNS name matches the sandbox, and only that one.
+
+## With the laptop closed
+
+The sandbox does not depend on the Mac once it is running. It joins your tailnet by itself, so a phone on the tailnet reaches `https://boat-<repo>-<branch>.<tailnet>.ts.net` directly. The `boat forward` and the host list on the Mac are only conveniences for the Mac. This was checked with the forward stopped: the Mac reached the sandbox's Rex over the tailnet alone.
+
+What still needs the Mac:
+- Running `up`, `attach`, `session` and `down`. There is no always-on controller yet.
+- Telling the phone about a host. Add it on the phone once (see above); after that the phone connects over the tailnet with the Mac closed.
 - Extending the lifetime. The sandbox stops on its own at the end of `--hours`, even while you use it from the phone. Pick `--hours` for the time you will be away, for example `--hours 4`, which caps a `small` sandbox at about $0.07.
 
 ## Offloading a session

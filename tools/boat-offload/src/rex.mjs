@@ -38,12 +38,6 @@ export function createRex(run) {
       if (result.code !== 0) throw new Error(`rex hosts.put failed: ${result.stderr.trim().split("\n").pop()}`);
       if (existing && sharing && existing.id !== sharing.id) await run("rex", ["api", "call", "hosts.remove", JSON.stringify({ id: existing.id })]);
     },
-    async phonePairing() {
-      const clients = parseJson((await run("rex", ["client", "ls", "--json"])).stdout)?.clients;
-      if (!clients || clients.some((client) => client.info?.platform === "ios")) return undefined;
-      const pair = await run("rex", ["server", "tailscale", "pair", "--json"]);
-      return pair.code === 0 ? parseJson(pair.stdout)?.url : undefined;
-    },
     async removeHost(label) {
       await run("rex", ["hosts", "remove", label]);
     },
