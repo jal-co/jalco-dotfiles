@@ -10,14 +10,14 @@ If the Keychain token is missing or invalid, the wrapper stops. It does not fall
 
 ## Available credentials
 
-The `Agents` vault contains copies of these API Credential items:
+The vault is named `Agents / Dev`. Reference items by vault ID and item ID, not by name, because several items share a title.
 
-- `cliproxyapi-local`
-- `cliproxyapi-management`
-- `cliproxyapi-deepseek`
-- `cliproxyapi-openrouter`
+It holds the Claude subscription tokens used by the Pi Claude pool, as API Credential items:
 
-The originals remain in `Personal`.
+- `Claude Sub 1`
+- `Claude Sub 2`
+
+Each stores a long-lived `claude setup-token` value in its `credential` field. See `pi/agent/packages/pi-claude-pool/README.md`.
 
 The vault also contains four explicitly approved copies from the Mastra account:
 
@@ -33,14 +33,14 @@ Copies do not update automatically. When rotating a credential, update its `Agen
 Use `op run` to inject a credential into a process without printing it:
 
 ```sh
-OPENAI_API_KEY=op://Agents/cliproxyapi-local/credential op run -- your-command
+CLAUDE_CODE_OAUTH_TOKEN=op://VAULT_ID/ITEM_ID/credential op run -- your-command
 ```
 
-This example supplies only the API key. Configure the application's CLIProxy endpoint separately.
+This example supplies one Claude token to the command and nothing else.
 
 ## Check access
 
-Inside Pi, `op user get --me --format json` should identify a `SERVICE_ACCOUNT` named `Coding Agents`. `op item list --vault Agents` should list eight items. Reading `Personal` should fail without a biometric prompt.
+Inside Pi, `op user get --me --format json` should identify a `SERVICE_ACCOUNT` named `Coding Agents`. `op item list --vault "Agents / Dev"` should list the vault's items. Reading `Personal` should fail without a biometric prompt.
 
 Normal terminal commands retain desktop-app authentication. For an explicitly approved personal-vault operation from Pi, use `/opt/homebrew/bin/op` with the personal account selected. That command still requires the usual personal authorization.
 

@@ -3,24 +3,24 @@
     "enabled": true
   },
   "models": {
-    "default": "cliproxyapi/gpt-6.1-sol",
+    "default": "openai/gpt-6.1-sol",
     "agents": {},
     "tasks": {
       "coding": [
-        "cliproxyapi/gpt-6.1-sol",
+        "openai/gpt-6.1-sol",
         "openai-codex/gpt-6.1-sol"
       ],
       "recon": [
-        "cliproxyapi/gpt-6.1-sol",
+        "openai/gpt-6.1-sol",
         "deepseek/deepseek-flash"
       ],
       "architecture": [
-        "cliproxyapi/gpt-6.1-sol",
+        "openai/gpt-6.1-sol",
         "xai/grok-4.7"
       ],
       "docs": [
-        "cliproxyapi/gpt-6.1-sol",
-        "cliproxyapi/gpt-5.6-luna"
+        "openai/gpt-6.1-sol",
+        "openai/gpt-5.6-luna"
       ],
       "review": [
         "xai/grok-4.7",
@@ -28,7 +28,7 @@
       ],
       "qa": [
         "xai/grok-4.7",
-        "cliproxyapi/gpt-6.1-sol"
+        "openai/gpt-6.1-sol"
       ]
     },
     "tasksMeta": {

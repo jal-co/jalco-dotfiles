@@ -3,7 +3,7 @@
     "enabled": false
   },
   "reviewer": {
-    "provider": "cliproxyapi",
+    "provider": "deepseek",
     "model": "deepseek-flash",
     "reasoningEffort": "low",
     "timeoutMs": 30000

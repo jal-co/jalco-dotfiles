@@ -4,13 +4,16 @@
     "keepRecentTokens": 48000
   },
   "defaultModel": "gpt-6.1-sol",
-  "defaultProvider": "cliproxyapi",
+  "defaultProvider": "openai",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "cliproxyapi/gpt-6.1-sol",
-    "cliproxyapi/gpt-6-astra",
-    "cliproxyapi/claude-opus-5-5",
-    "cliproxyapi/claude-sonnet-5-5"
+    "openai/gpt-6.1-sol",
+    "openai/gpt-6-astra",
+    "deepseek/deepseek-flash",
+    "claude-bridge/claude-fable-5-1",
+    "claude-bridge/claude-opus-5-5",
+    "claude-bridge/claude-sonnet-5-5",
+    "claude-bridge/claude-haiku-5-5"
   ],
   "enableSkillCommands": true,
   "skills": [],
@@ -19,7 +22,6 @@
   "lastChangelogVersion": "1.4.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
-    "npm:@benvargas/pi-claude-code-use",
     "./packages/rpiv-ask-user-question",
     "./packages/rpiv-todo",
     "npm:@juicesharp/rpiv-args",
@@ -42,13 +44,13 @@
     "npm:@narumitw/pi-btw",
     "git:github.com/mastra-ai/pi-alexandria",
     "npm:pi-title-renamer",
-    "npm:@router-for-me/pi-cliproxyapi-provider",
     {
       "source": "npm:pi-herdr-agents",
       "extensions": [],
       "skills": []
     },
-    "npm:pi-herdr-pstack"
+    "npm:pi-herdr-pstack",
+    "./packages/pi-claude-pool"
   ],
   "quietStartup": "header",
   "showCacheMissNotices": true,

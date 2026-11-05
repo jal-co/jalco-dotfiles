@@ -23,7 +23,6 @@ dotfiles.relative_symlinks = true
 "~/rex-coord/.pi/settings.json" = "rex/coordinator/settings.json"
 
 [bootstrap.packages]
-"brew:cliproxyapi" = "latest"
 "brew:cmake" = "latest"
 "brew:exiftool" = "latest"
 "brew:eza" = "latest"
@@ -76,22 +75,6 @@ for repo in "$HOME/dotfiles" "$HOME/dotfiles-private"; do
   echo "hook installed in $repo"
 done
 """
-
-[tasks.cliproxy]
-description = "Write the CLIProxyAPI config with the Proton Pass keys and restart it"
-run = """
-get() { pass-cli item view --vault-name dev --item-title "cliproxyapi-$1" --field password; }
-key=$(get local)
-mgmt=$(get management)
-deepseek=$(get deepseek)
-openrouter=$(get openrouter)
-sed -e "s/__CLIPROXY_API_KEY__/$key/" -e "s/__CLIPROXY_MANAGEMENT_KEY__/$mgmt/" -e "s/__DEEPSEEK_API_KEY__/$deepseek/" -e "s/__OPENROUTER_API_KEY__/$openrouter/" cliproxyapi/config.yaml > "$(brew --prefix)/etc/cliproxyapi.conf"
-brew services restart cliproxyapi
-"""
-
-[tasks.cliproxy-tui]
-description = "Open the CLIProxyAPI terminal management UI"
-run = 'cliproxyapi -config "$(brew --prefix)/etc/cliproxyapi.conf" -tui -password "$(pass-cli item view --vault-name dev --item-title cliproxyapi-management --field password)"'
 
 [dotfiles."~/.pi/*.json"]
 source = "pi/*.json"
