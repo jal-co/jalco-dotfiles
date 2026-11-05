@@ -13,7 +13,7 @@ boat-offload up --preview 3000 --dev "pnpm dev"
 
 1. Checks that the branch is pushed to a GitHub `origin`. The sandbox clones from GitHub; uncommitted work stays on the Mac.
 2. Creates (or reuses, or resumes) one sandbox per repository and branch, using a Boat environment named `offload` that injects only GitHub access. Account secrets, agent logins and Boat credentials are not passed.
-3. Copies `pi/agent/packages/pi-claude-pool` and installs it. Installs the Rex server and Pi if the image lacks them. Clones the repository.
+3. Copies your Pi setup: the Git-tracked and not-ignored files of `~/dotfiles/pi` and `~/dotfiles/agents`, including uncommitted edits to them. That carries `AGENTS.md`, settings, skills, prompts, themes, workflows, extensions, local packages, `models.json` and `mcp.json`. Ignored files (`auth.json`, `claude-pool.json`, sessions, private skills, `node_modules`) are not sent. It runs `npm ci` for the pool package and the extensions, links everything into `~/.pi/agent`, merges `mcp.json` with the sandbox's own `computer` server, and runs `pi update --extensions` to install your npm and Git packages. Installs the Rex server and Pi if the image lacks them. Clones the repository.
 4. Reads the Claude subscription tokens named in `~/.pi/agent/claude-pool.json` on the Mac (through 1Password) and writes each to the sandbox as a mode 600 file. The sandbox's Pi pool config points at those files. No 1Password credential and no Mac Keychain or Pi login data goes to the sandbox.
 5. Starts a Rex server on the sandbox, listening on the sandbox's loopback only. A background `boat forward` carries it to a free local port, and the Rex host `boat-<repo>-<branch>` is registered on the Mac.
 6. Starts Pi in a Rex session named after the repository. With `--dev`, opens the dev command in a second block of that session. With `--preview PORT`, prints a private HTTPS URL for that port.
@@ -42,7 +42,9 @@ Rex on iOS needs the sandbox on your tailnet. Pass `--tailscale-key op://VAULT/I
 - The sandbox Rex listener accepts anonymous callers on the sandbox's loopback. Only code running in the sandbox, and the authenticated Boat forward from this Mac, can reach it.
 - `down` stops by default. `--delete` is explicit.
 - Branch names and remotes are validated before being placed in remote shell commands, and every interpolated value is single-quoted.
-- Pi on the sandbox starts on the `claude-bridge` models only. Log in to OpenAI there with `/login` if you want those models.
+- `settings.json` on the sandbox is your dotfiles file with the default provider forced to `claude-bridge` and the model list cut to the Claude pool, because the sandbox holds no OpenAI, xAI or DeepSeek login. Log in there with `/login` for those. Anything that needs a login stays unauthenticated: OAuth MCP servers, the DeepSeek-backed auto-permission reviewer, web-search keys.
+- macOS-only extensions (`rex-markdown.ts`, `white-logo-header.ts`) are not linked. Other Mac-specific extensions load but may do nothing on Linux.
+- Your Pi setup is about 750 MB with dependencies, so the first `up` takes about a minute. Reruns re-copy it.
 
 ## State and files
 

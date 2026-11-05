@@ -4,36 +4,19 @@ export const REMOTE = {
   home: "/home/user",
   work: "/home/user/work",
   tokens: "/home/user/.config/boat-offload",
-  pool: "/home/user/.local/share/boat-offload/pi-claude-pool",
+  dotfiles: "/home/user/.local/share/boat-offload/dotfiles",
+  sync: "/home/user/.local/share/boat-offload/sync-pi.cjs",
   rexPort: 7297,
 };
 
 export const tokenPath = (id) => `${REMOTE.tokens}/claude-${id}.token`;
 
 export const prepareScript = () =>
-  `set -eu\nmkdir -p ${quote(REMOTE.tokens)} ${quote(REMOTE.work)} ${quote(REMOTE.pool)}\nchmod 700 ${quote(REMOTE.tokens)}`;
-
-const MERGE_PI_CONFIG = `
-const fs = require("node:fs");
-const [accountsJson, plan, today] = process.argv.slice(1);
-const dir = process.env.HOME + "/.pi/agent";
-fs.mkdirSync(dir, { recursive: true });
-const read = (name) => { try { return JSON.parse(fs.readFileSync(dir + "/" + name, "utf8")); } catch { return {}; } };
-const write = (name, value) => fs.writeFileSync(dir + "/" + name, JSON.stringify(value, null, 2) + "\\n", { mode: 0o600 });
-const settings = read("settings.json");
-const pool = process.env.POOL_DIR;
-settings.packages = [...(settings.packages ?? []).filter((entry) => entry !== pool), pool];
-settings.defaultProvider = "claude-bridge";
-settings.defaultModel = "claude-sonnet-5-5";
-settings.enabledModels = ["claude-bridge/claude-opus-5-5", "claude-bridge/claude-sonnet-5-5", "claude-bridge/claude-haiku-5-5"];
-write("settings.json", settings);
-write("claude-pool.json", { accounts: JSON.parse(accountsJson) });
-const bridge = read("claude-bridge.json");
-write("claude-bridge.json", { ...bridge, startupNoticeShown: bridge.startupNoticeShown ?? today, provider: { ...bridge.provider, plan } });
-`;
+  `set -eu\nmkdir -p ${quote(REMOTE.tokens)} ${quote(REMOTE.work)} ${quote(REMOTE.dotfiles)}\nchmod 700 ${quote(REMOTE.tokens)}`;
 
 export function provisionScript({ owner, repo, branch, gitName, gitEmail, accounts, plan, today }) {
   const checkout = `${REMOTE.work}/${repo}`;
+  const piAgent = `${REMOTE.dotfiles}/pi/agent`;
   const accountEntries = JSON.stringify(accounts.map(({ id, file }) => ({ id, tokenFile: file })));
   return [
     "set -eu",
@@ -50,10 +33,12 @@ export function provisionScript({ owner, repo, branch, gitName, gitEmail, accoun
     "else",
     `  gh repo clone ${quote(`${owner}/${repo}`)} ${quote(checkout)} -- -q --branch ${quote(branch)}`,
     "fi",
-    `cd ${quote(REMOTE.pool)}`,
-    "npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund >/dev/null",
+    `for dir in ${quote(`${piAgent}/packages/pi-claude-pool`)} ${quote(`${piAgent}/extensions`)}; do`,
+    '  (cd "$dir" && npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund >/dev/null)',
+    "done",
     `chmod 600 ${accounts.map(({ file }) => quote(file)).join(" ")}`,
-    `POOL_DIR=${quote(REMOTE.pool)} node -e ${quote(MERGE_PI_CONFIG)} ${quote(accountEntries)} ${quote(plan)} ${quote(today)}`,
+    `node ${quote(REMOTE.sync)} --dotfiles ${quote(REMOTE.dotfiles)} --home "$HOME" --accounts ${quote(accountEntries)} --plan ${quote(plan)} --today ${quote(today)}`,
+    "pi update --extensions >/dev/null 2>&1 || echo \"note: pi update --extensions did not finish; packages install on first use\"",
     "echo provisioned",
   ].filter(Boolean).join("\n");
 }

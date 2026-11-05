@@ -1,10 +1,12 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { hostLabel, offloadKey } from "./state.mjs";
 import { REMOTE, gitSummaryScript, listeningScript, prepareScript, provisionScript, quote, rexStartScript, tokenPath } from "./scripts.mjs";
 
-export const POOL_SOURCE = join(homedir(), "dotfiles", "pi", "agent", "packages", "pi-claude-pool");
+export const DOTFILES = join(homedir(), "dotfiles");
+const SYNC_SCRIPT = fileURLToPath(new URL("./remote/sync-pi.cjs", import.meta.url));
 export const ENVIRONMENT = "offload";
 
 const sandboxName = ({ repo, branch }) => `${repo}-${branch}`.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 100);
@@ -68,20 +70,26 @@ export async function up(deps, options) {
     throw new Error(`Branch ${repo.branch} has commits origin does not have. Push it first (git push -u origin ${repo.branch}); the sandbox clones from GitHub.`);
   }
   if (repo.dirty) log("Warning: uncommitted changes stay on this Mac. Commit and push them if the sandbox needs them.");
-  if (!existsSync(join(POOL_SOURCE, "package.json"))) throw new Error(`pi-claude-pool is missing at ${POOL_SOURCE}.`);
+  if (!existsSync(join(DOTFILES, "pi", "agent", "packages", "pi-claude-pool", "package.json"))) throw new Error(`pi-claude-pool is missing from ${DOTFILES}.`);
 
   const key = offloadKey(repo);
   const label = hostLabel(repo);
   const sandbox = await ensureSandbox(deps, options, repo, state.offloads[key]);
-  const entry = { id: sandbox.id, url: sandbox.url, repo: repo.repo, owner: repo.owner, branch: repo.branch, label, createdAt: state.offloads[key]?.createdAt ?? deps.now() };
+  const previous = sandbox.fresh ? undefined : state.offloads[key];
+  const entry = {
+    id: sandbox.id, url: sandbox.url, repo: repo.repo, owner: repo.owner, branch: repo.branch, label,
+    createdAt: previous?.createdAt ?? deps.now(), localPort: previous?.localPort, forwardPid: previous?.forwardPid,
+  };
   state.offloads[key] = entry;
   saveState(state);
 
   log("Preparing the sandbox");
   const prepared = await boat.exec(sandbox.id, prepareScript(), { timeoutSeconds: 60 });
   if (prepared.code !== 0) throw new Error(`Preparing the sandbox failed:\n${prepared.stderr.trim()}`);
-  log("Copying the Claude pool extension");
-  await boat.copyDirectory(sandbox.id, POOL_SOURCE, REMOTE.pool);
+  log("Copying your Pi setup (tracked and unignored files of ~/dotfiles/pi and ~/dotfiles/agents)");
+  await boat.copyDirectory(sandbox.id, join(DOTFILES, "pi"), `${REMOTE.dotfiles}/pi`);
+  await boat.copyDirectory(sandbox.id, join(DOTFILES, "agents"), `${REMOTE.dotfiles}/agents`);
+  await boat.copy(sandbox.id, SYNC_SCRIPT, REMOTE.sync);
 
   const resolved = await accounts.resolve();
   const staged = accounts.stage(resolved);
@@ -104,7 +112,7 @@ export async function up(deps, options) {
     }
   }
 
-  log("Installing Rex and Pi, cloning the repository");
+  log("Installing Rex and Pi, cloning the repository, linking your Pi setup");
   const provision = await boat.exec(sandbox.id, provisionScript({
     owner: repo.owner, repo: repo.repo, branch: repo.branch, gitName: repo.name, gitEmail: repo.email,
     accounts: resolved.map(({ id }) => ({ id, file: tokenPath(id) })), plan: options.plan, today: deps.today(),

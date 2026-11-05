@@ -21,8 +21,17 @@ test("provision script is valid shell and never contains token values", () => {
 
 test("pool configuration references token files, not token values", () => {
   const script = provisionScript(base);
+  assert.match(script, /--accounts/);
   assert.match(script, /tokenFile/);
   assert.match(script, /\/home\/user\/\.config\/boat-offload\/claude-one\.token/);
+});
+
+test("provision installs dependencies for the pool and extensions, then links the setup", () => {
+  const script = provisionScript(base);
+  assert.match(script, /dotfiles\/pi\/agent\/packages\/pi-claude-pool/);
+  assert.match(script, /dotfiles\/pi\/agent\/extensions/);
+  assert.match(script, /node '\/home\/user\/\.local\/share\/boat-offload\/sync-pi\.cjs' --dotfiles/);
+  assert.ok(script.indexOf("npm ci") < script.indexOf("sync-pi.cjs"));
 });
 
 test("rex start script only listens on loopback and optionally enrolls tailscale then deletes the key", () => {

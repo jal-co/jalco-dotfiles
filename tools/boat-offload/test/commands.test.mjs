@@ -54,8 +54,8 @@ function harness(overrides = {}) {
 test("up provisions in a safe order and leaves no staged token files", async () => {
   const { deps, calls, logs, staged } = harness();
   const entry = await up(deps, { type: "small", plan: "max", preview: 3000, dev: "pnpm dev" });
-  assert.deepEqual(calls.filter((call) => !["save", "probe"].includes(call)).slice(0, 8), [
-    "create", "prepare", "push-pool",
+  assert.deepEqual(calls.filter((call) => !["save", "probe"].includes(call)).slice(0, 10), [
+    "create", "prepare", "push-pool", "push-pool", "copy /home/user/.local/share/boat-offload/sync-pi.cjs",
     "copy /home/user/.config/boat-offload/claude-one.token", "copy /home/user/.config/boat-offload/claude-two.token",
     "provision", "rex-start", "host boat-r-feat-x",
   ]);
@@ -103,4 +103,15 @@ test("up stops a port forward it started when Rex registration fails", async () 
   deps.rex.registerHost = async () => { throw new Error("rex hosts failed"); };
   await assert.rejects(up(deps, { type: "small", plan: "max" }), /rex hosts failed/);
   assert.ok(calls.includes("stop-forward 4242"));
+});
+
+test("rerunning up keeps a live port forward instead of starting a second one", async () => {
+  const { deps, calls } = harness();
+  deps.state.offloads["o/r#feat/x"] = { id: "bx_9", createdAt: "t", localPort: 6001, forwardPid: 99 };
+  deps.forward.isForwarding = async (pid) => pid === 99;
+  deps.forward.start = () => { calls.push("start-forward"); return 1; };
+  const entry = await up(deps, { type: "small", plan: "max" });
+  assert.equal(entry.localPort, 6001);
+  assert.equal(entry.forwardPid, 99);
+  assert.ok(!calls.includes("start-forward"));
 });
