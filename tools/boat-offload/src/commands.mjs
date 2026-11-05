@@ -176,6 +176,13 @@ export async function down(deps, key, entry, { remove }) {
       if (entry.phoneAddress && info.state !== "stopped") await boat.exec(entry.id, tailscaleLogoutScript(), { timeoutSeconds: 30 }).catch(() => {});
       await boat.remove(entry.id);
       log(`Deleted sandbox ${entry.id}`);
+      if (entry.phoneAddress && deps.tailscale) {
+        const removed = await deps.tailscale.removeDevice(entry.phoneAddress).catch((error) => {
+          log(`Could not remove the Tailscale device: ${error.message}. Delete it in the Tailscale admin page.`);
+          return 0;
+        });
+        if (removed) log("Removed the sandbox's Tailscale device");
+      }
     } else if (!["stopped", "stopping"].includes(info.state)) {
       await boat.stop(entry.id);
       log(`Stopped sandbox ${entry.id}. Data is kept for 14 days; run boat-offload up to resume.`);

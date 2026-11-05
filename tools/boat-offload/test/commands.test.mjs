@@ -189,3 +189,25 @@ test("offloading refuses a session that contains a credential and copies nothing
   await assert.rejects(offloadSession(deps, { id: "bx_1", repo: "r", localPort: 5000 }, sessionFile(t, `{"x":"ghp_${"z".repeat(30)}"}`)), /looks like a credential/);
   assert.deepEqual(calls, []);
 });
+
+test("deleting a sandbox also removes its Tailscale device when an admin key is configured", async () => {
+  const { deps, logs } = harness();
+  const removed = [];
+  deps.tailscale = { removeDevice: async (address) => { removed.push(address); return 1; } };
+  const entry = { id: "bx_1", label: "boat-r-x", phoneAddress: "https://boat-r-x.t.ts.net" };
+  deps.state.offloads.k = entry;
+  await down(deps, "k", entry, { remove: true });
+  assert.deepEqual(removed, ["https://boat-r-x.t.ts.net"]);
+  assert.ok(logs.some((line) => line.includes("Removed the sandbox's Tailscale device")));
+});
+
+test("a failing Tailscale cleanup is reported but does not undo the delete", async () => {
+  const { deps, logs, calls } = harness();
+  deps.tailscale = { removeDevice: async () => { throw new Error("HTTP 403"); } };
+  const entry = { id: "bx_1", label: "boat-r-x", phoneAddress: "https://boat-r-x.t.ts.net" };
+  deps.state.offloads.k = entry;
+  await down(deps, "k", entry, { remove: true });
+  assert.ok(calls.includes("delete"));
+  assert.ok(logs.some((line) => line.includes("Delete it in the Tailscale admin page")));
+  assert.equal(deps.state.offloads.k, undefined);
+});

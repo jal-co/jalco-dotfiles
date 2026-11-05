@@ -50,7 +50,7 @@ The first time a sandbox joins, Tailscale needs a sign-in. `up` prints the link.
 { "tailscaleKeyRef": "op://VAULT_ID/ITEM_ID/credential" }
 ```
 
-The key is copied to the sandbox, used once, and deleted. That key path is untested. Your tailnet needs MagicDNS and HTTPS certificates. Use `--no-tailnet` to keep a sandbox off the tailnet. `down --delete` signs the node out of Tailscale before deleting the sandbox; check the Tailscale admin page for leftover devices.
+The key is copied to the sandbox, used once, and deleted. That key path is untested. Your tailnet needs MagicDNS and HTTPS certificates. Use `--no-tailnet` to keep a sandbox off the tailnet. `down --delete` signs the node out of Tailscale before deleting the sandbox. A signed-out node still leaves an offline device record in the tailnet. To remove it automatically, create a Tailscale API access token that can delete devices, store it in 1Password, and set `tailscaleAdminKeyRef` in the same config file. `down --delete` then deletes the Linux device whose DNS name matches the sandbox, and only that one.
 
 ## Safety
 

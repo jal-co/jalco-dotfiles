@@ -9,6 +9,7 @@ import { inspectRepo } from "./repo.mjs";
 import { loadConfig } from "./config.mjs";
 import { newestSession, sessionDirectory } from "./session.mjs";
 import { run } from "./runner.mjs";
+import { createTailscale } from "./tailscale.mjs";
 import { defaultStatePath, loadState, offloadKey, saveState } from "./state.mjs";
 
 const HELP = `boat-offload: run a branch on a Boat sandbox with Rex, Pi and your Claude subscriptions
@@ -80,10 +81,12 @@ async function main(argv) {
   const boat = createBoat(run);
   const rex = createRex(run);
   const repoInfo = () => inspectRepo(run, process.cwd());
+  const accounts = createAccounts();
   const deps = {
     run, boat, rex, state, log, repoInfo, freePort,
     saveState: (value) => saveState(statePath, value),
-    accounts: createAccounts(),
+    accounts,
+    tailscale: config.tailscaleAdminKeyRef ? createTailscale(() => accounts.readSecret(config.tailscaleAdminKeyRef)) : undefined,
     forward: { start: startForward, stop: stopForward, isForwarding: (pid, id) => isForwarding(run, pid, id) },
     now: () => new Date().toISOString(),
     today: () => new Date().toISOString().slice(0, 10),
