@@ -3,8 +3,9 @@ export const quote = (value) => `'${String(value).replaceAll("'", `'\\''`)}'`;
 export const REMOTE = {
   home: "/home/user",
   work: "/home/user/work",
+  sessions: "/home/user/.local/share/boat-offload/sessions",
   tokens: "/home/user/.config/boat-offload",
-  dotfiles: "/home/user/.local/share/boat-offload/dotfiles",
+  dotfiles: "/home/user/dotfiles",
   sync: "/home/user/.local/share/boat-offload/sync-pi.cjs",
   rexPort: 7297,
 };
@@ -34,7 +35,7 @@ export function provisionScript({ owner, repo, branch, gitName, gitEmail, accoun
     "else",
     `  gh repo clone ${quote(`${owner}/${repo}`)} ${quote(checkout)} -- -q --branch ${quote(branch)}`,
     "fi",
-    `for dir in ${quote(`${piAgent}/packages/pi-claude-pool`)} ${quote(`${piAgent}/extensions`)}; do`,
+    `for dir in ${quote(`${piAgent}/packages/pi-claude-pool`)} ${quote(`${piAgent}/extensions`)} ${quote(`${REMOTE.dotfiles}/tools/anti-slop`)}; do`,
     '  (cd "$dir" && quietly npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund)',
     "done",
     `chmod 600 ${accounts.map(({ file }) => quote(file)).join(" ")}`,

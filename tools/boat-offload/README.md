@@ -13,7 +13,7 @@ boat-offload up --preview 3000 --dev "pnpm dev"
 
 1. Checks that the branch is pushed to a GitHub `origin`. The sandbox clones from GitHub; uncommitted work stays on the Mac.
 2. Creates (or reuses, or resumes) one sandbox per repository and branch, using a Boat environment named `offload` that injects only GitHub access. Account secrets, agent logins and Boat credentials are not passed.
-3. Copies your Pi setup: the Git-tracked and not-ignored files of `~/dotfiles/pi` and `~/dotfiles/agents`, including uncommitted edits to them. That carries `AGENTS.md`, settings, skills, prompts, themes, workflows, extensions, local packages, `models.json` and `mcp.json`. Ignored files (`auth.json`, `claude-pool.json`, sessions, private skills, `node_modules`) are not sent. It runs `npm ci` for the pool package and the extensions, links everything into `~/.pi/agent`, merges `mcp.json` with the sandbox's own `computer` server, and runs `pi update --extensions` to install your npm and Git packages. Installs the Rex server and Pi if the image lacks them. Clones the repository.
+3. Copies your Pi setup to `~/dotfiles` on the sandbox: the Git-tracked and not-ignored files of `pi`, `agents`, `rex` and `tools/anti-slop`, including uncommitted edits, plus the anti-slop `package.json` and lock file that Git ignores. The same path as on your Mac keeps extensions that load `~/dotfiles/...` working. That carries `AGENTS.md`, settings, skills, prompts, themes, workflows, extensions, local packages, `models.json` and `mcp.json`. Ignored files (`auth.json`, `claude-pool.json`, sessions, private skills, `node_modules`) are not sent. It runs `npm ci` for the pool package and the extensions, links everything into `~/.pi/agent`, merges `mcp.json` with the sandbox's own `computer` server, and runs `pi update --extensions` to install your npm and Git packages. Installs the Rex server and Pi if the image lacks them. Clones the repository.
 4. Reads the Claude subscription tokens named in `~/.pi/agent/claude-pool.json` on the Mac (through 1Password) and writes each to the sandbox as a mode 600 file. The sandbox's Pi pool config points at those files. No 1Password credential and no Mac Keychain or Pi login data goes to the sandbox.
 5. Starts a Rex server on the sandbox, listening on the sandbox's loopback only. A background `boat forward` carries it to a free local port, and the Rex host `boat-<repo>-<branch>` is registered on the Mac.
 6. Starts Pi in a Rex session named after the repository. With `--dev`, opens the dev command in a second block of that session. With `--preview PORT`, prints a private HTTPS URL for that port.
@@ -25,6 +25,7 @@ Open the Rex host from the Mac app (Add Remote Host with the printed address) or
 | Command | Purpose |
 | --- | --- |
 | `up [--type small\|default] [--dev CMD] [--preview PORT] [--plan pro\|max] [--tailscale-key op://...] [--no-tailnet]` | Provision and connect |
+| `session [--session PATH]` | Fork a Pi session onto the sandbox and open it in its own Rex session |
 | `phone [--wait SECONDS]` | Finish the tailnet sign-in and register the tailnet address |
 | `attach` | Reconnect Rex to the branch's sandbox after a reboot, sleep or stop |
 | `preview PORT` | Print a private HTTPS URL for a sandbox port. Run the dev server first |
@@ -32,6 +33,12 @@ Open the Rex host from the Mac app (Add Remote Host with the printed address) or
 | `down [--delete]` | Stop the sandbox (kept 14 days) and the local forward, or delete it |
 
 Sizes are `small` (2 vCPU, 4 GB, $0.018/h) and `default` (4 vCPU, 8 GB, $0.036/h). The trial account cannot use larger ones.
+
+## Offloading a session
+
+`boat-offload session` copies a Pi session file (by default the newest one for this repository, or `--session PATH`) to the sandbox and starts `pi --fork` on it in a Rex session named `<repo>-fork-<id>`. The original stays on the Mac and keeps running; the fork is a separate session with the same history. Before copying, the file is scanned for credential-shaped text (Anthropic, GitHub, 1Password, Tailscale and AWS keys, JWTs, private keys). A match stops the copy and nothing is sent. The scan is a safety net, not a guarantee: session files hold everything shown in the conversation, so treat the sandbox as holding that history.
+
+The first message in a fork rebuilds the whole conversation for Claude Code, so a long session uses a lot of subscription quota on that turn.
 
 ## Phone and other devices
 

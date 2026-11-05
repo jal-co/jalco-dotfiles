@@ -2,10 +2,13 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { findSecrets, sessionId } from "./session.mjs";
 import { hostLabel, offloadKey } from "./state.mjs";
 import { REMOTE, gitSummaryScript, listeningScript, prepareScript, provisionScript, quote, rexStartScript, tailscaleLogoutScript, tailscaleOnScript, tailscalePairScript, tailscaleRenameScript, tailscaleStatusScript, tokenPath } from "./scripts.mjs";
 
 export const DOTFILES = join(homedir(), "dotfiles");
+const SYNCED_DIRECTORIES = ["pi", "agents", "rex", "tools/anti-slop"];
+const IGNORED_BUT_NEEDED = ["tools/anti-slop/package.json", "tools/anti-slop/package-lock.json"];
 const SYNC_SCRIPT = fileURLToPath(new URL("./remote/sync-pi.cjs", import.meta.url));
 export const ENVIRONMENT = "offload";
 
@@ -86,9 +89,9 @@ export async function up(deps, options) {
   log("Preparing the sandbox");
   const prepared = await boat.exec(sandbox.id, prepareScript(), { timeoutSeconds: 60 });
   if (prepared.code !== 0) throw new Error(`Preparing the sandbox failed:\n${prepared.stderr.trim()}`);
-  log("Copying your Pi setup (tracked and unignored files of ~/dotfiles/pi and ~/dotfiles/agents)");
-  await boat.copyDirectory(sandbox.id, join(DOTFILES, "pi"), `${REMOTE.dotfiles}/pi`);
-  await boat.copyDirectory(sandbox.id, join(DOTFILES, "agents"), `${REMOTE.dotfiles}/agents`);
+  log("Copying your Pi setup to ~/dotfiles on the sandbox (tracked and unignored files of pi, agents, rex and tools/anti-slop)");
+  for (const directory of SYNCED_DIRECTORIES) await boat.copyDirectory(sandbox.id, join(DOTFILES, directory), `${REMOTE.dotfiles}/${directory}`);
+  for (const file of IGNORED_BUT_NEEDED) if (existsSync(join(DOTFILES, file))) await boat.copy(sandbox.id, join(DOTFILES, file), `${REMOTE.dotfiles}/${file}`);
   await boat.copy(sandbox.id, SYNC_SCRIPT, REMOTE.sync);
 
   const resolved = await accounts.resolve();
@@ -232,4 +235,19 @@ export async function phone(deps, entry, options) {
   if (!address) throw new Error(`Tailscale did not come up within ${options.waitSeconds} seconds. Run boat-offload phone again after signing in.`);
   await deps.rex.registerHost(entry.label, entry.localPort, [address]);
   return address;
+}
+
+export async function offloadSession(deps, entry, sessionPath) {
+  const { boat, rex, log } = deps;
+  const found = findSecrets(sessionPath);
+  if (found.length) throw new Error(`${sessionPath} contains text that looks like a credential (${found.length} pattern(s) matched). Remove it or pick another session; nothing was copied.`);
+  if (!entry.localPort || !await rex.reachable(entry.localPort)) throw new Error("Rex is not reachable. Run boat-offload attach first.");
+  const name = sessionPath.split("/").pop();
+  const remote = `${REMOTE.sessions}/${name}`;
+  await boat.exec(entry.id, `mkdir -p ${quote(REMOTE.sessions)}`, { timeoutSeconds: 30 });
+  await boat.copy(entry.id, sessionPath, remote);
+  const label = `${entry.repo}-fork-${sessionId(sessionPath)}`;
+  const created = await rex.ensureSession(entry.localPort, label, `${REMOTE.work}/${entry.repo}`, ["pi", "--fork", remote]);
+  log(created ? `Forked the session into Rex session "${label}" on the sandbox. The original is untouched.` : `Rex session "${label}" already exists on the sandbox.`);
+  return label;
 }

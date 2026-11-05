@@ -1,12 +1,13 @@
 import { parseArgs } from "node:util";
 import { createAccounts } from "./accounts.mjs";
 import { createBoat } from "./boat.mjs";
-import { attach, down, phone, preview, summary, up } from "./commands.mjs";
+import { attach, down, offloadSession, phone, preview, summary, up } from "./commands.mjs";
 import { freePort } from "./free-port.mjs";
 import { isForwarding, startForward, stopForward } from "./forward.mjs";
 import { createRex, endpoint } from "./rex.mjs";
 import { inspectRepo } from "./repo.mjs";
 import { loadConfig } from "./config.mjs";
+import { newestSession, sessionDirectory } from "./session.mjs";
 import { run } from "./runner.mjs";
 import { defaultStatePath, loadState, offloadKey, saveState } from "./state.mjs";
 
@@ -18,12 +19,14 @@ Usage (run inside the repository):
   boat-offload attach
   boat-offload preview PORT
   boat-offload phone [--wait SECONDS]
+  boat-offload session [--session PATH]
   boat-offload down [--delete]
 
 up         create or reuse the sandbox for this branch, install tools, deliver tokens, start Pi in Rex
 attach     reconnect Rex to a running or stopped sandbox for this branch
 preview    print a private HTTPS URL for a port on the sandbox
 phone      finish tailnet sign-in for the sandbox's Rex server (up already starts it)
+session    fork a Pi session (default: the newest one for this repository) onto the sandbox
 down       stop the sandbox (kept 14 days); --delete removes it
 status     list offloads on this Mac
 `;
@@ -36,6 +39,7 @@ const OPTIONS = {
   "tailscale-key": { type: "string" },
   delete: { type: "boolean", default: false },
   wait: { type: "string", default: "300" },
+  session: { type: "string" },
   "no-tailnet": { type: "boolean", default: false },
   help: { type: "boolean", short: "h", default: false },
 };
@@ -121,6 +125,13 @@ async function main(argv) {
   if (command === "phone") {
     const address = await phone(deps, needEntry(), { waitSeconds: parseSeconds(values.wait) });
     log(`Rex on your phone: add a remote host with ${address}`);
+    return 0;
+  }
+  if (command === "session") {
+    const path = values.session ?? newestSession(sessionDirectory(repo.root));
+    log(`Session: ${path}`);
+    const label = await offloadSession(deps, needEntry(), path);
+    log(`Open it with: rex -S ${needEntry().label} ls  (session ${label})`);
     return 0;
   }
   if (command === "down") {

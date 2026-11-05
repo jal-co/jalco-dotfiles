@@ -28,9 +28,10 @@ test("pool configuration references token files, not token values", () => {
 
 test("provision installs dependencies for the pool and extensions, then links the setup", () => {
   const script = provisionScript(base);
-  assert.match(script, /dotfiles\/pi\/agent\/packages\/pi-claude-pool/);
+  assert.match(script, /\/home\/user\/dotfiles\/pi\/agent\/packages\/pi-claude-pool/);
   assert.match(script, /dotfiles\/pi\/agent\/extensions/);
-  assert.match(script, /node '\/home\/user\/\.local\/share\/boat-offload\/sync-pi\.cjs' --dotfiles/);
+  assert.match(script, /dotfiles\/tools\/anti-slop/);
+  assert.match(script, /node '\/home\/user\/\.local\/share\/boat-offload\/sync-pi\.cjs' --dotfiles '\/home\/user\/dotfiles'/);
   assert.ok(script.indexOf("npm ci") < script.indexOf("sync-pi.cjs"));
 });
 

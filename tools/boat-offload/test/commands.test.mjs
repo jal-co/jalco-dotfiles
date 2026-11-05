@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import test from "node:test";
 import { stageFiles } from "../src/accounts.mjs";
-import { down, phone, up } from "../src/commands.mjs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { down, offloadSession, phone, up } from "../src/commands.mjs";
 
 const repo = { owner: "o", repo: "r", branch: "feat/x", name: "N", email: "e@x.y", remoteBranchExists: true, pushed: true, dirty: false };
 
@@ -60,8 +63,8 @@ function harness(overrides = {}) {
 test("up provisions in a safe order and leaves no staged token files", async () => {
   const { deps, calls, logs, staged } = harness();
   const entry = await up(deps, { type: "small", plan: "max", preview: 3000, dev: "pnpm dev", pollMs: 1 });
-  assert.deepEqual(calls.filter((call) => !["save", "probe"].includes(call)).slice(0, 10), [
-    "create", "prepare", "push-pool", "push-pool", "copy /home/user/.local/share/boat-offload/sync-pi.cjs",
+  assert.deepEqual(calls.filter((call) => !["save", "probe"].includes(call)).slice(0, 14), [
+    "create", "prepare", "push-pool", "push-pool", "push-pool", "push-pool", "copy /home/user/dotfiles/tools/anti-slop/package.json", "copy /home/user/dotfiles/tools/anti-slop/package-lock.json", "copy /home/user/.local/share/boat-offload/sync-pi.cjs",
     "copy /home/user/.config/boat-offload/claude-one.token", "copy /home/user/.config/boat-offload/claude-two.token",
     "provision", "rex-start", "host boat-r-feat-x",
   ]);
@@ -160,4 +163,29 @@ test("deleting a sandbox that joined the tailnet signs the node out first", asyn
   await down(deps, "k", entry, { remove: true });
   assert.ok(scripts.some((script) => script.includes("tailscale logout")));
   assert.ok(calls.includes("delete"));
+});
+
+function sessionFile(t, content) {
+  const root = mkdtempSync(join(tmpdir(), "boat-offload-session-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const path = join(root, "2026-11-05T01-01-43-670Z_01a1a939-db75-73c7-9044-6a861783c377.jsonl");
+  writeFileSync(path, content);
+  return path;
+}
+
+test("offloading a session copies it and forks it in a new Rex session", async (t) => {
+  const { deps, calls } = harness();
+  deps.rex.reachable = async () => true;
+  deps.rex.ensureSession = async (port, label, cwd, command) => { calls.push(`session ${label} ${cwd} ${command.join(" ")}`); return true; };
+  const label = await offloadSession(deps, { id: "bx_1", repo: "r", localPort: 5000 }, sessionFile(t, '{"a":1}'));
+  assert.equal(label, "r-fork-01a1a939");
+  assert.ok(calls.some((call) => call.startsWith("copy /home/user/.local/share/boat-offload/sessions/")));
+  assert.ok(calls.includes("session r-fork-01a1a939 /home/user/work/r pi --fork /home/user/.local/share/boat-offload/sessions/2026-11-05T01-01-43-670Z_01a1a939-db75-73c7-9044-6a861783c377.jsonl"));
+});
+
+test("offloading refuses a session that contains a credential and copies nothing", async (t) => {
+  const { deps, calls } = harness();
+  deps.rex.reachable = async () => true;
+  await assert.rejects(offloadSession(deps, { id: "bx_1", repo: "r", localPort: 5000 }, sessionFile(t, `{"x":"ghp_${"z".repeat(30)}"}`)), /looks like a credential/);
+  assert.deepEqual(calls, []);
 });
