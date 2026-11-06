@@ -142,7 +142,34 @@ export class RexSurfaceProvider {
   closeSurface(id) {
     const { session, block } = surfaceTarget(id);
     this.target(id);
-    this.call(['block', 'close', '-s', session, block]);
+    try {
+      this.call(['block', 'close', '-s', session, block]);
+    } catch (error) {
+      if (this.windowOf(id) !== undefined) throw error;
+    }
+  }
+
+  windowOf(id) {
+    const { session, block } = surfaceTarget(id);
+    if (!this.json(['ls', '--json']).sessions.some((entry) => entry.session_id === session)) return undefined;
+    const view = this.json(['session', 'inspect', session, '--json']);
+    return (view.windows ?? []).find((window) => window.layers.some((layer) => layer.blocks.some((entry) => entry.block_id === block)))?.window_id;
+  }
+
+  closeTab(id) {
+    const { session } = surfaceTarget(id);
+    this.target(id);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const window = this.windowOf(id);
+      if (window === undefined) return false;
+      try {
+        this.call(['window', 'close', '-s', session, window]);
+        return true;
+      } catch (error) {
+        if (this.windowOf(id) === window) throw error;
+      }
+    }
+    throw new Error(`Rex tab for ${id} kept moving while closing; inspect it before retrying.`);
   }
 
   async listSurfaces() {

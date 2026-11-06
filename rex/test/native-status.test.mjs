@@ -4,8 +4,8 @@ import { tmpdir, homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import taskStatus from '../src/task.ts';
-import { agentIdentityFile } from '../src/tasks.ts';
+import taskStatus, { renamesSession } from '../src/task.ts';
+import { agentIdentityFile, processCommand } from '../src/tasks.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const agent = join(homedir(), '.pi/agent');
@@ -161,6 +161,7 @@ test('managed attestation preserves generation, policy and exact session surface
   const identity = JSON.parse(readFileSync(agentIdentityFile(f.sessionFile, 'fixture'), 'utf8'));
   assert.equal(identity.policyHash, 'policy'); assert.equal(identity.generationId, 'generation');
   assert.equal(identity.pid, process.pid);
+  assert.equal(identity.command, processCommand(process.pid));
   process.env.PI_SUBAGENT_SURFACE = 'session:other/block:fixture';
   await assert.rejects(f.emit('session_start'), /surface/);
 });
@@ -215,4 +216,25 @@ test('non-Rex sessions do not register native status', async (context) => {
   let registrations = 0;
   await taskStatus({ on() { registrations++; } });
   assert.equal(registrations, 0);
+});
+
+test('managed tasks cannot rename the shared repository session but may name their tab', async (context) => {
+  const toolCall = async (f, command) => {
+    const [handler] = f.handlers.get('tool_call');
+    return handler({ toolName: 'bash', input: { command } }, f.ctx);
+  };
+  const managed = await fixture(context, true);
+  for (const command of ['rex session rename "$REX_SESSION" fix-login', 'cd x && rex --autostart=false session rename $REX_SESSION y', "rex api call session.set_label '{}'"]) {
+    assert.match((await toolCall(managed, command))?.reason ?? '', /window rename/, command);
+  }
+  for (const command of ['rex window rename -s "$REX_SESSION" fix-login', 'git commit -m "session rename"', 'rex session inspect "$REX_SESSION"']) {
+    assert.equal(await toolCall(managed, command), undefined, command);
+  }
+  assert.equal(renamesSession('rex session rename a b'), true);
+});
+
+test('ordinary Rex sessions keep their own session naming', async (context) => {
+  const f = await fixture(context);
+  const [handler] = f.handlers.get('tool_call');
+  assert.equal(await handler({ toolName: 'bash', input: { command: 'rex session rename "$REX_SESSION" my-work' } }, f.ctx), undefined);
 });

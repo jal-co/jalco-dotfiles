@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RexWorktrees, git, registeredWorktrees } from '../src/worktrees.mjs';
+import { RexWorktrees, git, leaseAlive, registeredWorktrees } from '../src/worktrees.mjs';
+import { processBirth } from '../src/tasks.ts';
 
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'rex-worktrees-')));
@@ -143,7 +144,53 @@ test('changed branch identity and symlink escapes block reuse', async (t) => {
   const first = await create();
   complete(first);
   git(first.path, ['switch', '-c', 'feat/other']);
-  await assert.rejects(create(), /identity changed/);
+  await assert.rejects(create(), /identity changed: branch feat\/task is now feat\/other/);
+});
+
+test('a branch renamed after registration is reported and does not block cleanup', async (t) => {
+  const { create, complete, manager } = fixture(t);
+  const surface = await create();
+  complete(surface);
+  git(surface.path, ['branch', '-m', 'feat/task', 'feat/renamed']);
+  const record = manager.records()[0];
+  assert.deepEqual(manager.verify(record), { path: surface.path, branch: 'feat/renamed', locked: false, renamedFrom: 'feat/task' });
+  assert.equal((await manager.list())[0].branch, 'feat/renamed');
+  await manager.removeWorkspace(surface.workspaceId);
+  assert.equal(existsSync(surface.path), false);
+  assert.equal(git(record.repo, ['rev-parse', '--verify', 'feat/renamed']).trim().length, 40);
+});
+
+test('a locked or unregistered checkout still blocks removal', async (t) => {
+  const { create, complete, manager, repo } = fixture(t);
+  const surface = await create();
+  complete(surface);
+  git(repo, ['worktree', 'lock', surface.path]);
+  await assert.rejects(manager.removeWorkspace(surface.workspaceId), /locked/);
+  git(repo, ['worktree', 'unlock', surface.path]);
+  assert.throws(() => manager.verify({ ...manager.records()[0], path: join(manager.checkouts, 'elsewhere') }), /missing|identity changed/);
+  assert.equal(existsSync(surface.path), true);
+});
+
+test('lease owners are verified by start time before a lease is honoured', async (t) => {
+  const { create, manager } = fixture(t);
+  const surface = await create();
+  const record = manager.records()[0];
+  assert.deepEqual(record.lease, { pid: process.pid, birth: processBirth(process.pid) });
+  assert.equal(manager.leaseHolders(surface.path).length, 1);
+  record.lease = { pid: process.pid, birth: 'an earlier process with this PID' };
+  manager.save(record);
+  assert.deepEqual(manager.leaseHolders(surface.path), []);
+  const dead = 2 ** 22 - 7;
+  assert.equal(processBirth(dead), null);
+  record.lease = { pid: dead };
+  manager.save(record);
+  assert.deepEqual(manager.leaseHolders(surface.path), []);
+  const started = Date.parse(processBirth(process.pid));
+  assert.equal(leaseAlive({ pid: process.pid }, { savedAt: started - 60_000 }), false);
+  assert.equal(leaseAlive({ pid: process.pid }, { savedAt: started + 60_000 }), true);
+  assert.equal(leaseAlive({ pid: 7, birth: 'b' }, { birth: () => 'b' }), true);
+  assert.equal(leaseAlive({ pid: 7, birth: 'b' }, { birth: () => null }), false);
+  assert.equal(leaseAlive(null), false);
 });
 
 test('refuses symbolic links in the worktree destination', async (t) => {

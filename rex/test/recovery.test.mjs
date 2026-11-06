@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { RexRecovery } from '../src/recovery.ts';
-import { agentIdentityFile, TaskStore, boundedSummary, cleanText, taskState, writeAgentIdentity } from '../src/tasks.ts';
+import { agentIdentityFile, TaskStore, boundedSummary, cleanText, probeProcess, processBirth, processCommand, taskState, writeAgentIdentity } from '../src/tasks.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-recovery-'));
@@ -14,16 +14,19 @@ function fixture() {
     owner: { pid: 111, birth: 'old' }, identity: { pid: 222, birth: 'agent' },
     logicalId: 'logical-a', generationId: 'generation-a', policyHash: 'hash', persistent: true, taskId: 'task-a' };
   store.write(record);
-  const events = []; const ledger = []; const messages = []; const inbox = [];
+  const events = []; const ledger = []; const messages = []; const inbox = []; const closed = []; const scripts = [];
   const policy = { version: 2, logicalId: record.logicalId, generationId: record.generationId, policyHash: record.policyHash, persistent: true };
   const recovery = new RexRecovery({ store,
-    provider: { process: () => ({ foreground: { pid: 222 } }), sessions: new Set(), sendKeys: () => {}, json: () => ({ sessions: [{ session_id: 'session:a' }] }) },
+    provider: { process: () => ({ foreground: { pid: 222 } }), sessions: new Set(), sendKeys: () => {}, json: () => ({ sessions: [{ session_id: 'session:a' }] }),
+      closeTab: (surface) => closed.push(surface), inspectSurface: async () => ({ kind: 'present' }), waitForShellReady: async () => {},
+      runScript: (surface, command, options) => scripts.push({ surface, command, ...options }) },
+    launch: { toolAllowlist: (tools) => tools, extensions: ['/host/subagent-done.ts', '/rex/task.ts'] },
     worktrees: {}, protocol: { readSubagentSessionPolicy: () => policy, readPersistentTaskEvents: () => events, readPersistentDeliveryLedger: () => ledger,
       appendPersistentDeliveryLedger: (_file, row) => ledger.push(row), writePersistentTaskInbox: (_file, sequence, row) => inbox.push({ sequence, ...row }) },
     activity: { readSubagentActivityFile: () => ({ ok: true, activity: { phase: 'waiting' } }) },
     running: () => new Map(), send: (message) => messages.push(message), notify: () => {}, flags: { recovery: true, overview: true },
     owner: { pid: 333, birth: 'new' }, originCwd: root, birth: (pid) => pid === 222 ? 'agent' : pid === 333 ? 'new' : null });
-  return { root, store, record, events, ledger, messages, inbox, recovery, policy };
+  return { root, store, record, events, ledger, messages, inbox, recovery, policy, closed, scripts };
 }
 
 test('claim recovers the same live agent without launching a process', () => {
@@ -102,13 +105,31 @@ test('uncertain delivery after a crash is flagged rather than duplicated', () =>
   f.recovery.close();
 });
 
-test('follow-up is rejected while busy and sent once to an idle existing agent', () => {
+test('a mid-turn specialist queues one follow-up and receives it when the turn ends', () => {
   const f = fixture(); f.recovery.claim(f.record);
-  assert.throws(() => f.recovery.control('subagent_send', { name: 'fixture', message: 'next' }), /busy/);
+  const queued = f.recovery.control('subagent_send', { name: 'fixture', message: 'next' });
+  assert.equal(queued.status, 'queued'); assert.equal(f.inbox.length, 0);
+  assert.throws(() => f.recovery.control('subagent_send', { name: 'fixture', message: 'third' }), /already has queued follow-up/);
+  f.recovery.refresh('run-a'); assert.equal(f.inbox.length, 0);
   f.events.push({ type: 'task-done', task: 'task-a', generation: 'generation-a' });
-  const result = f.recovery.control('subagent_send', { name: 'fixture', message: 'next' });
-  assert.equal(result.status, 'dispatched'); assert.equal(f.inbox.length, 1);
-  assert.throws(() => f.recovery.control('subagent_send', { name: 'fixture', message: 'duplicate' }), /busy/);
+  f.recovery.refresh('run-a');
+  assert.deepEqual(f.inbox.map((row) => [row.task, row.message]), [[queued.task, 'next']]);
+  assert.equal(f.store.read('run-a').queued, undefined);
+  assert.equal(f.store.read('run-a').taskId, queued.task);
+  f.recovery.refresh('run-a'); assert.equal(f.inbox.length, 1);
+  f.events.push({ type: 'task-done', task: queued.task, generation: 'generation-a' });
+  assert.equal(f.recovery.control('subagent_send', { name: 'fixture', message: 'idle' }).status, 'dispatched');
+  assert.equal(f.inbox.length, 2);
+  f.recovery.close();
+});
+
+test('stopping a specialist discards its queued follow-up', () => {
+  const f = fixture(); f.recovery.claim(f.record);
+  const queued = f.recovery.control('subagent_send', { name: 'fixture', message: 'next' });
+  assert.equal(f.recovery.control('subagent_stop', { name: 'fixture' }).discarded, queued.task);
+  f.events.push({ type: 'task-done', task: 'task-a', generation: 'generation-a' });
+  f.recovery.refresh('run-a');
+  assert.deepEqual(f.inbox.map((row) => row.type), ['stop']);
   f.recovery.close();
 });
 
@@ -119,7 +140,8 @@ test('graceful stop stays unconfirmed until both exit sidecar and process exit a
   writeFileSync(`${f.record.sessionFile}.exit`, '{"type":"done"}');
   f.recovery.birth = (pid) => pid === 222 ? null : 'new'; f.recovery.liveness.clear();
   f.recovery.refresh('run-a'); assert.equal(f.store.read('run-a').stopConfirmed, true);
-  assert.equal(f.messages.at(-1).customType, 'subagent_stop'); f.recovery.close();
+  assert.equal(f.messages.at(-1).customType, 'subagent_stop');
+  assert.deepEqual(f.closed, [f.record.surface]); f.recovery.close();
 });
 
 test('disabled recovery does not dispatch to retained agents', () => {
@@ -160,84 +182,191 @@ test('bounded summary never reads the full historical transcript or later task o
   assert.ok(readFileSync(f.record.sessionFile).length > 128000);
 });
 
-test('stop retires a missing terminal only after verifying the original process exited', async () => {
+test('stop retires a crashed agent whose tab is still open and frees its capacity', () => {
   const f = fixture();
-  f.record.owner = f.recovery.owner; f.store.write(f.record);
+  f.record.owner = f.recovery.owner; f.record.worktree = join(f.root, 'checkout'); f.store.write(f.record);
+  const checkout = { path: f.record.worktree, surfaceId: f.record.surface, workspaceId: f.record.surface, lease: { pid: 333, birth: 'new', runId: 'run-a' } };
+  const saved = [];
+  f.recovery.worktrees = { records: () => [checkout], save: (row) => saved.push(structuredClone(row)) };
   const running = new Map([[f.record.id, { ...f.record, persistent: true }]]);
   const retired = [];
   f.recovery.running = () => running;
   f.recovery.retireStopped = (id) => { retired.push(id); running.delete(id); };
-  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
   f.recovery.birth = (pid) => pid === 222 ? null : 'new';
-  const result = await f.recovery.stopMissing({ name: 'fixture' });
-  assert.equal(result.status, 'stopped');
+  assert.throws(() => f.recovery.assertNew({ name: 'another', persistent: true }, 1), /cap \(1\)/);
+  const result = f.recovery.retire({ name: 'fixture' });
+  assert.equal(result.status, 'retired');
+  assert.match(result.reason, /Process 222 is absent/);
   assert.deepEqual(retired, ['run-a']);
   assert.equal(f.store.read('run-a').stopConfirmed, true);
   assert.equal(f.store.read('run-a').state, 'stopped');
   assert.equal(f.inbox.length, 0);
+  assert.equal(checkout.lease, null);
+  assert.equal(checkout.surfaceId, undefined);
+  assert.deepEqual(f.closed, [f.record.surface]);
   f.recovery.assertNew({ name: 'another', persistent: true }, 1);
-  assert.equal((await f.recovery.stopMissing({ id: 'logical-a' })).status, 'stopped');
+  assert.equal(f.recovery.retire({ id: 'logical-a' }), undefined);
   assert.deepEqual(retired, ['run-a']);
 });
 
-test('missing terminal cleanup can claim a dead owner without an exit sidecar', async () => {
+test('a crashed task that was never reattached can still be retired', () => {
   const f = fixture();
-  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+  f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
+  assert.equal(f.recovery.recovered.has('run-a'), false);
+  assert.throws(() => f.recovery.control('subagent_stop', { name: 'fixture' }), /has exited .*subagent_stop to retire it/);
+  assert.equal(f.recovery.retire({ name: 'fixture' }).status, 'retired');
+});
+
+test('retire claims a dead coordinator task when the agent PID was reused', () => {
+  const f = fixture();
   f.recovery.birth = (pid) => pid === 222 ? 'reused-pid' : pid === 333 ? 'new' : null;
-  const result = await f.recovery.stopMissing({ id: 'logical-a' });
-  assert.equal(result.status, 'stopped');
+  const result = f.recovery.retire({ id: 'logical-a' });
+  assert.equal(result.status, 'retired');
+  assert.match(result.reason, /now belongs to a process started reused-pid/);
   assert.equal(f.store.read('run-a').owner.pid, 333);
   assert.equal(f.store.read('run-a').identity.pid, 222);
 });
 
-test('missing terminal cleanup refuses live, unattested and unreadable process identities', async () => {
-  for (const mode of ['alive', 'unattested', 'unreadable']) {
+test('retire never touches live, unattested or unreadable process identities', () => {
+  for (const mode of ['alive', 'command', 'unattested', 'unreadable']) {
     const f = fixture();
-    f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+    if (mode === 'command') {
+      f.record.identity.command = 'pi'; f.store.write(f.record);
+      f.recovery.command = () => 'pi';
+    }
     if (mode === 'unattested') { delete f.record.identity; f.store.write(f.record); }
     if (mode === 'unreadable') f.recovery.birth = () => { throw new Error('process inspection unavailable'); };
-    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
+    if (mode === 'alive' || mode === 'command') assert.equal(f.recovery.retire({ name: 'fixture' }), undefined, mode);
+    else assert.throws(() => f.recovery.retire({ name: 'fixture' }), /liveness cannot be established/, mode);
     assert.equal(f.store.read('run-a').stopConfirmed, undefined);
     assert.equal(f.inbox.length, 0);
+    assert.deepEqual(f.closed, []);
   }
 });
 
-test('missing terminal cleanup preserves ownership, generation and transport safety checks', async () => {
-  for (const mode of ['owner', 'policy', 'transport', 'changed']) {
+test('retire preserves ownership, generation and binding safety checks', () => {
+  for (const mode of ['owner', 'policy', 'changed']) {
     const f = fixture();
-    f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
-    f.recovery.provider.inspectSurface = async () => {
-      if (mode === 'changed') f.store.write({ ...f.record, surface: 'session:new/block:new' });
-      return mode === 'transport' ? { kind: 'unavailable', error: 'offline' } : { kind: 'missing' };
+    let changed = false;
+    f.recovery.birth = (pid) => {
+      if (mode === 'changed' && pid === 222 && !changed) { changed = true; f.store.write({ ...f.record, surface: 'session:new/block:new' }); }
+      if (mode === 'owner' && pid === 111) return 'old';
+      return pid === 333 ? 'new' : null;
     };
-    if (mode === 'owner') f.recovery.birth = (pid) => pid === 111 ? 'old' : null;
     if (mode === 'policy') f.policy.policyHash = 'changed';
-    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
-    assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+    assert.throws(() => f.recovery.retire({ name: 'fixture' }), undefined, mode);
+    assert.notEqual(f.store.read('run-a').stopConfirmed, true);
     assert.equal(f.inbox.length, 0);
   }
 });
 
-test('present terminals retain the existing graceful stop path', async () => {
-  const f = fixture();
-  f.recovery.provider.inspectSurface = async () => ({ kind: 'present' });
-  assert.equal(await f.recovery.stopMissing({ name: 'fixture' }), undefined);
-  assert.equal(f.store.read('run-a').stopConfirmed, undefined);
-});
-
-test('a missing session does not inspect unrelated windowless sessions', async () => {
+test('retire does not depend on Rex terminal or session inventory', () => {
   const f = fixture();
   f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
-  f.recovery.provider.json = () => ({ sessions: [{ session_id: 'session:unrelated' }] });
+  f.recovery.provider.json = () => { throw new Error('Rex is unavailable'); };
   f.recovery.provider.inspectSurface = () => { throw new Error('view.windows is not iterable'); };
-  assert.equal((await f.recovery.stopMissing({ name: 'fixture' })).status, 'stopped');
+  f.recovery.provider.closeTab = () => { throw new Error('Rex is unavailable'); };
+  const notes = [];
+  f.recovery.notify = (message) => notes.push(message);
+  assert.equal(f.recovery.retire({ name: 'fixture' }).status, 'retired');
+  assert.match(notes[0], /tab could not be closed/);
 });
 
-test('unavailable and malformed session inventories never prove terminal absence', async () => {
-  for (const inventory of [undefined, {}, { sessions: null }, { sessions: [{}] }]) {
+test('liveness compares start time and command line, treating mismatch or absence as crashed', () => {
+  const identity = { pid: 222, birth: 'agent', command: 'pi' };
+  const at = (birth, command) => probeProcess(identity, { birth: () => birth, command: () => command }).state;
+  assert.equal(at('agent', 'pi'), 'alive');
+  assert.equal(at(null, 'pi'), 'crashed');
+  assert.equal(at('later', 'pi'), 'crashed');
+  assert.equal(at('agent', 'node unrelated.js'), 'crashed');
+  assert.equal(at('agent', null), 'crashed');
+  assert.equal(probeProcess({ pid: 222 }, { birth: () => 'agent' }).state, 'unknown');
+  assert.equal(probeProcess({ pid: 222, birth: 'agent' }, { birth: () => 'agent' }).state, 'alive');
+  assert.throws(() => probeProcess(identity, { birth: () => { throw new Error('ps failed'); } }), /ps failed/);
+  const self = { pid: process.pid, birth: processBirth(process.pid), command: processCommand(process.pid) };
+  assert.equal(probeProcess(self).state, 'alive');
+  assert.equal(probeProcess({ ...self, command: `${self.command} --other` }).state, 'crashed');
+});
+
+test('a recorded PID now running a different command is not attached', () => {
+  const f = fixture();
+  f.record.identity.command = 'pi'; f.store.write(f.record);
+  f.recovery.command = () => 'node unrelated.js';
+  assert.throws(() => f.recovery.claim(f.record), /identity could not be verified/);
+  f.recovery.command = () => 'pi';
+  assert.equal(f.recovery.claim(f.store.read('run-a')).identity.command, 'pi');
+  f.recovery.close();
+});
+
+test('follow-ups to a crashed host agent are refused with retire and resume guidance', () => {
+  const f = fixture();
+  assert.equal(f.recovery.crashed({ name: 'fixture' }), undefined);
+  f.recovery.birth = (pid) => pid === 222 ? null : pid === 333 ? 'new' : null;
+  assert.match(f.recovery.crashed({ name: 'fixture' }).message, /exited.*subagent_resume with session .*child\.jsonl/);
+  f.recovery.command = () => { throw new Error('unused'); };
+  f.recovery.birth = () => { throw new Error('ps failed'); };
+  assert.equal(f.recovery.crashed({ name: 'fixture' }), undefined);
+});
+
+test('a crashed session resumes in its retained tab and worktree with the same identity', async () => {
+  const f = fixture();
+  const activity = join(f.root, 'artifacts', 'coord', 'subagent-activity', 'run-a.json');
+  Object.assign(f.record, { activityFile: activity, model: 'provider/model', thinking: 'high', worktree: join(f.root, 'checkout') });
+  f.store.write(f.record);
+  writeFileSync(f.record.sessionFile, `${JSON.stringify({ type: 'session', cwd: f.record.worktree })}\n`);
+  const identityFile = agentIdentityFile(f.record.sessionFile, 'run-a');
+  writeFileSync(identityFile, '{}');
+  writeFileSync(`${f.record.sessionFile}.exit`, '{}');
+  const checkout = { path: f.record.worktree, lease: { pid: 999, runId: 'run-a' } };
+  f.recovery.worktrees = { records: () => [checkout], save: () => {} };
+  f.recovery.birth = (pid) => pid === 333 ? 'new' : null;
+  const result = await f.recovery.resume({ sessionPath: f.record.sessionFile, message: 'carry on' });
+  assert.equal(result.status, 'resumed');
+  assert.equal(f.scripts.length, 1);
+  const { surface, command, scriptPath } = f.scripts[0];
+  assert.equal(surface, f.record.surface);
+  assert.ok(scriptPath.startsWith(join(f.root, 'artifacts', 'coord', 'subagent-scripts')));
+  for (const part of [`cd '${f.record.worktree}'`, "PI_SUBAGENT_ID='run-a'", 'PI_SUBAGENT_PERSISTENT=1', "PI_SUBAGENT_GENERATION_ID='generation-a'", `PI_SUBAGENT_SURFACE='${f.record.surface}'`,
+    `pi --session '${f.record.sessionFile}'`, "-e '/host/subagent-done.ts' -e '/rex/task.ts'", "--model 'provider/model' --thinking 'high'"]) assert.ok(command.includes(part), part);
+  const message = /'@([^']+)'/.exec(command)[1];
+  assert.equal(readFileSync(message, 'utf8'), 'carry on');
+  assert.equal(existsSync(identityFile), false);
+  assert.equal(existsSync(`${f.record.sessionFile}.exit`), false);
+  assert.equal(readdirSync(f.root).filter((name) => name.includes('.crashed-')).length, 2);
+  const saved = f.store.read('run-a');
+  assert.equal(saved.identity, undefined);
+  assert.equal(saved.owner.pid, 333);
+  assert.equal(f.recovery.recovered.has('run-a'), true);
+  assert.deepEqual(checkout.lease, { pid: 333, birth: 'new', runId: 'run-a' });
+  assert.deepEqual(f.closed, []);
+  f.recovery.close();
+});
+
+test('resume refuses live, unverifiable, supervised, stopped and tabless tasks', async () => {
+  const cases = {
+    alive: [(f) => {}, /still running/],
+    unknown: [(f) => { f.recovery.birth = () => { throw new Error('ps failed'); }; }, /liveness cannot be established/],
+    supervised: [(f) => { f.recovery.birth = () => null; f.recovery.running = () => new Map([['run-a', {}]]); }, /still supervised/],
+    stopped: [(f) => { f.recovery.birth = () => null; f.store.write({ ...f.record, stopConfirmed: true }); }, /was stopped/],
+    tabless: [(f) => { f.recovery.birth = () => null; f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' }); }, /no longer has its retained tab/],
+  };
+  for (const [name, [arrange, error]] of Object.entries(cases)) {
     const f = fixture();
-    f.recovery.provider.json = () => inventory;
-    await assert.rejects(f.recovery.stopMissing({ name: 'fixture' }));
-    assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+    arrange(f);
+    await assert.rejects(f.recovery.resume({ sessionPath: f.record.sessionFile }), error, name);
+    assert.equal(f.scripts.length, 0, name);
   }
+  assert.equal(await fixture().recovery.resume({ sessionPath: '/unrelated.jsonl' }), undefined);
+});
+
+test('a confirmed host stop closes the task tab and clears its terminal binding', () => {
+  const f = fixture();
+  f.record.owner = f.recovery.owner; f.record.worktree = join(f.root, 'checkout'); f.store.write(f.record);
+  const checkout = { path: f.record.worktree, surfaceId: f.record.surface, workspaceId: f.record.surface };
+  f.recovery.worktrees = { records: () => [checkout], save: () => {} };
+  f.recovery.message({ customType: 'subagent_stop', details: { status: 'stopped', facts: { logicalId: 'logical-a' } } });
+  assert.deepEqual(f.closed, [f.record.surface]);
+  assert.equal(checkout.workspaceId, undefined);
+  assert.equal(f.store.read('run-a').stopConfirmed, true);
+  f.recovery.close();
 });

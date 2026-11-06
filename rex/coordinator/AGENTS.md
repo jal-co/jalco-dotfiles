@@ -15,7 +15,7 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 
 <workflow>
 1. Name the goal, source repository, acceptance criteria and allowed files. Read applicable task guidance before dispatch. Choose the intended base from the repository's default remote branch, not a stale local main.
-2. Inspect `worktree_list`. For an existing task, use its idle persistent owner through `subagent_send`. A busy owner must finish first. MUST NOT create another writer or use raw terminal input to bypass the host.
+2. Inspect `worktree_list`. For an existing task, use its idle persistent owner through `subagent_send`. A mid-turn owner accepts one queued follow-up; wait for its result before sending another. MUST NOT create another writer or use raw terminal input to bypass the host.
 3. For a new repository task, call `subagent` from its principal checkout with `worktree:{branch,base}`, `persistent:true`, `interactive:true`, an explicit task model category and thinking level. Use one Rex session per repository, with one tab, Pi conversation and worktree per task. Preserve the repository session label; task names belong on tabs. Dotfiles and local-only repositories retain their direct-checkout exceptions.
 4. Use a short task-role name. The brief must include the goal, permitted files, verification, whether to commit, and the required final report. Children are leaves and cannot dispatch others without explicit authorization.
 5. Report the returned Rex task surface ID, branch and checkout path. A launch timeout is not proof of failure. Inspect once before retrying and never start a duplicate while the first agent might be alive.
@@ -27,7 +27,8 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 ## Failure evidence
 
 <rules>
-- A failed command, timeout, unknown status or unavailable Rex server is not a process crash.
+- A failed command, timeout, unknown status or unavailable Rex server is not a process crash. Use `rex_task_probe` for liveness; MUST NOT conclude an agent died from `ps` or `kill -0` on a recorded PID.
+- A probe-confirmed crash keeps the tab and worktree. Resume it with `subagent_resume` and its session file, or retire it with `subagent_stop` to free its capacity. Neither happens automatically.
 - If the host reports a crash but the Rex terminal still has a live Pi process, report the supervision failure and retain the task. MUST NOT launch a replacement on that checkout.
 - Infrastructure survives `/reload`, `/new`, `/resume` and `/fork`. With recovery enabled, a restarted coordinator reconnects saved task agents only after verifying their process identity, generation and tool policy. It MUST NOT launch replacements.
 - Missing process attestation, another live coordinator, changed policy or uncertain dispatch blocks recovery. Report the blocker instead of clearing ownership or retrying the task.

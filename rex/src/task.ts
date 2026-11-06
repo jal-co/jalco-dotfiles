@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { readModules } from './module-config.mjs';
-import { processBirth, writeAgentIdentity } from './tasks.ts';
+import { processBirth, processCommand, writeAgentIdentity } from './tasks.ts';
 
 type Status = 'idle' | 'working' | 'blocked' | 'done' | 'error';
 type BlockKind = 'question' | 'permission';
+
+export const renamesSession = (command: string) => /\brex\b[^\n;&|]*\bsession\s+rename\b|\bsession\.set_label\b/.test(command);
 
 declare global {
   var rexNativeStatusCleanup: (() => void) | undefined;
@@ -47,11 +49,15 @@ export default async function rexTask(pi: ExtensionAPI) {
           const surface = process.env.PI_SUBAGENT_SURFACE;
           assert.ok(surface?.startsWith(`${process.env.REX_SESSION}/`), 'Task surface does not match its Rex session');
           const policy = JSON.parse(readFileSync(`${sessionFile}.pi-herdr-subagent-policy.json`, 'utf8'));
-          writeAgentIdentity({ version: 1, id: process.env.PI_SUBAGENT_ID, sessionFile, surface, pid: process.pid, birth: processBirth(process.pid), generationId: policy.generationId, policyHash: policy.policyHash });
+          writeAgentIdentity({ version: 1, id: process.env.PI_SUBAGENT_ID, sessionFile, surface, pid: process.pid, birth: processBirth(process.pid), command: processCommand(process.pid), generationId: policy.generationId, policyHash: policy.policyHash });
         }
       }
       enabled = ctx.mode === 'tui';
       emit('idle', 'Ready');
+    }),
+    pi.on('tool_call', (event) => {
+      if (!process.env.PI_SUBAGENT_ID || event.toolName !== 'bash' || !renamesSession(String(event.input?.command ?? ''))) return undefined;
+      return { block: true, reason: 'Managed tasks share their repository Rex session; its label must not change. Name only your own tab: rex window rename -s "$REX_SESSION" <label>.' };
     }),
     pi.on('agent_start', () => {
       running = true; blocked = false; outcome = undefined;

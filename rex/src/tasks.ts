@@ -18,6 +18,28 @@ export function processBirth(pid) {
   }
 }
 
+export function processCommand(pid) {
+  assert.ok(Number.isInteger(pid) && pid > 0, 'Invalid process PID');
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim() || null;
+  } catch (error) {
+    if (error.status === 1) return null;
+    throw error;
+  }
+}
+
+export function probeProcess(identity, { birth = processBirth, command = processCommand } = {}) {
+  if (!identity?.pid || !identity.birth) return { state: 'unknown', reason: 'Recorded process identity is unavailable' };
+  const started = birth(identity.pid);
+  if (started === null) return { state: 'crashed', reason: `Process ${identity.pid} is absent` };
+  if (started !== identity.birth) return { state: 'crashed', reason: `PID ${identity.pid} now belongs to a process started ${started}, not the recorded agent` };
+  if (identity.command === undefined) return { state: 'alive', reason: `Process ${identity.pid} start time matches` };
+  const current = command(identity.pid);
+  if (current === null) return { state: 'crashed', reason: `Process ${identity.pid} is absent` };
+  if (current !== identity.command) return { state: 'crashed', reason: `PID ${identity.pid} command line no longer matches the recorded agent` };
+  return { state: 'alive', reason: `Process ${identity.pid} start time and command line match` };
+}
+
 export function agentIdentityFile(sessionFile, id) {
   assert.match(id, /^[a-zA-Z0-9-]+$/, 'Invalid task identity ID');
   return `${sessionFile}.rex-process-${id}.json`;

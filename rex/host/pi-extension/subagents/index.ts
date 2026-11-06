@@ -917,6 +917,7 @@ interface RunningSubagent {
 	stopTimeout?: ReturnType<typeof setTimeout>;
 	stopTimeoutMs?: number;
 	crashNotified?: boolean;
+	queuedFollowUp?: { task: string; message: string };
 	cancelState?: "requested" | "confirmed" | "unconfirmed";
 }
 
@@ -1499,7 +1500,7 @@ interface SubagentSendDetails {
 	id?: string;
 	task?: string;
 	inbox?: string;
-	outcome?: "dispatched" | "rejected-busy";
+	outcome?: "dispatched" | "queued" | "rejected-busy";
 }
 
 interface PersistentSpecialistFacts {
@@ -1646,6 +1647,8 @@ function handleSubagentStop(
 		};
 	}
 	const pending = running.taskId != null;
+	const discarded = running.queuedFollowUp?.task;
+	running.queuedFollowUp = undefined;
 	running.stopState = pending ? "pending" : "requested";
 	running.stopTimeoutMs = stopTimeoutMs;
 	io.requestStop(asPiRecord(running));
@@ -1654,9 +1657,11 @@ function handleSubagentStop(
 		content: [
 			{
 				type: "text",
-				text: pending
-					? `Stop pending for persistent specialist "${running.name}"; its active task will settle first.`
-					: `Stop requested for persistent specialist "${running.name}".`,
+				text:
+					(pending
+						? `Stop pending for persistent specialist "${running.name}"; its active task will settle first.`
+						: `Stop requested for persistent specialist "${running.name}".`) +
+					(discarded ? ` Queued follow-up ${discarded} was discarded.` : ""),
 			},
 		],
 		details: {
@@ -1692,9 +1697,28 @@ function handleSubagentSend(
 		};
 	}
 	const state = persistentSpecialistState(running);
+	if (
+		state === "working" &&
+		!running.stopState &&
+		running.taskId &&
+		!running.queuedFollowUp
+	) {
+		running.queuedFollowUp = { task, message: params.message };
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Persistent specialist "${running.name}" is mid-turn; follow-up ${task} is queued and will be dispatched when its current turn ends. Only one follow-up can wait at a time.`,
+				},
+			],
+			details: { id: running.id, task, outcome: "queued" },
+		};
+	}
 	if (state !== "idle") {
 		io.rejectBusy(asPiRecord(running), task);
-		const error = `Persistent specialist "${running.name}" is ${state}; task ${task} was rejected-busy. Resend after the pending result.`;
+		const error = running.queuedFollowUp
+			? `Persistent specialist "${running.name}" is ${state} and already has queued follow-up ${running.queuedFollowUp.task}; task ${task} was rejected-busy. Resend after the queued follow-up is dispatched.`
+			: `Persistent specialist "${running.name}" is ${state}; task ${task} was rejected-busy. Resend after the pending result.`;
 		return {
 			content: [{ type: "text", text: error }],
 			details: { error, task, outcome: "rejected-busy" },
@@ -2246,9 +2270,12 @@ function deliverPersistentTaskEvent(
 	try {
 		const completed = (running.tasksCompleted ?? 0) + 1;
 		const summary = io.readTaskSummary(asPiRecord(running));
+		const queued = running.stopState ? undefined : running.queuedFollowUp;
 		sendSubagentResult(
 			api,
-			`Persistent specialist "${running.name}" completed task ${event.task} (${completed} tasks completed) and is idle and accepting subagent_send.\n\n${summary}`,
+			queued
+				? `Persistent specialist "${running.name}" completed task ${event.task} (${completed} tasks completed). Queued follow-up ${queued.task} is now being dispatched to it.\n\n${summary}`
+				: `Persistent specialist "${running.name}" completed task ${event.task} (${completed} tasks completed) and is idle and accepting subagent_send.\n\n${summary}`,
 			{
 				name: running.name,
 				task: event.task,
@@ -2260,6 +2287,10 @@ function deliverPersistentTaskEvent(
 			},
 		);
 		ledger.push(io.acknowledge(asPiRecord(running), event));
+		if (queued) {
+			running.queuedFollowUp = undefined;
+			io.dispatch(asPiRecord(running), queued.task, queued.message);
+		}
 		if (running.stopState === "pending")
 			startPersistentStopTimeout(running, api, running.stopTimeoutMs, io);
 	} finally {
@@ -2309,7 +2340,7 @@ function notifyPersistentCrash(
 	api.sendMessage(
 		{
 			customType: "subagent_result",
-			content: `Persistent specialist crashed. Evidence is retained. Persistent sessions cannot be resumed in v1; spawn a new specialist.\n\n${formatPersistentSpecialistFacts(facts)}`,
+			content: `Persistent specialist crashed. Evidence, tab and worktree are retained and it was not restarted. Resume it with subagent_resume and session ${running.sessionFile}, or retire it with subagent_stop to free its capacity.${running.queuedFollowUp ? ` Queued follow-up ${running.queuedFollowUp.task} was not delivered.` : ""}\n\n${formatPersistentSpecialistFacts(facts)}`,
 			display: true,
 			details: { error: "persistent-crash", facts },
 		},
@@ -2511,6 +2542,8 @@ export default function subagentsExtension(
 									? details.outcome
 									: undefined,
 						};
+					if (details.outcome === "queued")
+						return { id: record.id, task: details.task!, outcome: "queued" };
 					return {
 						id: record.id,
 						task: details.task!,
@@ -3071,7 +3104,9 @@ export default function subagentsExtension(
 				const text =
 					"error" in details
 						? details.error
-						: `Task ${details.task} dispatched to persistent specialist "${target.running.name}".`;
+						: details.outcome === "queued"
+							? `Persistent specialist "${target.running.name}" is mid-turn; follow-up ${details.task} is queued and will be dispatched when its current turn ends. Only one follow-up can wait at a time.`
+							: `Task ${details.task} dispatched to persistent specialist "${target.running.name}".`;
 				return { content: [{ type: "text", text }], details };
 			},
 		});

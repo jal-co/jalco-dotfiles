@@ -23,7 +23,7 @@ test('native worktree cleanup requires confirmation and valid transcript archive
   let holderChecks = 0;
   const infrastructure = infrastructureFor(process.env.REX_SESSION, () => ({
     provider: { isAvailable: () => true },
-    worktrees: { records: () => [checkout], exclusive: (fn) => fn(), verify() {}, assertUnused: async () => { holderChecks++; } },
+    worktrees: { records: () => [checkout], exclusive: (fn) => fn(), verify: () => ({ branch: checkout.branch }), assertUnused: async () => { holderChecks++; } },
     cleanupOperations: { scan() { removals++; throw new Error('Removal entered unexpectedly'); } },
     worktreeOperations: {}, supervision: { close() {} },
   }));

@@ -22,7 +22,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
   if (process.env.HERDR_ENV === '1') throw new Error('Rex coordinator cannot run in a Herdr pane.');
   const root = fileURLToPath(new URL('../host/', import.meta.url));
   const load = (path: string) => import(pathToFileURL(join(root, path)).href);
-  const [{ default: host, runtimeState: hostState }, { SupervisionCoordinator }, worktreeModule, protocol, activity, persistentConfig, configPaths] = await Promise.all([
+  const [{ default: host, runtimeState: hostState }, { SupervisionCoordinator }, worktreeModule, protocol, activity, persistentConfig, configPaths, launchModule] = await Promise.all([
     load('pi-extension/subagents/index.ts'),
     load('maestro/core/supervision.ts'),
     load('maestro/runtime/worktree-operations.ts'),
@@ -30,6 +30,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     load('maestro/adapters/pi/activity-file.ts'),
     load('maestro/core/config/persistent-config.ts'),
     load('pi-extension/subagents/config-path.ts'),
+    load('maestro/adapters/pi/launch.ts'),
   ]);
   const pullRequests = registerPullRequests(pi, () => worktrees.records());
   const history = new TaskHistory();
@@ -41,6 +42,18 @@ export default async function rexAgents(pi: ExtensionAPI) {
       const rows = history.list(params.query);
       const details = { total: rows.length, entries: rows.slice(0, 30) };
       return { content: [{ type: 'text', text: JSON.stringify(details) }], details };
+    },
+  });
+  pi.registerTool({
+    name: 'rex_task_probe', label: 'Task liveness',
+    description: 'Check whether retained Rex task agents are alive by comparing each recorded PID\'s start time and command line with the process now holding it. A missing process or any mismatch is reported as crashed; unreadable evidence is unknown. Use this instead of ps or kill -0 on a recorded PID before concluding an agent died.',
+    parameters: Type.Object({ id: Type.Optional(Type.String()), name: Type.Optional(Type.String()) }),
+    async execute(_id, params) {
+      if (!recovery) throw new Error('Rex task recovery is disabled; liveness evidence is unavailable.');
+      const rows = recovery.store.list().filter((row) => row.originCwd === recovery.originCwd && !row.stopConfirmed
+        && (params.id ? row.id === params.id || row.logicalId === params.id : !params.name || row.name === params.name))
+        .map((row) => ({ id: row.id, name: row.name, pid: row.identity?.pid, ...recovery.probe({ ...row }) }));
+      return { content: [{ type: 'text', text: JSON.stringify(rows) }], details: { tasks: rows } };
     },
   });
   let recovery: RexRecovery | undefined;
@@ -66,7 +79,6 @@ export default async function rexAgents(pi: ExtensionAPI) {
       liveHolders: () => [],
     });
     cleanupOperations.scan = () => worktrees.records().filter((record) => !record.removed).map((record) => record.path);
-    cleanupOperations.readManifests = () => worktrees.records().flatMap((record) => record.manifest ? [record.manifest] : []);
     cleanupOperations.writeManifest = writeManifest;
     const processHolders = cleanupOperations.holders;
     cleanupOperations.holders = async (entry) => {
@@ -91,6 +103,12 @@ export default async function rexAgents(pi: ExtensionAPI) {
   const inspectGit = worktreeModule.createWorktreeCleanupOperations(provider, {
     manifestDir: worktrees.registry, liveHolders: () => [],
   }).inspectGit;
+  cleanupOperations.readManifests = () => worktrees.records().flatMap((record) => {
+    if (!record.manifest) return [];
+    let branch = record.manifest.value.branch;
+    try { if (!record.removed) branch = worktrees.verify(record).branch; } catch {}
+    return [{ ...record.manifest, value: { ...record.manifest.value, branch } }];
+  });
   cleanupOperations.realpath = (path) => {
     const canonical = realpathSync(path);
     if (canonical !== path && worktrees.records().some((record) => !record.removed && record.path === path)) {
@@ -107,9 +125,10 @@ export default async function rexAgents(pi: ExtensionAPI) {
   cleanupOperations.listWorktrees = async (source) => {
     const live = provider.json(['ls', '--json']).sessions;
     return worktrees.records().filter((record) => !record.removed && record.repo === source).flatMap((record) => {
-      try { worktrees.verify(record); } catch { return []; }
+      let branch;
+      try { ({ branch } = worktrees.verify(record)); } catch { return []; }
       return [{
-        path: record.path, branch: record.branch, isLinkedWorktree: true,
+        path: record.path, branch, isLinkedWorktree: true,
         workspaceId: record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session) ? record.workspaceId : undefined,
       }];
     });
@@ -138,8 +157,12 @@ export default async function rexAgents(pi: ExtensionAPI) {
       const description = tool.name === 'subagent'
         ? 'Launch a Pi task agent in its own tab within the repository Rex session. Use worktree:{branch,base?} for isolated code changes. Reuse the same task branch and tab; never start a second writer. Set persistent:true and interactive:true for follow-ups. Approved implementation authorizes dispatch without another permission question. Results arrive automatically; never poll or invent results. Keep task tabs and checkouts after completion. Cleanup needs separate user approval.'
         : tool.name === 'subagent_stop'
-          ? 'Gracefully stop a persistent specialist. For a missing Rex terminal, verify saved policy, coordinator ownership and original process exit, then retire stale supervision and free its capacity. Logs and checkouts stay. Live or unverified processes block cleanup.'
-          : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
+          ? 'Gracefully stop a persistent specialist and close its tab. When the recorded agent process is confirmed gone (start time and command line no longer match), retire the task instead: clear its binding and lease and free its capacity, even if it was never reattached. Logs and checkouts stay. Live or unverifiable processes are never retired.'
+          : tool.name === 'subagent_send'
+            ? `${tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex')} A specialist that is mid-turn accepts one queued follow-up, delivered when its current turn ends; a second is rejected.`
+            : tool.name === 'subagent_resume'
+              ? 'Resume a Pi task session from its session file. For a retained Rex task whose agent failed or crashed (process confirmed gone), this resumes the same session, generation and identity in its retained tab and worktree; it refuses while the original process is alive or unverifiable and never runs automatically. Other sessions resume in a new tab. Results arrive automatically; do not poll.'
+              : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
       pi.registerTool({
         ...tool,
         description,
@@ -154,10 +177,13 @@ export default async function rexAgents(pi: ExtensionAPI) {
               const matches = worktrees.records().filter((record) => !record.removed && [record.path, record.branch, record.workspaceId].includes(params.target));
               if (matches.length !== 1) throw new Error('Cleanup requires one exact managed checkout so its Pi history can be retained.');
               const checkout = matches[0];
-              worktrees.verify(checkout);
+              const { renamedFrom, branch } = worktrees.verify(checkout);
               await worktrees.assertUnused(checkout);
               history.archive({ checkout, tasks: new TaskStore().list(), coordinatorSession: ctx.sessionManager.getSessionFile(), pullRequests: pullRequests.entries(ctx.cwd) });
-              return tool.execute(id, params, signal, onUpdate, { ...ctx, cwd: homedir() });
+              const removed = await tool.execute(id, params, signal, onUpdate, { ...ctx, cwd: homedir() });
+              if (!renamedFrom) return removed;
+              const note = ` Branch ${renamedFrom} was renamed to ${branch || 'a detached HEAD'} after registration.`;
+              return { ...removed, content: removed.content.map((part, index) => index === 0 && part.type === 'text' ? { ...part, text: part.text + note } : part) };
             });
             pullRequests.reconcileCleanup(worktrees.records());
             return result;
@@ -167,11 +193,16 @@ export default async function rexAgents(pi: ExtensionAPI) {
             recovery.assertNew(params, capacity);
           }
           if (tool.name === 'subagent_stop') {
-            const stopped = await recovery?.stopMissing(params);
-            if (stopped) {
-              worktrees.release({ customType: 'subagent_stop', details: stopped });
-              return { content: [{ type: 'text', text: `Specialist "${stopped.name}" stopped. ${stopped.reason}. Logs and checkout are retained.` }], details: stopped };
-            }
+            const retired = recovery?.retire(params);
+            if (retired) return { content: [{ type: 'text', text: `Task "${retired.name}" retired. ${retired.reason}. Its capacity is free; logs and checkout are retained.` }], details: retired };
+          }
+          if (tool.name === 'subagent_send') {
+            const crashed = recovery?.crashed(params);
+            if (crashed) throw crashed;
+          }
+          if (tool.name === 'subagent_resume' && recovery) {
+            const resumed = await recovery.resume(params);
+            if (resumed) return { content: [{ type: 'text', text: `Task "${resumed.name}" resumed in its retained tab ${resumed.surface}. ${resumed.reason}. Results arrive automatically.` }], details: resumed };
           }
           if (['subagent_send', 'subagent_stop', 'subagent_interrupt', 'subagent_cancel'].includes(tool.name)) {
             const recovered = recovery?.control(tool.name, params);
@@ -221,6 +252,10 @@ export default async function rexAgents(pi: ExtensionAPI) {
       notify: (message) => ctx.ui.notify(message, 'warning'),
       flags, originCwd: ctx.cwd,
       owner: { pid: process.pid, birth: processBirth(process.pid), session: process.env.REX_SESSION },
+      launch: {
+        toolAllowlist: launchModule.buildSubagentToolAllowlist,
+        extensions: [join(root, 'maestro/adapters/pi/child/subagent-done.ts'), fileURLToPath(new URL('./task.ts', import.meta.url))],
+      },
     });
     recovery.start();
     for (const entry of ctx.sessionManager.getBranch()) {

@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, sep } from 'node:path';
 import { surfaceTarget } from './provider.mjs';
+import { processBirth } from './tasks.ts';
 
 export function git(cwd, args) {
   return execFileSync('git', args, {
@@ -28,16 +29,15 @@ export function registeredWorktrees(repo) {
   });
 }
 
-function ownerAlive(lease) {
+export function leaseAlive(lease, { birth = processBirth, savedAt } = {}) {
   if (!lease) return false;
-  try {
-    process.kill(lease.pid, 0);
-    return true;
-  } catch (error) {
-    if (error.code === 'ESRCH') return false;
-    throw error;
-  }
+  const started = birth(lease.pid);
+  if (started === null) return false;
+  if (lease.birth) return started === lease.birth;
+  return !(savedAt && Date.parse(started) > savedAt);
 }
+
+export const currentLease = () => ({ pid: process.pid, birth: processBirth(process.pid) });
 
 export class RexWorktrees {
   constructor(provider, { root = join(homedir(), '.rex') } = {}) {
@@ -90,7 +90,8 @@ export class RexWorktrees {
   }
 
   leaseHolders(path) {
-    return this.records().filter((record) => record.path === path && ownerAlive(record.lease))
+    return this.records().filter((record) => record.path === path
+      && leaseAlive(record.lease, { savedAt: statSync(join(this.registry, `${record.key}.json`)).mtimeMs }))
       .map(() => 'A live Rex coordinator holds the task lease. Stop the task agent and wait for confirmed exit before reuse or cleanup.');
   }
 
@@ -106,12 +107,13 @@ export class RexWorktrees {
     if (!contained(realpathSync(this.checkouts), realpathSync(record.path))) throw new Error('Managed checkout escapes the Rex worktree root.');
     if (realpathSync(record.path) !== record.path) throw new Error('Managed checkout path contains a symbolic link.');
     const row = registeredWorktrees(record.repo).find((entry) => entry.path === record.path);
-    if (!row || row.branch !== record.branch || row.locked) throw new Error('Registered Git worktree identity changed or is locked.');
+    if (!row) throw new Error('Registered Git worktree identity changed: the checkout is no longer registered at its recorded path.');
+    if (row.locked) throw new Error('Registered Git worktree is locked.');
     const common = git(record.path, ['rev-parse', '--path-format=absolute', '--git-common-dir']).trim();
     if (realpathSync(common) !== realpathSync(git(record.repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']).trim())) {
       throw new Error('Worktree no longer belongs to its recorded source repository.');
     }
-    return row;
+    return { ...row, renamedFrom: row.branch === record.branch ? undefined : record.branch };
   }
 
   assertOpenTask(repo, branch) {
@@ -138,7 +140,8 @@ export class RexWorktrees {
       let record = this.records().find((entry) => entry.key === key);
       if (record?.removed) throw new Error(`Task branch ${branch} was explicitly removed. Choose a new task branch.`);
       if (record) {
-        this.verify(record);
+        const row = this.verify(record);
+        if (row.renamedFrom) throw new Error(`Registered Git worktree identity changed: branch ${row.renamedFrom} is now ${row.branch || 'detached'}. Reuse it under its current branch or inspect it first.`);
         this.assertOpenTask(repo, branch);
         await this.assertUnused(record);
         if (baseSha !== record.baseSha) throw new Error(`Retained task base is ${record.baseSha}. Supply that base explicitly instead of changing it.`);
@@ -153,7 +156,7 @@ export class RexWorktrees {
         }
         const path = join(directory, `${branch.replaceAll('/', '-')}-${key}`);
         if (existsSync(path)) throw new Error(`Unclaimed path exists at ${path}. Inspect it before creating a checkout.`);
-        record = { version: 1, key, repo, branch, baseSha, path, lease: { pid: process.pid } };
+        record = { version: 1, key, repo, branch, baseSha, path, lease: currentLease() };
         this.save(record);
         try {
           git(repo, ['worktree', 'add', '-b', branch, path, baseSha]);
@@ -163,7 +166,7 @@ export class RexWorktrees {
           throw new Error(`Git worktree creation failed. Inspect retained registry ${key} and ${path} before retrying: ${String(error)}`);
         }
       }
-      record.lease = { pid: process.pid };
+      record.lease = currentLease();
       this.save(record);
       try {
         const live = this.provider.json(['ls', '--json']).sessions;
@@ -227,9 +230,9 @@ export class RexWorktrees {
     const source = cwd ? realpathSync(git(cwd, ['rev-parse', '--show-toplevel']).trim()) : undefined;
     const live = this.provider.json(['ls', '--json']).sessions;
     return this.records().filter((record) => !record.removed && (!source || record.repo === source)).map((record) => {
-      this.verify(record);
+      const { branch } = this.verify(record);
       return {
-        path: record.path, branch: record.branch, label: record.branch, isLinkedWorktree: true,
+        path: record.path, branch, label: branch, isLinkedWorktree: true,
         workspaceId: record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session) ? record.workspaceId : undefined,
       };
     });

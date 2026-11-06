@@ -583,8 +583,6 @@ export function createWorktreeCleanupOperations(
 				const owned = panes.filter(
 					(pane) => pane.workspaceId === entry.workspaceId,
 				);
-				if (!owned.length)
-					throw new Error("Open workspace has no observable panes");
 				for (const pane of owned) {
 					const info = await provider.getProcessInfo(pane.id, {
 						timeoutMs: CLEANUP_TIMEOUT_MS,

@@ -262,6 +262,7 @@ export interface PiLedgerEntry {
 // pi-herdr-agents extension
 export type PiSendAcknowledgement =
 	| { id: string; task: string; inbox: string; outcome: "dispatched" }
+	| { id: string; task: string; outcome: "queued" }
 	| { error: string; task?: string; outcome?: "rejected-busy" };
 // pi-herdr-agents extension
 export type PiStopAcknowledgement =

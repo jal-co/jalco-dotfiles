@@ -186,3 +186,31 @@ test('a corrupt repository binding blocks launch rather than duplicating its ses
     assert.equal(readFileSync(file, 'utf8'), invalid);
   }
 });
+
+test('closing a task tab resolves its current window from the terminal and tolerates stale windows', () => {
+  let windows = [{ window_id: 'window:old', layers: [{ blocks: [{ block_id: block }] }] }];
+  const calls = [];
+  const provider = new RexSurfaceProvider((args) => {
+    calls.push(args);
+    if (args[0] === 'ls') return JSON.stringify({ sessions: [{ session_id: session }] });
+    if (args[0] === 'session') return JSON.stringify({ windows });
+    if (args[0] === 'window' && args[1] === 'close') {
+      if (args[4] === 'window:old') {
+        windows = [{ window_id: 'window:moved', layers: [{ blocks: [{ block_id: block }] }] }];
+        throw new Error('Window not found: window:old');
+      }
+      windows = [];
+      return '{}';
+    }
+    if (args[0] === 'block' && args[1] === 'close') throw new Error('Block not found');
+    return '{}';
+  }, () => 2, { root: mkdtempSync(join(tmpdir(), 'rex-provider-registry-')), repository: (cwd) => cwd });
+  provider.sessions.add(session);
+  assert.equal(provider.closeTab(id), true);
+  assert.deepEqual(calls.filter((args) => args[0] === 'window').map((args) => args.at(-1)), ['window:old', 'window:moved']);
+  assert.equal(provider.closeTab(id), false);
+  provider.closeSurface(id);
+  windows = [{ window_id: 'window:live', layers: [{ blocks: [{ block_id: block }] }] }];
+  assert.throws(() => provider.closeSurface(id), /Block not found/);
+  assert.throws(() => provider.closeTab('session:other/block:x'), /not owned/);
+});

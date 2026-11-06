@@ -82,7 +82,7 @@ test('reload picks up recovery methods added after the module was already loaded
   const first = await load();
   await first.handlers.get('session_shutdown').at(-1)({ reason: 'reload' }, ctx);
   writeFileSync(tasks, initialTasks + ' export const agentIdentityFile = () => "updated-module";');
-  writeFileSync(module, 'import { agentIdentityFile } from "./tasks.ts"; export class RexRecovery { start() {} close() {} stopMissing() { return { name: "upgrade-fixture", status: "stopped", reason: agentIdentityFile() }; } }');
+  writeFileSync(module, 'import { agentIdentityFile } from "./tasks.ts"; export class RexRecovery { start() {} close() {} retire() { return { name: "upgrade-fixture", status: "stopped", reason: agentIdentityFile() }; } }');
   const second = await load();
   const result = await second.tools.get('subagent_stop').definition.execute('upgrade-test', { name: 'upgrade-fixture' }, undefined, undefined, ctx);
   assert.equal(result.details.status, 'stopped');
@@ -158,11 +158,14 @@ test('cleanup isolates unrelated identity failures and refreshes retained adapte
     const rows = await inventory(extension);
     const healthy = rows.find((row) => row.path === good.path);
     assert.equal(healthy.classification, 'eligible', JSON.stringify(healthy));
-    for (const target of [changed, locked, missing, symbolic, foreign]) {
+    const renamed = rows.find((row) => row.path === changed.path);
+    assert.equal(renamed.classification, 'eligible', JSON.stringify(renamed));
+    assert.equal(renamed.branch, 'fix/renamed');
+    for (const target of [locked, missing, symbolic, foreign]) {
       const row = rows.find((entry) => entry.path === target.path);
       assert.ok(row, `Missing inspection for ${target.path}`);
       assert.equal(row.classification, 'unknown');
-      assert.ok(row.blockers.some((value) => /identity changed|missing|ENOENT|symbolic link|ownership/.test(value)), JSON.stringify(row));
+      assert.ok(row.blockers.some((value) => /identity changed|locked|missing|ENOENT|symbolic link|ownership/.test(value)), JSON.stringify(row));
     }
   };
   await check(first);
@@ -187,12 +190,16 @@ test('cleanup isolates unrelated identity failures and refreshes retained adapte
   assert.equal(infrastructure.supervision, supervision);
   await check(second);
   const removalContext = { ...ctx, hasUI: true, ui: { ...ctx.ui, confirm: async () => true } };
-  for (const target of [changed, locked, missing, symbolic, foreign]) {
-    await assert.rejects(second.tools.get('worktree_remove').definition.execute('blocked-cleanup', { target: target.path }, undefined, undefined, removalContext), /identity changed|missing|symbolic link|source repository/);
+  for (const target of [locked, missing, symbolic, foreign]) {
+    await assert.rejects(second.tools.get('worktree_remove').definition.execute('blocked-cleanup', { target: target.path }, undefined, undefined, removalContext), /identity changed|locked|missing|symbolic link|source repository/);
   }
   assert.equal(existsSync(good.path), true);
-  assert.equal(existsSync(changed.path), true);
   assert.equal(existsSync(locked.path), true);
+  const renamed = await second.tools.get('worktree_remove').definition.execute('renamed-cleanup', { target: changed.path }, undefined, undefined, { ...removalContext, sessionManager: { ...ctx.sessionManager, getSessionFile: () => undefined } });
+  assert.equal(renamed.details.status, 'removed', JSON.stringify(renamed.details));
+  assert.match(renamed.content[0].text, /feat\/changed was renamed to fix\/renamed/);
+  assert.equal(existsSync(changed.path), false);
+  assert.equal(git(repo, ['rev-parse', '--verify', 'fix/renamed']).trim().length, 40);
   const record = worktrees.records().find((row) => row.path === good.path);
   assert.throws(() => cleanupOperations.inspectGit(good.path, otherRepo), /ownership is missing/);
   assert.throws(() => worktrees.verify({ ...record, repo: otherRepo }), /identity changed/);
