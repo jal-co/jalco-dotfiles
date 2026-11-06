@@ -8,6 +8,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
+import { redact, SENSITIVE_OUTPUT, touchesSensitivePath } from "./lib/redact.ts";
+
 const CONFIG_DIR = join(homedir(), ".config", "mastra-observability");
 const ENDPOINT = "https://observability.mastra.ai";
 const PREVIEW_CHARS = 100;
@@ -116,9 +118,9 @@ export function makeSpan(f: SpanFields): SpanRecord {
 	const id = f.id ?? hex(8);
 	const start = new Date(f.start).toISOString();
 	const end = new Date(f.end).toISOString();
-	const input = clip(f.input, limit);
-	const output = clip(f.output, limit);
-	const errorInfo = f.error === undefined ? null : { message: f.error.slice(0, limit) };
+	const input = clip(f.input && redact(f.input), limit);
+	const output = clip(f.output && redact(f.output), limit);
+	const errorInfo = f.error === undefined ? null : { message: redact(f.error).slice(0, limit) };
 	return {
 		id,
 		spanId: id,
@@ -295,6 +297,7 @@ export default function mastraTraces(pi: ExtensionAPI): void {
 		const started = run?.tools.get(event.toolCallId);
 		if (!run || !started) return;
 		run.tools.delete(event.toolCallId);
+		const sensitive = touchesSensitivePath(started.args);
 		exporter.add(makeSpan({
 			traceId: run.traceId,
 			parentSpanId: run.rootId,
@@ -303,7 +306,7 @@ export default function mastraTraces(pi: ExtensionAPI): void {
 			start: started.start,
 			end: Date.now(),
 			input: started.args,
-			output: JSON.stringify(event.result),
+			output: sensitive ? SENSITIVE_OUTPUT : JSON.stringify(event.result),
 			attributes: { toolCallId: event.toolCallId, success: !event.isError },
 			metadata: run.metadata,
 			error: event.isError ? "tool error" : undefined,
