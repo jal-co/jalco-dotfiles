@@ -21,6 +21,10 @@ Each machine has its own state. A Mac and Boat VM can use the same references, b
 
 Every completed request appends one JSON line to `<agent-dir>/state/claude-pool-turns.jsonl`: time, Pi session, account, model, thinking level, whether it continued a tool call, message count, and input, cache read, cache write and output tokens. A turn after the first in a session that writes 10,000 or more tokens to cache is marked `"miss": true`. The first such miss in a Pi process also switches on the bridge's trace, written to `<agent-dir>/state/claude-bridge-trace/` (64 MB cap per run; runs older than three days are deleted on the next start). The trace records, for each request, why the bridge reused or rebuilt its Claude Code session (`prompt-changed`, `history-difference`, `history-diverged`) and a digest of the system prompt, tools and messages. The log is capped at 5 MB and rotated once. It contains no prompt text and no tokens; the trace artifacts do contain conversation content, so treat that folder as private.
 
+## Thinking text and the cache
+
+The bridge fingerprints every assistant message, thinking text included, and rebuilds its Claude Code session when pi's copy differs from what it recorded. Extensions that edit stored thinking text (for example `pi-tool-display`, which adds a "Thinking:" label and trims the ends) made every turn look like a history change and forced a full cache rewrite. The pool remembers each thinking block exactly as the provider returned it, keyed by its signature, and puts that text back into the history it hands the bridge. Stored messages are never changed and only the thinking text is swapped, so display extensions keep working.
+
 ## Install
 
 Requires Node 24.19+ and Pi 1.4+. From this package directory:

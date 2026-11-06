@@ -5,11 +5,13 @@ import { join } from "node:path";
 import { createOpReader, readSources, resolveAccounts } from "./config.ts";
 import { AccountPool } from "./pool.ts";
 import { SubscriptionRouter } from "./router.ts";
+import { createThinkingText } from "./thinking-text.ts";
 import { createTurnRecorder } from "./turn-log.ts";
 
 export default function claudePool(pi: ExtensionAPI): void {
   const agentDir = getAgentDir();
   const readSecret = createOpReader();
+  const thinkingText = createThinkingText();
   const router = new SubscriptionRouter(
     new AccountPool(join(agentDir, "state", "claude-pool.sqlite")),
     () => resolveAccounts(readSources(join(agentDir, "claude-pool.json")), process.env, readSecret),
@@ -28,9 +30,14 @@ export default function claudePool(pi: ExtensionAPI): void {
       name: "Claude subscriptions",
       streamSimple(model, context, options) {
         const stream = createAssistantMessageEventStream();
+        const { messages, restored } = thinkingText.restore(context.messages);
+        const restoredContext = restored ? { ...context, messages } : context;
         void (async () => {
           try {
-            for await (const event of router.stream(source, model, context, options)) stream.push(event);
+            for await (const event of router.stream(source, model, restoredContext, options)) {
+              if (event.type === "done") thinkingText.remember(event.message);
+              stream.push(event);
+            }
           } finally {
             stream.end();
           }
