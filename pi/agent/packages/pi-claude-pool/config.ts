@@ -49,7 +49,9 @@ export async function resolveAccounts(sources: AccountSource[], env: NodeJS.Proc
     let token: string | undefined;
     if (source.tokenRef) {
       try { token = await readSecret(source.tokenRef); }
-      catch { throw new PoolConfigError(`Cannot read the 1Password token for ${source.id}. Check op and its noninteractive vault access.`); }
+      catch (error) {
+        throw new PoolConfigError(`Cannot read the 1Password token for ${source.id}. Check op and its noninteractive vault access.`, { cause: error });
+      }
     } else if (source.tokenEnv) token = env[source.tokenEnv];
     else if (source.tokenFile) {
       try {
@@ -71,13 +73,29 @@ export async function resolveAccounts(sources: AccountSource[], env: NodeJS.Proc
 }
 
 const run = promisify(execFile);
+const OP_TIMEOUT_MS = 10_000;
 
-async function readOpSecret(reference: string): Promise<string> {
-  const { stdout } = await run("op", ["read", "--no-newline", reference], {
-    encoding: "utf8", timeout: 10_000, maxBuffer: 16_384,
-    env: { ...process.env, AI_AGENT: "pi", PI_CODING_AGENT: "true", OP_BIOMETRIC_UNLOCK_ENABLED: "false" },
-  });
-  return stdout;
+const STDERR_LIMIT = 400;
+
+function describeOpFailure(reference: string, error: unknown): string {
+  const failure = error as { code?: unknown; killed?: boolean; signal?: string | null; stderr?: unknown; path?: string };
+  if (failure.code === "ENOENT") return `op was not found on PATH (looked for ${failure.path ?? "op"}) while reading ${reference}`;
+  if (failure.killed || failure.code === "ETIMEDOUT") return `op read timed out after ${OP_TIMEOUT_MS / 1000}s reading ${reference}`;
+  const stderr = typeof failure.stderr === "string" ? failure.stderr.replace(/\s+/g, " ").trim().slice(-STDERR_LIMIT) : "";
+  const exit = typeof failure.code === "number" ? `exit ${failure.code}` : "failed";
+  return `op read ${exit} reading ${reference}${stderr ? `: ${stderr}` : ""}`;
+}
+
+export async function readOpSecret(reference: string): Promise<string> {
+  try {
+    const { stdout } = await run("op", ["read", "--no-newline", reference], {
+      encoding: "utf8", timeout: OP_TIMEOUT_MS, maxBuffer: 16_384,
+      env: { ...process.env, AI_AGENT: "pi", PI_CODING_AGENT: "true", OP_BIOMETRIC_UNLOCK_ENABLED: "false" },
+    });
+    return stdout;
+  } catch (error) {
+    throw new Error(describeOpFailure(reference, error), { cause: error });
+  }
 }
 
 export function createOpReader(read = readOpSecret) {

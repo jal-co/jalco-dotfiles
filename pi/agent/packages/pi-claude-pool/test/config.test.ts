@@ -115,3 +115,26 @@ test("rejects ambiguous and malformed 1Password references", (t) => {
     assert.throws(() => readSources(path), /reference|op:\/\//);
   }
 });
+
+test("readOpSecret surfaces op stderr, timeout and not-found causes", async () => {
+  const { readOpSecret } = await import("../config.ts");
+  const dir = mkdtempSync(join(tmpdir(), "fake-op-"));
+  const savedPath = process.env.PATH;
+  const reference = "op://vault/item/field";
+  try {
+    writeFileSync(join(dir, "op"), "#!/bin/sh\necho 'first line' >&2\necho '[ERROR] 401 \"vault\" isn'\"'\"'t a vault' >&2\nexit 1\n", { mode: 0o755 });
+    process.env.PATH = `${dir}:${savedPath}`;
+    await assert.rejects(readOpSecret(reference), (error: Error) => {
+      assert.match(error.message, /exit 1/);
+      assert.match(error.message, /first line \[ERROR\] 401/);
+      assert.ok(error.message.includes(reference));
+      return true;
+    });
+
+    process.env.PATH = join(dir, "missing");
+    await assert.rejects(readOpSecret(reference), /op was not found on PATH/);
+  } finally {
+    process.env.PATH = savedPath;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
