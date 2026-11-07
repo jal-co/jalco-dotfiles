@@ -84,6 +84,7 @@ pi/agent/mastra-design.md
 # Licensed skill content (installer-gated, not redistributable)
 agents/skills/interface-craft
 pi/agent/skills/design/brand-film
+pi/agent/skills/design/pen-dev
 
 # Personal prompts (resume details, contact info)
 pi/agent/prompts/jobs.md

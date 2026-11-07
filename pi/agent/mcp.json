@@ -149,6 +149,14 @@
       },
       "exposure": "codemode",
       "description": "Personal Resend account: contact email delivery, sender domains, DNS verification, and delivery logs. Authenticated through 1Password."
+    },
+    "pencil": {
+      "command": "/Applications/Pen.app/Contents/Resources/app.asar.unpacked/out/mcp-server-darwin-arm64",
+      "args": [
+        "--app",
+        "desktop"
+      ],
+      "description": "pen.dev design canvas: read skills, inspect and edit open .pen documents"
     }
   }
 }
