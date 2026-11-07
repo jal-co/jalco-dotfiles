@@ -13,6 +13,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "@earendil-works/pi-tui";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -998,79 +999,29 @@ function formatElapsedMMSS(startTime: number, endTime = Date.now()): string {
 
 const ACTIVE_ACCENT = "\x1b[38;2;77;163;255m";
 const OPEN_ACCENT = "\x1b[38;2;214;158;46m";
+const ERROR_ACCENT = "\x1b[38;2;239;83;80m";
+const BOLD = "\x1b[1m";
+const DIM = "\x1b[2m";
 const RST = "\x1b[0m";
+const NAME_COLUMN_MAX = 32;
+const ROW_INDENT = "";
 
-/**
- * Build a bordered content line: │left          right│
- * Left content is truncated if needed, right is preserved, padded to fill width.
- */
-function borderLine(
-	left: string,
-	right: string,
-	width: number,
-	accent = ACTIVE_ACCENT,
-): string {
-	if (width <= 0) return "";
-	if (width === 1) return `${accent}│${RST}`;
+type LifecycleProjection = ReturnType<typeof projectLifecycle>;
 
-	// width = total visible chars for the whole line including │ and │
-	const contentWidth = Math.max(0, width - 2); // space inside the two │ chars
-	const rightVis = visibleWidth(right);
-
-	// If the status chunk alone is too wide, prefer preserving it in compact form
-	// rather than overflowing the terminal.
-	if (rightVis >= contentWidth) {
-		const truncRight = truncateToWidth(right, contentWidth);
-		const rightPad = Math.max(0, contentWidth - visibleWidth(truncRight));
-		return `${accent}│${RST}${truncRight}${" ".repeat(rightPad)}${accent}│${RST}`;
-	}
-
-	const maxLeft = Math.max(0, contentWidth - rightVis);
-	const truncLeft = truncateToWidth(left, maxLeft);
-	const leftVis = visibleWidth(truncLeft);
-	const pad = Math.max(0, contentWidth - leftVis - rightVis);
-	return `${accent}│${RST}${truncLeft}${" ".repeat(pad)}${right}${accent}│${RST}`;
+function padVisible(text: string, width: number): string {
+	const fitted = truncateToWidth(text, width);
+	return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
 }
 
-/**
- * Build the bordered top line: ╭─ Title ──── info ─╮
- * All chars are accounted for within `width`.
- */
-function borderTop(
-	title: string,
-	info: string,
-	width: number,
-	accent = ACTIVE_ACCENT,
-): string {
-	if (width <= 0) return "";
-	if (width === 1) return `${accent}╭${RST}`;
-
-	// ╭─ Title ───...─── info ─╮
-	// overhead: ╭─ (2) + space around title (2) + space around info (2) + ─╮ (2) = but we simplify
-	const inner = Math.max(0, width - 2); // inside ╭ and ╮
-	const titlePart = `─ ${title} `;
-	const infoPart = ` ${info} ─`;
-	const fillLen = Math.max(0, inner - titlePart.length - infoPart.length);
-	const fill = "─".repeat(fillLen);
-	const content = `${titlePart}${fill}${infoPart}`
-		.slice(0, inner)
-		.padEnd(inner, "─");
-	return `${accent}╭${content}╮${RST}`;
+function lifecycleAccent(kind: LifecycleProjection["kind"]): string {
+	if (kind === "active" || kind === "running") return ACTIVE_ACCENT;
+	if (kind === "stalled" || kind === "interrupted") return ERROR_ACCENT;
+	if (kind === "blocked" || kind === "waiting") return OPEN_ACCENT;
+	return DIM;
 }
 
-/**
- * Build the bordered bottom line: ╰──────────────────╯
- */
-function borderBottom(width: number, accent = ACTIVE_ACCENT): string {
-	if (width <= 0) return "";
-	if (width === 1) return `${accent}╰${RST}`;
-
-	const inner = Math.max(0, width - 2);
-	return `${accent}╰${"─".repeat(inner)}╯${RST}`;
-}
-
-function formatLifecycleWidgetLabel(
-	projection: ReturnType<typeof projectLifecycle>,
+function formatLifecycleStatus(
+	projection: LifecycleProjection,
 	now: number,
 ): string {
 	const duration =
@@ -1079,87 +1030,207 @@ function formatLifecycleWidgetLabel(
 			: ` ${formatElapsedDuration(now - projection.stateDurationSince)}`;
 	if (projection.kind === "active")
 		return projection.label
-			? ` active · ${projection.label}${duration} `
-			: ` active${duration} `;
-	if (projection.kind === "blocked") return ` blocked${duration} `;
-	if (projection.kind === "running") return " running… ";
-	if (projection.kind === "waiting") return ` waiting${duration} `;
-	if (projection.kind === "interrupted") return ` interrupted${duration} `;
-	if (projection.kind === "stalled") return ` stalled${duration} `;
-	// completed/failed exist as lifecycle projections for delivery bookkeeping,
-	// but the row is removed immediately after result delivery — so the only
-	// visible terminal handoff label is finalizing.
+			? `${projection.label}${duration}`
+			: `active${duration}`;
+	if (projection.kind === "running") return "running…";
+	if (
+		projection.kind === "blocked" ||
+		projection.kind === "waiting" ||
+		projection.kind === "interrupted" ||
+		projection.kind === "stalled"
+	) {
+		return `${projection.kind}${duration}`;
+	}
 	if (
 		projection.kind === "finalizing" ||
 		projection.kind === "completed" ||
 		projection.kind === "failed"
 	) {
-		return " finalizing… ";
+		return "finalizing…";
 	}
-	return " starting… ";
+	return "starting…";
 }
+
+function cancelStatus(agent: RunningSubagent): string | undefined {
+	if (agent.cancelState === "unconfirmed") return "cancel unconfirmed";
+	return agent.cancelState ? "cancelling…" : undefined;
+}
+
+type AttachedTask = {
+	name: string;
+	model?: string;
+	state: string;
+	reason?: string;
+};
+
+const ATTACHED_ACCENTS: Record<string, string> = {
+	working: ACTIVE_ACCENT,
+	stopping: ACTIVE_ACCENT,
+	blocked: OPEN_ACCENT,
+	idle: DIM,
+	done: DIM,
+	unknown: ERROR_ACCENT,
+};
 
 function renderSubagentWidgetLines(
 	agents: RunningSubagent[],
 	width: number,
+	attached: AttachedTask[] = [],
 ): string[] {
+	if (width <= 0) return [];
 	const now = Date.now();
-	const rendered = agents.map((agent) => ({
-		agent,
-		projection: projectLifecycle(ensureLifecycle(agent), now),
+	const liveRows = agents.map((agent) => {
+		const projection = projectLifecycle(ensureLifecycle(agent), now);
+		const cancel = cancelStatus(agent);
+		const status =
+			cancel ??
+			(statusConfig.enabled
+				? formatLifecycleStatus(projection, now)
+				: "starting…");
+		return {
+			active: ["active", "starting", "running", "blocked"].includes(
+				projection.kind,
+			),
+			accent: cancel ? ERROR_ACCENT : lifecycleAccent(projection.kind),
+			name: agent.agent ? `${agent.name} (${agent.agent})` : agent.name,
+			model: agent.runtimePlan
+				? `${agent.runtimePlan.modelId} · ${agent.runtimePlan.thinking}`
+				: "",
+			status,
+			elapsed: formatElapsedMMSS(
+				agent.startTime,
+				projection.runtimeEndedAt ?? now,
+			),
+		};
+	});
+
+	const attachedRows = attached.map((task) => ({
+		active: ["working", "stopping", "blocked"].includes(task.state),
+		accent: ATTACHED_ACCENTS[task.state] ?? DIM,
+		name: task.name,
+		model: task.model ?? "",
+		status: task.reason ? `${task.state} · ${task.reason}` : task.state,
+		elapsed: "reattached",
 	}));
-	const activeCount = rendered.filter(
-		({ projection }) =>
-			projection.kind === "active" ||
-			projection.kind === "starting" ||
-			projection.kind === "running" ||
-			projection.kind === "blocked",
-	).length;
-	const openCount = agents.length - activeCount;
+	const rows = [...liveRows, ...attachedRows];
+	const activeCount = rows.filter((row) => row.active).length;
+	const openCount = rows.length - activeCount;
 	const info =
 		activeCount > 0
 			? openCount > 0
 				? `${activeCount} active · ${openCount} open`
 				: `${activeCount} active`
 			: `${openCount} open`;
-	const accent = activeCount > 0 ? ACTIVE_ACCENT : OPEN_ACCENT;
+	const headerAccent = activeCount > 0 ? ACTIVE_ACCENT : OPEN_ACCENT;
+	const lines = [
+		truncateToWidth(
+			`${ROW_INDENT}${headerAccent}${BOLD}Subagents${RST}${DIM} · ${info}${RST}`,
+			width,
+		),
+	];
 
-	const lines: string[] = [borderTop("Subagents", info, width, accent)];
+	const nameWidth = Math.min(
+		NAME_COLUMN_MAX,
+		Math.max(...rows.map((row) => visibleWidth(row.name))),
+	);
+	const modelWidth = Math.max(...rows.map((row) => visibleWidth(row.model)));
+	const statusWidth = Math.max(...rows.map((row) => visibleWidth(row.status)));
+	const elapsedWidth = Math.max(...rows.map((row) => row.elapsed.length));
+	const gutter = ROW_INDENT.length + 2;
+	const showModel =
+		modelWidth > 0 &&
+		width >= gutter + nameWidth + 2 + modelWidth + 2 + statusWidth + 2 + elapsedWidth;
 
-	for (const { agent, projection } of rendered) {
-		const elapsed = formatElapsedMMSS(
-			agent.startTime,
-			projection.runtimeEndedAt ?? now,
+	for (const row of rows) {
+		const model = showModel ? `${DIM}${padVisible(row.model, modelWidth)}${RST}  ` : "";
+		const status = padVisible(row.status, statusWidth);
+		lines.push(
+			truncateToWidth(
+				`${ROW_INDENT}${row.accent}●${RST} ${padVisible(row.name, nameWidth)}  ${model}${status}  ${DIM}${row.elapsed}${RST}`,
+				width,
+			),
 		);
-		const agentTag = agent.agent ? ` (${agent.agent})` : "";
-		const left = ` ${elapsed}  ${agent.name}${agentTag} `;
-		const runtimeTag = agent.runtimePlan
-			? `${agent.runtimePlan.modelId}|${agent.runtimePlan.thinking} · `
-			: "";
-		const label =
-			agent.cancelState === "unconfirmed"
-				? "cancel unconfirmed"
-				: agent.cancelState
-					? "cancelling…"
-					: undefined;
-		const right = label
-			? ` ${runtimeTag}${label} `
-			: statusConfig.enabled
-				? ` ${runtimeTag}${formatLifecycleWidgetLabel(projection, now).trim()} `
-				: ` ${runtimeTag}starting… `;
-
-		lines.push(borderLine(left, right, width, accent));
 	}
-
-	lines.push(borderBottom(width, accent));
 	return lines;
 }
 
+type CardTheme = { fg: (color: any, text: string) => string };
+
+function renderCard(
+	theme: CardTheme,
+	title: string,
+	rows: string[],
+	width: number,
+): string[] {
+	if (width < 8) return [truncateToWidth(title, Math.max(0, width))];
+	const border = (text: string) => theme.fg("accent", text);
+	const inner = width - 2;
+	const titlePart = truncateToWidth(` ${title} `, inner - 2);
+	const fill = Math.max(0, inner - 1 - visibleWidth(titlePart));
+	const lines = [border("╭─") + titlePart + border("─".repeat(fill) + "╮")];
+	for (const row of rows) {
+		const content = truncateToWidth(row, inner - 2);
+		const pad = " ".repeat(Math.max(0, inner - 2 - visibleWidth(content)));
+		lines.push(`${border("│")} ${content}${pad} ${border("│")}`);
+	}
+	lines.push(border(`╰${"─".repeat(inner)}╯`));
+	return lines;
+}
+
+function shortenHome(path: string): string {
+	const home = homedir();
+	return path === home || path.startsWith(`${home}/`)
+		? `~${path.slice(home.length)}`
+		: path;
+}
+
+function renderPanel(
+	theme: { bg: (color: any, text: string) => string },
+	lines: string[],
+	width: number,
+): string[] {
+	if (width < 4 || lines.length === 0) return lines;
+	const inner = width - 2;
+	const row = (line: string) => {
+		const content = truncateToWidth(line, inner).replaceAll(RST, "\x1b[39;22m");
+		return theme.bg(
+			"customMessageBg",
+			` ${content}${" ".repeat(Math.max(0, inner - visibleWidth(content)))} `,
+		);
+	};
+	const blank = theme.bg("customMessageBg", " ".repeat(width));
+	return [blank, ...lines.map(row), blank];
+}
+
+function isStaleContextError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes("ctx is stale");
+}
+
+function stopWidgetRefresh() {
+	if (!widgetInterval) return;
+	clearInterval(widgetInterval);
+	widgetInterval = null;
+	writeGlobalSlot<ReturnType<typeof setInterval> | null>(
+		WIDGET_INTERVAL_KEY,
+		null,
+	);
+}
+
 function updateWidget() {
+	try {
+		applyWidget();
+	} catch (error) {
+		if (!isStaleContextError(error)) throw error;
+		runtime.latestCtx = undefined;
+		stopWidgetRefresh();
+	}
+}
+
+function applyWidget() {
 	const latestCtx = runtime.latestCtx;
 	if (!latestCtx?.hasUI) return;
 
-	if (runningSubagents.size === 0) {
+	if (runningSubagents.size === 0 && runtimeState.attachedTasks().length === 0) {
 		latestCtx.ui.setWidget("subagent-status", undefined);
 		if (widgetInterval) {
 			clearInterval(widgetInterval);
@@ -1174,14 +1245,15 @@ function updateWidget() {
 
 	latestCtx.ui.setWidget(
 		"subagent-status",
-		(_tui: any, _theme: any) => {
+		(_tui: any, theme: any) => {
 			return {
 				invalidate() {},
 				render(width: number) {
-					return renderSubagentWidgetLines(
+					return renderPanel(theme, renderSubagentWidgetLines(
 						Array.from(runningSubagents.values()),
-						width,
-					);
+						Math.max(0, width - 2),
+						runtimeState.attachedTasks(),
+					), width);
 				},
 			};
 		},
@@ -1993,6 +2065,14 @@ function startStatusRefresh(pi: ExtensionAPI) {
 
 export const runtimeState = {
 	runningSubagents,
+	attachedTasks: (): AttachedTask[] => [],
+	refreshWidget() {
+		if (runningSubagents.size > 0 || runtimeState.attachedTasks().length > 0) {
+			startWidgetRefresh();
+		} else {
+			updateWidget();
+		}
+	},
 	retireStopped(id: string) {
 		const running = runningSubagents.get(id);
 		if (!running) return;
@@ -2005,7 +2085,7 @@ export const runtimeState = {
 };
 
 export const __test__ = {
-	borderLine,
+	renderPanel,
 	renderSubagentWidgetLines,
 	loadAgentDefaults,
 	discoverAgentDefinitions,
@@ -3003,41 +3083,33 @@ export default function subagentsExtension(
 					isString(partialArgs.agent) && partialArgs.agent
 						? theme.fg("dim", ` (${partialArgs.agent})`)
 						: "";
-				const cwdHint =
-					isString(partialArgs.cwd) && partialArgs.cwd
-						? theme.fg("dim", ` in ${partialArgs.cwd}`)
-						: "";
 				const worktree = isPlainObject(partialArgs.worktree)
 					? partialArgs.worktree
 					: undefined;
-				const worktreeHint = isString(worktree?.branch)
-					? theme.fg("dim", ` on ${worktree.branch} (worktree)`)
-					: "";
-				let text =
-					"▸ " +
-					theme.fg("toolTitle", theme.bold(name)) +
-					agent +
-					cwdHint +
-					worktreeHint;
-
-				// Show a one-line task preview. renderCall is called repeatedly as the
-				// LLM generates tool arguments, so args.task grows token by token.
-				// We keep it compact here — Ctrl+O on renderResult expands the full content.
-				if (task) {
-					const firstLine =
-						task.split("\n").find((l: string) => l.trim()) ?? "";
-					const preview =
-						firstLine.length > 100 ? firstLine.slice(0, 100) + "…" : firstLine;
-					if (preview) {
-						text += "\n" + theme.fg("toolOutput", preview);
-					}
-					const totalLines = task.split("\n").length;
-					if (totalLines > 1) {
-						text += theme.fg("muted", ` (${totalLines} lines)`);
-					}
+				const row = (label: string, value: string) =>
+					theme.fg("dim", label.padEnd(7)) + value;
+				const rows: string[] = [];
+				if (isString(partialArgs.cwd) && partialArgs.cwd) {
+					rows.push(row("in", shortenHome(partialArgs.cwd)));
 				}
-
-				return new Text(text, 0, 0);
+				if (isString(worktree?.branch)) {
+					rows.push(row("branch", `${worktree.branch}${theme.fg("dim", " (worktree)")}`));
+				}
+				const firstLine = task.split("\n").find((l: string) => l.trim()) ?? "";
+				if (firstLine) {
+					const totalLines = task.split("\n").length;
+					const lineCount =
+						totalLines > 1 ? theme.fg("muted", ` (${totalLines} lines)`) : "";
+					rows.push(row("task", theme.fg("toolOutput", firstLine) + lineCount));
+				}
+				const title =
+					theme.fg("accent", "▸ ") +
+					theme.fg("toolTitle", theme.bold(name)) +
+					agent;
+				return {
+					invalidate() {},
+					render: (width: number) => renderCard(theme, title, rows, width),
+				};
 			},
 
 			renderResult(result, _opts, theme) {
@@ -3045,21 +3117,15 @@ export default function subagentsExtension(
 				// execute() above returned; the framework's TDetails type isn't threaded
 				// through this callback precisely enough for TypeScript to see that.
 				const details = result.details as any;
-				const name = details?.name ?? "(unnamed)";
 
 				// "Started" result — tool returned immediately
 				if (details?.status === "started") {
 					const runtime = details?.model
-						? ` — ${details.model}${details.thinking ? ` · ${details.thinking}` : ""}`
-						: " — started";
-					const worktree = details?.worktree?.branch
-						? ` · ${details.worktree.branch}`
+						? `${details.model}${details.thinking ? ` · ${details.thinking}` : ""}`
 						: "";
 					return new Text(
-						theme.fg("accent", "▸") +
-							" " +
-							theme.fg("toolTitle", theme.bold(name)) +
-							theme.fg("dim", runtime + worktree),
+						theme.fg("accent", "  ✓ ") +
+							theme.fg("dim", ["started", runtime].filter(Boolean).join(" · ")),
 						0,
 						0,
 					);

@@ -182,6 +182,10 @@ export class RexSurfaceProvider {
     for (const session of live) {
       if (!this.sessions.has(session.session_id)) continue;
       const view = this.json(['session', 'inspect', session.session_id, '--json']);
+      if (!Object.hasOwn(view, 'windows') && view.session_id === session.session_id
+        && Number.isInteger(view.revision) && view.revision >= 0
+        && view.active_window_id == null && (view.label === undefined || typeof view.label === 'string')) continue;
+      if (!Array.isArray(view.windows)) throw new Error(`Invalid Rex session windows: ${session.session_id}`);
       for (const window of view.windows) {
         for (const layer of window.layers) {
           for (const block of layer.blocks) {

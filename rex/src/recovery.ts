@@ -4,15 +4,16 @@ import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync }
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.mjs';
-import { agentIdentityFile, boundedSummary, processBirth, processCommand, probeProcess, taskState } from './tasks.ts';
+import { agentIdentityFile, boundedSummary, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
 import { leaseAlive } from './worktrees.mjs';
 
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 
 export class RexRecovery {
-  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, launch }) {
-    Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth, command, launch });
+  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, onChange, launch }) {
+    Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth, command, parentOf, onChange, launch });
     this.recovered = new Set();
+    this.view = new Map();
     this.watchers = new Map();
     this.pending = new Set();
     this.liveness = new Map();
@@ -54,7 +55,17 @@ export class RexRecovery {
     if (probe.state === 'crashed') return false;
     const info = this.provider.process(record.surface);
     const candidates = [info.foreground, info.child, ...(info.ancestors ?? [])].filter(Boolean);
-    return candidates.some((process) => process.pid === record.identity.pid) ? true : undefined;
+    const terminal = new Set(candidates.map((process) => process.pid));
+    return terminal.has(record.identity.pid) || this.descendsFrom(record.identity.pid, terminal) ? true : undefined;
+  }
+  descendsFrom(pid, ancestors) {
+    let current = pid;
+    for (let depth = 0; depth < 16; depth += 1) {
+      current = this.parentOf(current);
+      if (!current || current === 1) return false;
+      if (ancestors.has(current)) return true;
+    }
+    return false;
   }
   readPolicy(file) {
     try { return this.protocol.readSubagentSessionPolicy(file); } catch (cause) {
@@ -222,11 +233,16 @@ export class RexRecovery {
     }
     const read = this.activity.readSubagentActivityFile(record.activityFile, record.id);
     const view = taskState(record, read.ok ? read.activity : undefined, events, ledger, alive);
+    if (this.recovered.has(id) && this.owned(record) && !record.completed && !record.stopConfirmed) {
+      this.view.set(id, { id, name: record.name, model: record.model, state: view.state, reason: view.reason });
+    } else this.view.delete(id);
+    this.onChange?.();
     if (record.state !== view.state || record.reason !== view.reason || record.stopConfirmed || record.completed) {
       Object.assign(record, view, { updatedAt: Date.now() });
       this.store.write(record);
     }
   }
+  attached() { return [...this.view.values()]; }
   receipt(message) {
     const receipt = message.details?.rexReceipt;
     if (!receipt) return;
@@ -300,6 +316,7 @@ export class RexRecovery {
       current.updatedAt = Date.now();
       this.store.write(current);
       this.recovered.delete(current.id);
+      this.view.delete(current.id);
       this.liveness.delete(current.id);
       this.releaseLease(current);
       this.closeTab(current);

@@ -46,6 +46,52 @@ test('surface inventory never adopts unrelated sessions', async () => {
   assert.equal((await provider.inspectSurface(id)).kind, 'present');
 });
 
+test('an empty tracked session does not block inspection of another session', async () => {
+  const { provider } = fixture();
+  provider.createSurface({ name: 'task', cwd: '/tmp/task' });
+  provider.worktrees = { records: () => [{ workspaceId: 'session:user/block:old', surfaceId: 'session:user/block:old' }] };
+  const call = provider.call;
+  provider.call = (args) => args[0] === 'session' && args[2] === 'session:user'
+    ? JSON.stringify({ revision: 3, session_id: 'session:user', label: 'empty', clients: [] })
+    : call(args);
+  assert.deepEqual((await provider.listSurfaces()).map((surface) => surface.id), [id]);
+  assert.equal((await provider.inspectSurface(id)).kind, 'present');
+  assert.deepEqual(await provider.inspectSurface(`${session}/block:missing`), { kind: 'missing' });
+  assert.deepEqual(await provider.inspectSurface('session:user/block:old'), { kind: 'missing' });
+});
+
+test('malformed session views remain unavailable rather than evidence of absence', async () => {
+  const { provider } = fixture();
+  provider.createSurface({ name: 'task', cwd: '/tmp/task' });
+  const call = provider.call;
+  const empty = { revision: 3, session_id: session, label: 'empty', clients: [] };
+  for (const view of [
+    null, {}, [], { session_id: session }, { revision: 3 },
+    { ...empty, revision: -1 }, { ...empty, revision: '3' }, { ...empty, revision: 0.5 },
+    { ...empty, session_id: 'session:other' }, { ...empty, active_window_id: 'window:other' },
+    { ...empty, label: 3 },
+    ...[null, false, '', 'windows', {}, { length: 0 }].map((windows) => ({ ...empty, windows })),
+    { ...empty, windows: [{}] }, { ...empty, windows: [{ layers: [{}] }] },
+  ]) {
+    provider.call = (args) => args[0] === 'session' ? JSON.stringify(view) : call(args);
+    assert.equal((await provider.inspectSurface(id)).kind, 'unavailable', JSON.stringify(view));
+    assert.equal((await provider.inspectSurface(`${session}/block:missing`)).kind, 'unavailable', JSON.stringify(view));
+  }
+});
+
+test('a failed inspection of another tracked session still blocks absence confirmation', async () => {
+  const { provider } = fixture();
+  provider.createSurface({ name: 'task', cwd: '/tmp/task' });
+  provider.sessions.add('session:user');
+  const call = provider.call;
+  provider.call = (args) => {
+    if (args[0] === 'session' && args[2] === 'session:user') throw new Error('inspection failed');
+    return call(args);
+  };
+  assert.equal((await provider.inspectSurface(id)).kind, 'unavailable');
+  await assert.rejects(provider.waitForSurfaceAbsence(`${session}/block:missing`), /inspection failed/);
+});
+
 test('command submission is targeted and keeps command text separate from CLI options', () => {
   const { provider, calls } = fixture();
   provider.createSurface({ name: 'task', cwd: '/tmp/task' });

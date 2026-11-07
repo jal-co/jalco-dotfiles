@@ -36,6 +36,35 @@ test('claim recovers the same live agent without launching a process', () => {
   f.recovery.close();
 });
 
+test('an agent launched by a wrapper script is verified through the terminal process', () => {
+  const f = fixture();
+  f.recovery.provider.process = () => ({ foreground: { pid: 100 } });
+  f.recovery.parentOf = (pid) => ({ 222: 100 })[pid] ?? 0;
+  assert.equal(f.recovery.claim(f.record).owner.pid, 333);
+  f.recovery.close();
+});
+
+test('an agent outside the terminal process tree is never attached', () => {
+  const f = fixture();
+  f.recovery.provider.process = () => ({ foreground: { pid: 100 } });
+  f.recovery.parentOf = (pid) => ({ 222: 555, 555: 1 })[pid] ?? 0;
+  assert.throws(() => f.recovery.claim(f.record), /could not be verified/);
+  f.recovery.close();
+});
+
+test('a reattached agent is exposed for display until it completes', () => {
+  const f = fixture();
+  f.recovery.claim(f.record);
+  f.recovery.refresh(f.record.id);
+  assert.deepEqual(f.recovery.attached().map((row) => [row.name, row.state]), [['fixture', 'idle']]);
+  const saved = f.store.read(f.record.id);
+  saved.completed = {};
+  f.store.write(saved);
+  f.recovery.refresh(f.record.id);
+  assert.deepEqual(f.recovery.attached(), []);
+  f.recovery.close();
+});
+
 test('child attestation binds recovery to its original process and refuses overwrite', () => {
   const f = fixture();
   delete f.record.identity; f.store.write(f.record);

@@ -18,6 +18,16 @@ export function processBirth(pid) {
   }
 }
 
+export function processParent(pid) {
+  assert.ok(Number.isInteger(pid) && pid > 0, 'Invalid process PID');
+  try {
+    return Number(execFileSync('ps', ['-p', String(pid), '-o', 'ppid='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()) || 0;
+  } catch (error) {
+    if (error.status === 1) return 0;
+    throw error;
+  }
+}
+
 export function processCommand(pid) {
   assert.ok(Number.isInteger(pid) && pid > 0, 'Invalid process PID');
   try {

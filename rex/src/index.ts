@@ -247,9 +247,14 @@ export default async function rexAgents(pi: ExtensionAPI) {
     recovery = new RexRecovery({
       store: new TaskStore(), provider, worktrees, protocol, activity,
       running: () => hostState.runningSubagents,
+      onChange: () => hostState.refreshWidget(),
       retireStopped: (id) => hostState.retireStopped(id),
       send: (message, options) => pi.sendMessage(message, options),
-      notify: (message) => ctx.ui.notify(message, 'warning'),
+      notify: (message) => {
+        try { ctx.ui.notify(message, 'warning'); } catch (error) {
+          if (!String(error?.message).includes('ctx is stale')) throw error;
+        }
+      },
       flags, originCwd: ctx.cwd,
       owner: { pid: process.pid, birth: processBirth(process.pid), session: process.env.REX_SESSION },
       launch: {
@@ -257,6 +262,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
         extensions: [join(root, 'maestro/adapters/pi/child/subagent-done.ts'), fileURLToPath(new URL('./task.ts', import.meta.url))],
       },
     });
+    hostState.attachedTasks = () => recovery?.attached() ?? [];
     recovery.start();
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type === 'message' && entry.message.role === 'custom') recovery.receipt(entry.message);
