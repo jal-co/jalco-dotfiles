@@ -1,4 +1,10 @@
 {
+  "cli_default_open_behavior": "existing_window",
+  "agent_servers": {
+    "pi-acp": {
+      "type": "registry"
+    }
+  },
   "buffer_font_fallbacks": [
     "Fira Code",
     "Menlo",
@@ -39,6 +45,7 @@
     },
   },
   "collaboration_panel": {
+    "button": false,
     "dock": "right",
   },
   "git_panel": {
@@ -57,7 +64,7 @@
   "icon_theme": {
     "mode": "dark",
     "light": "Zed (Default)",
-    "dark": "Colored Zed Icons Theme Dark",
+    "dark": "Material Icon Theme",
   },
   "theme": {
     "mode": "dark",
