@@ -127,12 +127,6 @@
       "url": "https://mcp.cve.now/mcp",
       "description": "cve.now vulnerability catalog search"
     },
-    "factory-shipyard": {
-      "url": "https://shipyard.factory.mastra.cloud/web/factory/projects/7d5175c3-3a20-42ac-aba9-756f183136f4/mcp",
-      "enabled": true,
-      "description": "Factory shipyard task and build orchestration",
-      "exposure": "direct"
-    },
     "railway": {
       "url": "https://mcp.railway.com",
       "description": "Railway projects, services, deployments and variables"
