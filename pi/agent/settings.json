@@ -12,7 +12,9 @@
     "claude-bridge/claude-fable-5-1",
     "claude-bridge/claude-opus-5-5",
     "claude-bridge/claude-sonnet-5-5",
-    "claude-bridge/claude-haiku-5-5"
+    "claude-bridge/claude-haiku-5-5",
+    "deepseek/deepseek-flash",
+    "deepseek/deepseek-v4-pro"
   ],
   "enableSkillCommands": true,
   "skills": [],
