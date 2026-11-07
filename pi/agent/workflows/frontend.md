@@ -113,6 +113,14 @@ ARTIFACTS="$("$BROWSER" artifacts)"
 
 Start recording from a settled initial state. Show one focused interaction, add only enough pause to make cause and result legible, and stop after the final state settles. Inspect the generated contact sheet for brief intermediate states that before-and-after screenshots miss. The MP4 MUST use H.264 with `yuv420p` for review compatibility. Also verify the interaction with reduced motion enabled and report the result. Video supplements assertions, contact sheets, and screenshots; it does not replace them.
 
+## Review previews and state machines
+
+<rules>
+
+Every preview, state board, or scenario harness built for Justin's review MUST be navigable from the keyboard. Arrow keys MUST move to the previous and next state, wrapping at the ends, and `T` MUST switch light and dark on the same state when the surface supports both. A small persistent label MUST show the current position and name, such as `3 of 26, plan no card`. The handler MUST ignore keys while focus is in an input, an open Select or menu, or a listbox, so the previewed controls keep their own arrow-key behavior. Clicking through a list of links to compare states is slow and loses the comparison.
+
+</rules>
+
 ## Local authoring
 
 For React interface work with tunable motion, timing, spacing, color, shadow, blur, scale, layout, or other visual parameters, SHOULD use DialKit during local iteration when the project can support it.

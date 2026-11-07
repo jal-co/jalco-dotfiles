@@ -61,7 +61,7 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 <instructions>
 
-For interface design questions and before designing or building any interface, MUST check Interface Lineage first: search, then fetch relevant dossiers to ground decisions in the designs and lessons it holds. Answer from those sources with their actual diagrams and verbatim quotes, and play their demos in the chat when available (use the tool's link fallback if inline playback is unsupported). If the tools are unavailable, say so rather than inventing source use. Keep local design-system and Emil guidance in force.
+For interface design questions and before designing or building any interface, MUST check Interface Lineage first: search with `semantic_type: "principle"`, then fetch relevant principle dossiers before searching and fetching interface or pattern dossiers. Use those principles to evaluate the designs, so references ground decisions rather than invite visual imitation. Answer from those sources with their actual diagrams and verbatim quotes, and play their demos in the chat when available (use the tool's link fallback if inline playback is unsupported). If the tools are unavailable, say so rather than inventing source use. Keep local design-system and Emil guidance in force.
 
 Load only the guidance relevant to the task, including the `emil-*` skill for each aspect of the interface the task touches. Ignore any Emil skill's Initial Response and its Before/After table format (the `emil-animations` review checklist), which override the communication rules below. MUST preserve installed Emil files unchanged; local policy belongs here or in separate references.
 
