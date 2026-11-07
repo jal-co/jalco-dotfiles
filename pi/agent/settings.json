@@ -7,13 +7,11 @@
   "defaultProvider": "openai",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "openai/gpt-6.1-sol",
-    "openai/gpt-6-astra",
-    "deepseek/deepseek-flash",
-    "claude-bridge/claude-fable-5-1",
-    "claude-bridge/claude-opus-5-5",
-    "claude-bridge/claude-sonnet-5-5",
-    "claude-bridge/claude-haiku-5-5"
+    "cliproxyapi/gpt-6.1-sol",
+    "cliproxyapi/gpt-6-astra",
+    "cliproxyapi/claude-opus-5-5",
+    "cliproxyapi/claude-sonnet-5-5",
+    "claude-bridge/claude-opus-5-5"
   ],
   "enableSkillCommands": true,
   "skills": [],
@@ -42,7 +40,6 @@
       ]
     },
     "npm:@narumitw/pi-btw",
-    "git:github.com/mastra-ai/pi-alexandria",
     "npm:pi-title-renamer",
     {
       "source": "npm:pi-herdr-agents",
@@ -50,6 +47,7 @@
       "skills": []
     },
     "npm:pi-herdr-pstack",
+    "git:github.com/loops-so/skills@f7257b90cf348a089a59d4cbdaaf91cb926f24ed",
     "./packages/pi-claude-pool"
   ],
   "quietStartup": "header",
