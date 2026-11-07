@@ -7,17 +7,18 @@
   "defaultProvider": "openai",
   "defaultThinkingLevel": "medium",
   "enabledModels": [
-    "cliproxyapi/gpt-6.1-sol",
-    "cliproxyapi/gpt-6-astra",
-    "cliproxyapi/claude-opus-5-5",
-    "cliproxyapi/claude-sonnet-5-5",
-    "claude-bridge/claude-opus-5-5"
+    "openai/gpt-6.1-sol",
+    "openai/gpt-6-astra",
+    "claude-bridge/claude-fable-5-1",
+    "claude-bridge/claude-opus-5-5",
+    "claude-bridge/claude-sonnet-5-5",
+    "claude-bridge/claude-haiku-5-5"
   ],
   "enableSkillCommands": true,
   "skills": [],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "./packages/rpiv-ask-user-question",
@@ -66,5 +67,12 @@
     "mermaid": "final"
   },
   "doubleEscapeAction": "tree",
-  "tuiMode": "fullscreen"
+  "tuiMode": "fullscreen",
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:pi-tool-display\",\"scope\":\"user\"}": "0.5.0",
+    "{\"source\":\"git:github.com/jal-co/pi-agentation\",\"scope\":\"user\"}": "0.1.1",
+    "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.47.0",
+    "{\"source\":\"npm:@narumitw/pi-btw\",\"scope\":\"user\"}": "0.63.5",
+    "{\"source\":\"npm:pi-herdr-pstack\",\"scope\":\"user\"}": "0.6.0"
+  }
 }
