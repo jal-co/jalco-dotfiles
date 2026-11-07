@@ -46,7 +46,7 @@ function authTestLogin(loginUrl) {
   let username
   let password
   try {
-    const result = spawnSync('op', ['item', 'get', request.itemReference, '--format=json'], { env, encoding: 'utf8', timeout: 30000 })
+    const result = spawnSync('op', ['item', 'get', request.itemReference, '--vault', 'Agents / Dev', '--format=json'], { env, encoding: 'utf8', timeout: 30000 })
     if (result.error || result.status !== 0) throw new Error()
     const item = JSON.parse(result.stdout)
     username = item.fields.find(field => field.id === 'username')?.value

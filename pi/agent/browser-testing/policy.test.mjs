@@ -148,7 +148,7 @@ else console.log('dummy-secret test@example.invalid');
     assert.equal(success.stdout, 'Submitted TEST account login in the isolated task session\n')
     assert.equal(success.stderr, '')
     const calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
-    assert.deepEqual(calls.find(call => call.cli === 'op').args, ['item', 'get', 'TEST Login', '--format=json'])
+    assert.deepEqual(calls.find(call => call.cli === 'op').args, ['item', 'get', 'TEST Login', '--vault', 'Agents / Dev', '--format=json'])
     assert.deepEqual(calls.filter(call => ['fill', 'press', 'wait', 'click'].includes(call.args[0])).map(call => call.args), [['fill', 'input[type=email]', 'test@example.invalid'], ['press', 'Enter'], ['wait', 'input[type=password]'], ['click', 'button[type=submit]']])
     const saved = calls.find(call => call.args[1] === 'save')
     assert.equal(saved.input, 'dummy-secret')
