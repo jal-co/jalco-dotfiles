@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  buildView, capacityOf, issueBrief, issueQuery, launchParams, linkedTask, loadLinear, moveCursor,
-  readLinearConfig, readToken, saveRepository,
+  buildView, capacityOf, findIssues, inbox, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
+import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
 import { columns, fit, keys, renderScreen } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
@@ -87,22 +88,22 @@ test('sessions group live tasks by repository with agent and PR labels, hiding s
   ];
   const prs = [{ taskId: 'shipped-id', url: 'https://github.com/a/b/pull/7', state: 'MERGED', checkedAt: '2026-11-08' }];
   const data = { tasks, prs, records: [{ path: tasks[0].worktree, repo: '/Users/j/platform' }], linear: { status: 'missing', message: 'none', open: [], done: [] } };
-  const rows = buildView(2, data);
+  const rows = buildView(3, data);
   assert.deepEqual(sections(rows), { docs: ['docs'], platform: ['ui-fix', 'shipped'] });
   assert.deepEqual(items(rows).map((row) => row.agent.text), ['! blocked', '● working', 'merged']);
   assert.match(rows.at(-1).text, /1 stopped task hidden/);
-  assert.ok(items(buildView(2, data, { showStopped: true })).some((row) => row.id === 'old-run'));
-  assert.equal(buildView(2, { ...data, tasks: [task('merged', 'stopped', { stopConfirmed: true, id: 'shipped-id' })] }, { showStopped: true })[1].agent.text, 'merged');
+  assert.ok(items(buildView(3, data, { showStopped: true })).some((row) => row.id === 'old-run'));
+  assert.equal(buildView(3, { ...data, tasks: [task('merged', 'stopped', { stopConfirmed: true, id: 'shipped-id' })] }, { showStopped: true })[1].agent.text, 'merged');
 });
 
 test('issue tabs show the empty state, split started from todo and label issues with their agent', () => {
   const empty = { tasks: [], prs: [], records: [], linear: { status: 'missing', message: 'No Linear token configured.\nAdd it.', open: [], done: [] } };
-  assert.deepEqual(buildView(0, empty).map((row) => row.text), ['No Linear token configured.', 'Add it.']);
+  assert.deepEqual(buildView(1, empty).map((row) => row.text), ['No Linear token configured.', 'Add it.']);
   const open = [issue('PLT-2', 'unstarted', { priority: 1 }), issue('PLT-1', 'started'), issue('PLT-3', 'backlog')];
   const data = { ...empty, tasks: [task('plt-1', 'working', { branch: 'jal/plt-1-fix' })], linear: { status: 'ok', open, done: [] } };
-  assert.deepEqual(sections(buildView(0, data)), { 'In progress': ['PLT-1'], Todo: ['PLT-2'] });
-  assert.equal(items(buildView(0, data))[0].agent.text, '● working');
-  assert.deepEqual(sections(buildView(1, data)), { Billing: ['PLT-3'] });
+  assert.deepEqual(sections(buildView(1, data)), { 'In progress': ['PLT-1'], Todo: ['PLT-2'] });
+  assert.equal(items(buildView(1, data))[0].agent.text, '● working');
+  assert.deepEqual(sections(buildView(2, data)), { Billing: ['PLT-3'] });
 });
 
 test('the brief separates in progress, up next and done since yesterday without duplicates', () => {
@@ -120,13 +121,13 @@ test('the brief separates in progress, up next and done since yesterday without 
   ];
   const linear = { status: 'ok', open: [issue('PLT-9', 'unstarted'), issue('PLT-8', 'started')], done: [issue('PLT-7', 'completed')] };
   const data = { tasks, prs, records: [], linear };
-  assert.deepEqual(sections(buildView(3, data, { now })), {
+  assert.deepEqual(sections(buildView(4, data, { now })), {
     'In progress': ['active', 'PLT-8'],
     'Up next': ['PLT-9'],
     'Done since yesterday': ['PLT-7', 'shipped', 'yesterday', '#2'],
   });
-  assert.deepEqual(items(buildView(3, data, { now, mode: 'list' })).map((row) => row.id), ['active', 'PLT-8', 'PLT-9', 'PLT-7', 'shipped', 'yesterday', '#2']);
-  assert.equal(items(buildView(3, data, { now })).find((row) => row.id === 'shipped').agent.text, 'merged');
+  assert.deepEqual(items(buildView(4, data, { now, mode: 'list' })).map((row) => row.id), ['active', 'PLT-8', 'PLT-9', 'PLT-7', 'shipped', 'yesterday', '#2']);
+  assert.equal(items(buildView(4, data, { now })).find((row) => row.id === 'shipped').agent.text, 'merged');
 });
 
 test('cursor skips headers, notes and blanks', () => {
@@ -145,20 +146,21 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     { kind: 'section', title: 'In progress', count: 1 },
     { kind: 'item', key: 'i:A-1', id: 'A-1', title: `Title 🙂 ${'y'.repeat(200)}`, project: 'Billing', agent: { text: '● working', tone: 'yellow' } },
   ];
-  const state = { tab: 3, mode: 'brief', rows, cursor: 1, working: 1, capacity: { used: 8, max: 8 }, doneCount: 2, now: Date.now() };
+  const state = { tab: 4, mode: 'brief', inboxCount: 3, rows, cursor: 1, working: 1, capacity: { used: 8, max: 8 }, doneCount: 2, now: Date.now() };
   for (const width of [40, 80, 140]) {
     const screen = renderScreen(state, width, 24).map(plain);
     assert.equal(screen.length, 24);
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[0], /^1 Issues {3}2 Backlog {3}3 Sessions {3}4 Today +● 1 working {3}agents 8\/8$/);
+  assert.match(screen[0], /^1 Inbox 3 {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today +● 1 working {3}agents 8\/8$/);
+  assert.match(plain(renderScreen({ ...state, tab: 5, search: { query: 'x' } }, 140, 24)[0]), /5 Today {3}6 Search/);
   assert.match(screen[2], /^Brief {2}List/);
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
   assert.match(screen.at(-4), /^Title/);
-  assert.match(screen.at(-1), /s send · u resume · d retire/);
-  const retire = renderScreen({ ...state, confirm: { retire: true, task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
+  assert.match(screen.at(-1), /n new task · c coordinator · \/ search/);
+  const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
   assert.match(retire.at(-4), /^Retire ui-fix\?/);
   assert.match(retire.at(-2), /Logs, branch and checkout are kept/);
 });
@@ -182,4 +184,100 @@ test('issue launches use the coordinator brief template and a persistent interac
 test('capacity counts retained persistent agents and live host agents once', () => {
   const tasks = [task('a', 'working'), task('b', 'stopped', { stopConfirmed: true }), task('c', 'done', { originCwd: '/other' })];
   assert.deepEqual(capacityOf(tasks, '/coord', [{ id: 'a-id', persistent: true }, { id: 'new', persistent: true }, { id: 'x' }], 8), { used: 2, max: 8 });
+});
+
+test('the inbox collects questions, failures, finished work and merged PRs waiting on cleanup, once each', () => {
+  const tasks = [
+    task('asks', 'blocked', { reason: 'Which plan?' }),
+    task('crashed', 'unknown'),
+    task('finished', 'done'),
+    task('in-review', 'done'),
+    task('merged', 'done'),
+    task('busy', 'working'),
+    task('gone', 'stopped', { stopConfirmed: true }),
+  ];
+  const prs = [
+    { taskId: 'in-review-id', url: 'https://github.com/a/b/pull/1', state: 'OPEN', cleanup: 'pending', checkedAt: '1' },
+    { taskId: 'merged-id', url: 'https://github.com/a/b/pull/2', state: 'MERGED', cleanup: 'pending', mergedAt: '2026-11-08', checkedAt: '1' },
+    { taskId: 'gone-id', url: 'https://github.com/a/b/pull/3', state: 'MERGED', cleanup: 'pending', mergedAt: '2026-11-07', name: 'gone', repositoryPath: '/r/platform', checkedAt: '1' },
+    { taskId: 'old', url: 'https://github.com/a/b/pull/4', state: 'MERGED', cleanup: 'removed', mergedAt: '2026-11-01', checkedAt: '1' },
+  ];
+  const data = { tasks, prs, records: [], linear: { status: 'ok', open: [], done: [] } };
+  const result = inbox(data);
+  assert.equal(result.count, 5);
+  assert.deepEqual(sections(buildView(0, data)), {
+    'Needs an answer': ['asks'], 'Failed or crashed': ['crashed'], 'Ready for review': ['finished'], 'Merged, cleanup pending': ['merged', 'gone'],
+  });
+  assert.match(result.merged[0].hint, /c ask the coordinator to clean it up/);
+  assert.deepEqual(buildView(0, { ...data, tasks: [], prs: [] }).map((row) => row.text), ['Nothing needs you right now.']);
+});
+
+test('search results render in their own tab', () => {
+  const data = { tasks: [], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
+  assert.deepEqual(sections(buildView(5, data, { search: { query: 'storage', issues: [issue('ENG-10', 'backlog')] } })), { 'Results for “storage”': ['ENG-10'] });
+  assert.equal(buildView(5, data, { search: { query: 'x', status: 'Searching Linear…' } })[0].text, 'Searching Linear…');
+  assert.match(buildView(5, data, { search: { query: 'zzz', issues: [] } })[0].text, /No issues match/);
+});
+
+test('pasted Linear links and identifiers resolve to one issue; other text searches', async () => {
+  assert.equal(issueReference('https://linear.app/kepler/issue/ENG-10/storage-usage-bar'), 'ENG-10');
+  assert.equal(issueReference('take pltfrm-3245 please'), 'PLTFRM-3245');
+  assert.equal(issueReference('storage usage bar'), undefined);
+  const calls = [];
+  const fetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push(body.variables);
+    const data = body.variables.id ? { issue: body.variables.id === 'ENG-10' ? issue('ENG-10', 'backlog') : null } : { searchIssues: { nodes: [issue('ENG-11', 'backlog')] } };
+    return { ok: true, status: 200, json: async () => ({ data }) };
+  };
+  assert.deepEqual((await findIssues('lin_api_x', 'https://linear.app/k/issue/ENG-10/x', fetch)).map((row) => row.identifier), ['ENG-10']);
+  assert.deepEqual(await findIssues('lin_api_x', 'ENG-99', fetch), []);
+  assert.deepEqual((await findIssues('lin_api_x', 'storage', fetch)).map((row) => row.identifier), ['ENG-11']);
+  assert.deepEqual(calls, [{ id: 'ENG-10' }, { id: 'ENG-99' }, { term: 'storage' }]);
+});
+
+test('free-form tasks get a unique slug, branch and a brief without Linear rules', () => {
+  assert.equal(slugFor('Add a keyboard shortcut to the TUI!'), 'add-keyboard-shortcut-tui');
+  assert.equal(launchParams({ name: 'x' }, { repo: join(homedir(), 'dotfiles'), base: 'origin/main', brief: 'b' }).worktree, null);
+  assert.equal(slugFor('Fix the build', ['fix-build', 'fix-build-2']), 'fix-build-3');
+  assert.equal(slugFor('!!!'), 'task');
+  assert.equal(slugFor('Add a coordinator shortcut to the rex-linear TUI'), 'add-coordinator-shortcut-rex');
+  const subject = { title: 'Fix the build', name: 'fix-the-build', branchName: 'jal/fix-the-build' };
+  assert.deepEqual(launchParams(subject, { repo: '/r', base: 'origin/main', brief: 'b' }).worktree, { branch: 'jal/fix-the-build', base: 'origin/main' });
+  const brief = taskBrief({ goal: 'Fix the build', branch: 'jal/fix-the-build' });
+  assert.match(brief, /^Goal: Fix the build/);
+  assert.match(brief, /Do not push or open a PR\./);
+  assert.doesNotMatch(brief, /Linear/);
+});
+
+test('repository ranking prefers linked PRs, then team history, then distinctive text, and explains why', async () => {
+  const remotes = { '/r/platform': 'https://github.com/mastra-ai/platform.git', '/r/mastra': 'git@github.com:mastra-ai/mastra.git', '/r/norem': '' };
+  const code = { '/r/platform': ['billing page', 'storage usage'], '/r/mastra': ['storage usage'] };
+  const exec = async (_cmd, args) => {
+    const repo = args[1];
+    if (args[2] === 'remote') { if (!remotes[repo]) throw new Error('no remote'); return { stdout: remotes[repo] }; }
+    if ((code[repo] ?? []).includes(args.at(-1).toLowerCase())) return { stdout: '' };
+    throw new Error('no match');
+  };
+  const candidates = ['/r/platform', '/r/mastra', '/r/norem'];
+  const subject = { identifier: 'ENG-10', title: 'Storage usage bar on the Starter plan', description: 'The Billing page is wrong', team: { key: 'ENG' } };
+  const text = await rankRepositories(subject, { candidates, exec });
+  assert.deepEqual(text.map((row) => row.name), ['platform', 'mastra']);
+  assert.match(text[0].reasons.join(), /mentions “billing page”/);
+  const linked = await rankRepositories({ ...subject, attachments: { nodes: [{ url: 'https://github.com/mastra-ai/mastra/pull/9' }] } }, { candidates, exec });
+  assert.equal(linked[0].name, 'mastra');
+  assert.match(linked[0].reasons[0], /1 linked PR here/);
+  assert.ok(confident(linked));
+  const learned = await rankRepositories(subject, { candidates, exec, config: { repositories: { ENG: '/r/mastra' } } });
+  assert.equal(learned[0].name, 'mastra');
+  assert.match(learned[0].reasons[0], /you picked it for ENG before/);
+  const history = await rankRepositories({ title: 'Something new', team: { key: 'PLT' } }, {
+    candidates, exec, tasks: [task('a', 'done', { branch: 'jal/plt-1-x', worktree: '/w/a' }), task('b', 'done', { branch: 'jal/plt-2-y', worktree: '/w/b' })],
+    records: [{ path: '/w/a', repo: '/r/platform' }, { path: '/w/b', repo: '/r/platform' }],
+  });
+  assert.equal(history[0].name, 'platform');
+  assert.match(history[0].reasons[0], /2 PLT tasks/);
+  assert.equal(githubRepository('git@github.com:Mastra-AI/Platform.git'), 'mastra-ai/platform');
+  assert.deepEqual(terms({ title: 'Fix the rex-linear TUI', description: 'Call `loadLinear()` early. ![x](https://a.b/c.png)' }).map((term) => [term.text, term.weight]),
+    [['loadLinear()', 2], ['rex-linear', 2], ['rex-linear tui', 1], ['call loadlinear', 0.5], ['loadlinear early', 0.5]]);
 });

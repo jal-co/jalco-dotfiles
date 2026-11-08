@@ -24,17 +24,21 @@ test('launch requests become a persistent interactive worktree agent and ignore 
     tool: 'subagent',
     params: { name: 'plt-4', task: 'Goal: x', cwd: repo, worktree: { branch: 'jal/plt-4', base: 'origin/main' }, persistent: true, interactive: true, model: 'task:coding', thinking: 'medium' },
   });
+  assert.equal(parseRequest(request('launch', { name: 'dots', task: 'x', cwd: repo, worktree: null })).params.worktree, null);
+  assert.throws(() => parseRequest(request('launch', { name: 'dots', task: 'x', cwd: repo })), /Invalid worktree/);
   assert.throws(() => parseRequest(request('launch', { name: 'plt-4', task: 'x', cwd: '/nope', worktree: { branch: 'b', base: 'origin/main' } })), /not a Git repository/);
   assert.throws(() => parseRequest(request('launch', { name: 'plt-4', task: 'x', cwd: repo, worktree: { branch: '--force', base: 'origin/main' } })), /Invalid worktree/);
   assert.throws(() => parseRequest(request('launch', { name: 'Bad Name', task: 'x', cwd: repo, worktree: { branch: 'b', base: 'm' } })), /Invalid task name/);
 });
 
-test('send, stop and resume map to the coordinator tools; resume uses the retained session file', () => {
+test('send, stop, resume and coordinator messages map to the coordinator; resume uses the retained session file', () => {
   assert.deepEqual(parseRequest(request('send', { id: 'task-1', message: 'rebase' })), { tool: 'subagent_send', params: { id: 'task-1', message: 'rebase' } });
   assert.throws(() => parseRequest(request('send', { id: 'task-1', message: ' ' })), /missing/);
   assert.deepEqual(parseRequest(request('stop', { id: 'task-1' })), { tool: 'subagent_stop', params: { id: 'task-1' } });
   assert.deepEqual(parseRequest(request('resume', { id: 'task-1' }), { tasks }), { tool: 'subagent_resume', params: { sessionPath: '/s/plt-4.jsonl', name: 'plt-4' } });
   assert.throws(() => parseRequest(request('resume', { id: 'task-1' }, { origin: '/other' }), { tasks }), /No retained task/);
+  assert.deepEqual(parseRequest(request('message', { message: 'clean up plt-4' })), { tool: 'message', params: { message: 'clean up plt-4' } });
+  assert.throws(() => parseRequest(request('message', { message: '' })), /missing/);
   assert.throws(() => parseRequest(request('shell', {})), /Unsupported/);
 });
 

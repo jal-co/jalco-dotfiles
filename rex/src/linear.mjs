@@ -8,7 +8,7 @@ import { cleanText, sessionCwd } from './tasks.ts';
 const run = promisify(execFile);
 const reference = /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/([^/\r\n]+\/)?[^/\r\n]+$/;
 
-export const TABS = ['Issues', 'Backlog', 'Sessions', 'Today'];
+export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today'];
 const AGENT = {
   blocked: ['! blocked', 'red'],
   error: ['✕ error', 'red'],
@@ -58,7 +58,7 @@ export async function readToken(tokenRef, read = run) {
   }
 }
 
-const fields = 'identifier title url branchName priority description completedAt state { name type } team { key } project { name }';
+const fields = 'identifier title url branchName priority description completedAt state { name type } team { key } project { name } attachments { nodes { url } }';
 
 export function issueQuery(since) {
   return `query RexLinear {
@@ -69,19 +69,38 @@ export function issueQuery(since) {
 }`;
 }
 
-export async function fetchIssues(token, { fetch = globalThis.fetch, now = new Date() } = {}) {
-  const since = startOfYesterday(now.getTime());
+export async function graphql(token, query, variables, fetch = globalThis.fetch) {
   const response = await fetch('https://api.linear.app/graphql', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: token.startsWith('lin_api_') ? token : `Bearer ${token}` },
-    body: JSON.stringify({ query: issueQuery(since) }),
+    body: JSON.stringify({ query, variables }),
     signal: AbortSignal.timeout(20_000),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.errors?.length) {
     throw new Error(`Linear API ${response.status}: ${cleanText(body.errors?.[0]?.message ?? response.statusText)}`);
   }
-  return { open: body.data.viewer.open.nodes, done: body.data.viewer.done.nodes };
+  return body.data;
+}
+
+export async function fetchIssues(token, { fetch = globalThis.fetch, now = new Date() } = {}) {
+  const data = await graphql(token, issueQuery(startOfYesterday(now.getTime())), undefined, fetch);
+  return { open: data.viewer.open.nodes, done: data.viewer.done.nodes };
+}
+
+export const issueReference = (text) => /(?:^|[/\s])([A-Za-z][A-Za-z0-9]{0,9}-\d{1,7})(?=$|[/\s?#])/.exec(String(text).trim())?.[1].toUpperCase();
+
+export async function findIssues(token, text, fetch = globalThis.fetch) {
+  const reference = issueReference(text);
+  if (reference) {
+    const data = await graphql(token, `query RexLinearIssue($id: String!) { issue(id: $id) { ${fields} } }`, { id: reference }, fetch).catch((error) => {
+      if (/not found|Entity not found/i.test(error.message)) return { issue: null };
+      throw error;
+    });
+    return data.issue ? [data.issue] : [];
+  }
+  const data = await graphql(token, `query RexLinearSearch($term: String!) { searchIssues(term: $term, first: 30) { nodes { ${fields} } } }`, { term: String(text).trim() }, fetch);
+  return data.searchIssues.nodes;
 }
 
 export async function loadLinear({ config = readLinearConfig(), token, read, fetch } = {}) {
@@ -194,7 +213,37 @@ export function brief(data, now = Date.now()) {
   return { inProgress: [...active, ...started], next, done: [...finished, ...tasks, ...merged] };
 }
 
-export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now() } = {}) {
+export function inbox(data) {
+  const shown = new Set();
+  const pick = (filter, hint) => data.tasks.filter((task) => live(task) && !shown.has(task.id) && filter(task)).map((task) => {
+    shown.add(task.id);
+    return { ...taskItem(task, data), hint };
+  });
+  const waiting = (task) => ['OPEN', 'MERGED'].includes(pullRequestFor(task, data.prs)?.state);
+  const asked = pick((task) => task.state === 'blocked', 'enter opens its tab to answer · s reply');
+  const broken = pick((task) => ['error', 'unknown'].includes(task.state), 'u resume · d retire · enter opens its tab');
+  const review = pick((task) => task.state === 'done' && !waiting(task), 'enter opens its tab to review · s follow up · d stop');
+  const merged = data.prs.filter((pr) => pr.state === 'MERGED' && pr.cleanup === 'pending' && !shown.has(pr.taskId))
+    .sort((a, b) => String(b.mergedAt).localeCompare(String(a.mergedAt))).map((pr) => {
+      const task = data.tasks.find((row) => row.id === pr.taskId);
+      if (task) shown.add(task.id);
+      return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, hint: 'o open PR · c ask the coordinator to clean it up · d stop the agent' };
+    });
+  return { asked, broken, review, merged, count: asked.length + broken.length + review.length + merged.length };
+}
+
+export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search } = {}) {
+  if (tab === 0) {
+    const { asked, broken, review, merged, count } = inbox(data);
+    if (!count) return [note('Nothing needs you right now.')];
+    return [...section('Needs an answer', asked), ...section('Failed or crashed', broken), ...section('Ready for review', review), ...section('Merged, cleanup pending', merged)];
+  }
+  if (tab === 5) {
+    if (!search) return [note('Press / to search Linear or paste an issue link.')];
+    if (search.status) return [note(search.status, search.tone ?? 'dim')];
+    return search.issues.length ? section(`Results for “${cleanText(search.query)}”`, search.issues.map((issue) => issueItem(issue, data))) : [note(`No issues match “${cleanText(search.query)}”.`)];
+  }
+  tab -= 1;
   const unavailable = data.linear.status === 'ok' ? undefined : data.linear.message.split('\n').map((line) => note(line, data.linear.status === 'error' ? 'red' : 'yellow'));
   if (tab === 0 || tab === 1) {
     if (unavailable) return unavailable;
@@ -234,24 +283,39 @@ export function moveCursor(rows, cursor, step) {
 
 export function issueBrief(issue, branch) {
   const description = String(issue.description ?? '').replace(/[^\P{Cc}\n\t]/gu, ' ').trim().slice(0, 4000) || 'No description in Linear.';
+  return taskBrief({ goal: `Resolve ${issue.identifier}: ${cleanText(issue.title)}`, context: [`Linear: ${issue.url}`, '', description], branch, linear: true });
+}
+
+export function taskBrief({ goal, context = [], branch, linear = false }) {
   return [
-    `Goal: Resolve ${issue.identifier}: ${cleanText(issue.title)}`,
-    `Linear: ${issue.url}`,
+    `Goal: ${goal}`,
+    ...context,
     '',
-    description,
-    '',
-    'Files: Change only the files this issue needs. Ask before touching anything outside that scope.',
+    'Files: Change only the files this task needs. Ask before touching anything outside that scope.',
     'Verification: Run the repository checks relevant to the changed code. Report the exact commands and their results.',
-    `Commit: Commit on ${branch} with a conventional message. Do not push, open a PR or change the Linear issue.`,
+    `Commit: Commit on ${branch} with a conventional message. Do not push${linear ? ', open a PR or change the Linear issue' : ' or open a PR'}.`,
     'Report: Summarize what changed, the files touched, the commit SHA, check results and anything you could not verify. Then call subagent_done.',
   ].join('\n');
 }
 
-export function launchParams(issue, { repo, base, brief }) {
-  const branch = issue.branchName || `jal/${issue.identifier.toLowerCase()}`;
+export function slugFor(goal, taken = []) {
+  const filler = new Set(['a', 'an', 'the', 'to', 'of', 'for', 'and', 'in', 'on', 'with', 'from', 'into', 'so', 'it', 'is', 'that', 'this']);
+  const words = cleanText(goal).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((word) => word && !filler.has(word)).slice(0, 5);
+  while (words.length > 1 && words.join('-').length > 32) words.pop();
+  const base = words.join('-').slice(0, 32) || 'task';
+  let slug = base;
+  for (let index = 2; taken.includes(slug); index += 1) slug = `${base}-${index}`;
+  return slug;
+}
+
+export const directCheckout = (repo) => repo === join(homedir(), 'dotfiles');
+
+export function launchParams(subject, { repo, base, brief }) {
+  const name = subject.name ?? subject.identifier.toLowerCase();
+  const branch = subject.branchName || `jal/${name}`;
   return {
-    name: issue.identifier.toLowerCase(), task: brief, cwd: repo,
-    worktree: { branch, base },
+    name, task: brief, cwd: repo,
+    worktree: directCheckout(repo) ? null : { branch, base },
     persistent: true, interactive: true, model: 'task:coding', thinking: 'medium',
   };
 }

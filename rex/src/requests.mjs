@@ -47,6 +47,7 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
     if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
     return { tool: 'subagent_send', params: { id: params.id, message: text(params.message, 20_000) } };
   }
+  if (request.action === 'message') return { tool: 'message', params: { message: text(params.message, 20_000) } };
   if (request.action === 'resume') {
     const task = tasks().find((row) => row.originCwd === request.origin && (row.id === params.id || row.logicalId === params.id));
     if (!task) throw new Error('No retained task matches this resume request');
@@ -59,12 +60,12 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
   if (request.action === 'launch') {
     if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(params.name ?? '')) throw new Error('Invalid task name');
     if (!isAbsolute(String(params.cwd)) || !existsSync(join(params.cwd, '.git'))) throw new Error('Launch checkout is not a Git repository');
-    if (!ref.test(params.worktree?.branch ?? '') || !ref.test(params.worktree?.base ?? '')) throw new Error('Invalid worktree branch or base');
+    if (params.worktree !== null && (!ref.test(params.worktree?.branch ?? '') || !ref.test(params.worktree?.base ?? ''))) throw new Error('Invalid worktree branch or base');
     return {
       tool: 'subagent',
       params: {
         name: params.name, task: text(params.task, 20_000), cwd: params.cwd,
-        worktree: { branch: params.worktree.branch, base: params.worktree.base },
+        worktree: params.worktree && { branch: params.worktree.branch, base: params.worktree.base },
         persistent: true, interactive: true, model: 'task:coding', thinking: 'medium',
       },
     };

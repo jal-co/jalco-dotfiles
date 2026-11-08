@@ -252,9 +252,13 @@ export default async function rexAgents(pi: ExtensionAPI) {
     inbox = new RequestInbox({
       origin: ctx.cwd,
       run: async (name, params) => {
+        if (name === 'message') {
+          pi.sendUserMessage(params.message, { deliverAs: 'followUp' });
+          return { ok: true, text: 'Sent to the coordinator.' };
+        }
         const result = await wrappedTools.get(name).execute(randomUUID(), params, new AbortController().signal, () => {}, ctx);
         const text = result.content.map((part) => part.text ?? '').join(' ').trim();
-        const summary = { subagent: `launched ${params.name} on ${params.worktree?.branch}`, subagent_send: `sent a follow-up to ${params.id}`, subagent_stop: `asked to stop ${params.id}`, subagent_resume: `asked to resume ${params.name}` }[name];
+        const summary = { subagent: `launched ${params.name} ${params.worktree ? `on ${params.worktree.branch}` : `in ${params.cwd}`}`, subagent_send: `sent a follow-up to ${params.id}`, subagent_stop: `asked to stop ${params.id}`, subagent_resume: `asked to resume ${params.name}` }[name];
         pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear ${summary}: ${text}` }, { deliverAs: 'nextTurn' });
         return { ok: !result.details?.error, outcome: result.details?.outcome, text };
       },

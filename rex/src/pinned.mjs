@@ -21,15 +21,28 @@ for (const [target, source] of [[settings, join(root, 'coordinator/settings.json
     throw new Error(`Missing dotfiles link ${target}. Run mise dot apply from ~/dotfiles before launching.`);
   }
 }
-const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
-const existing = findCoordinator(sessions, (id) => {
+const commandCenter = join(root, 'src/linear-tui.mjs');
+const terminals = (id) => {
   const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
   return (view.windows ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
     .filter((block) => block.creator_name === 'com.superlogical.terminal')
-    .map((block) => JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])));
-}, cwd);
+    .map((block) => ({ ...JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])), block_id: block.block_id, label: block.label }));
+};
+const addCommandCenter = (session) => {
+  const blocks = terminals(session);
+  const running = (info) => [info.foreground, info.child, ...(info.ancestors ?? [])].some((process) => process?.script === commandCenter || process?.argv?.includes(commandCenter));
+  if (blocks.some((info) => info.label === 'command-center' || running(info))) return false;
+  const coordinator = blocks.find((info) => [info.foreground, ...(info.ancestors ?? [])].some((process) => process?.argv0 === 'pi' && process.cwd === cwd));
+  if (!coordinator) throw new Error(`Cannot find the coordinator terminal in ${session}; the command center was not added.`);
+  callRex(['split', '-s', session, '-b', coordinator.block_id, '--split', 'above', '--ratio', '50', '--focus=false', '--label', 'command-center',
+    '--shell=none', '-c', cwd, '--', join(homedir(), '.local/share/mise/shims/node'), commandCenter]);
+  return true;
+};
+const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
+const existing = findCoordinator(sessions, terminals, cwd);
 if (existing) {
-  console.log(`Rex coordinator already exists: ${existing.session_id}. Select ${JSON.stringify(existing.label)} in Rex.`);
+  const added = addCommandCenter(existing.session_id);
+  console.log(`Rex coordinator already exists: ${existing.session_id}.${added ? ' Added the command center above it.' : ''} Select ${JSON.stringify(existing.label)} in Rex.`);
 } else {
   const config = JSON.parse(readFileSync(join(configDir, 'herdr-agents/config.json'), 'utf8'));
   const model = config.models?.default;
@@ -40,5 +53,7 @@ if (existing) {
     'new', label, '-c', cwd, '--window', 'coordinator', '--json', '--shell=none', '--',
     pi, '--approve', '--model', model,
   ]));
-  console.log(`Created ${label}: ${created.session_id}. Select it in Rex.`);
+  callRex(['split', '-s', created.session_id, '-b', created.initial_windows[0].block_ids[0], '--split', 'above', '--ratio', '50', '--focus=false',
+    '--label', 'command-center', '--shell=none', '-c', cwd, '--', join(homedir(), '.local/share/mise/shims/node'), commandCenter]);
+  console.log(`Created ${label}: ${created.session_id} with the command center above the coordinator. Select it in Rex.`);
 }

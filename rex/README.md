@@ -43,7 +43,8 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
 | `src/tasks.ts`, `src/recovery.ts`, `src/recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
 | `src/overview*.mjs`, `config/task-overview.lua` | Native Task Overview action and read-only live view |
-| `src/linear.mjs`, `src/linear-tui.mjs`, `bin/rex-linear` | Standalone Linear command center for issues and task sessions |
+| `src/linear.mjs`, `src/linear-tui.mjs`, `bin/rex-linear` | Standalone command center for the inbox, Linear issues and task sessions |
+| `src/repositories.mjs` | Picks the repository for a launch from linked PRs, history and code matches |
 | `src/requests.mjs` | Request inbox the coordinator uses to launch, message, stop and resume tasks for other tools |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
@@ -91,22 +92,27 @@ Before approved checkout removal, the extension copies the task's Pi JSONL logs 
 
 Use `rex_task_history` to find archived logs by task name, branch, checkout or PR URL. The tool returns metadata and paths, not customer data or transcript contents. History is retained independently of terminal sessions, checkouts and PR state; no automatic pruning is installed.
 
-## Linear command center
+## Command center
 
-Run `rex-linear` in any Rex terminal. It is a standalone, keyboard-only terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
+`pinned` opens the command center above the coordinator in the same session, and adds it to a running coordinator that lacks one. Its pane is labelled `command-center`. Run `rex-linear` to open it anywhere else; it is a standalone terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
 
 | Tab | Shows |
 | --- | --- |
+| Inbox | What needs you: agents asking a question, failed or crashed agents, finished work ready for review, and merged PRs waiting on a cleanup decision. It opens first when it has anything |
 | Issues | Linear issues assigned to you, in progress and todo, sorted by priority |
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
 | Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state |
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
+| Search | Linear search results, after `/` |
 
 | Key | Action |
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |
-| `tab`, `shift+tab`, `1` to `4` | Switch tabs |
+| `tab`, `shift+tab`, `1` to `6` | Switch tabs |
 | `enter` | Focus a running task's Rex tab, open its PR, or launch an agent for an issue |
+| `n` | New task from a one-line goal, with or without a Linear issue |
+| `/` | Search Linear. Pasting an issue link or ID goes straight to launching it |
+| `c` | Type to the coordinator. On a merged PR, the cleanup request is prefilled |
 | `o` | Open the PR, or the Linear issue when there is no PR |
 | `s` | Send a message to a running task. A mid-turn agent queues one message |
 | `u` | Resume a crashed task. A closed tab is reopened in its repository session |
@@ -115,9 +121,16 @@ Run `rex-linear` in any Rex terminal. It is a standalone, keyboard-only terminal
 | `x` | Show or hide stopped tasks |
 | `q` or `esc` | Quit |
 
-Issues link to tasks by Linear's branch name or by the issue identifier in the task branch. Launching shows the issue's branch, its base (the repository's `origin/HEAD`, fetched first) and the standard brief. Press `e` to edit the brief in `$VISUAL` or `$EDITOR`, `enter` to launch. The first launch for a Linear team asks for its repository checkout and saves it in `~/.rex/linear.json`. A full agent cap shows a message and launches nothing.
+Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 
-Launch, send, stop and resume go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. `rex-linear` writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop` or `subagent_resume`, writes the result back and records a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Everything else, such as reading Linear, focusing tabs and opening links, happens in `rex-linear` directly.
+1. GitHub PRs linked to the issue.
+2. The repository you picked for that Linear team before.
+3. Earlier tasks and linked PRs from the same team.
+4. Distinctive phrases from the title and description, such as `code spans`, hyphenated names and word pairs, found with `git grep`. Phrases found in only one checkout count most.
+
+The launch screen names the pick and why, and marks a close call as a best guess. `tab` cycles to the next candidate, `t` takes a typed path, `e` edits the brief in `$VISUAL` or `$EDITOR` and `enter` launches. Linear issues use their branch name. Free-form tasks get a short slug from the goal and a `jal/` branch. The base is the repository's `origin/HEAD`, fetched first. Dotfiles tasks run directly in the checkout without a worktree. Confirming a launch remembers the repository for that Linear team in `~/.rex/linear.json`. A full agent cap shows a message and launches nothing.
+
+Launch, send, stop, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
 
 Retiring an agent that predates process attestation requires evidence that it exited: the process table must be readable, and no process may still run with the task's `PI_SUBAGENT_ID`. Leftover descendants, such as a dev server the agent started, block retirement until they stop.
 
