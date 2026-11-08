@@ -274,7 +274,20 @@ export async function removeContainedWorktree(
 				: ` ${ignoredFiles} ignored files${preservationAttempted ? " are not captured by preservation" : " present"}.`
 			: "";
 	try {
-		const rows = await listContainedWorktrees(input);
+		const direct =
+			isAbsolute(input.target) && ops.scan().includes(input.target);
+		const rows: WorktreeInventoryEntry[] = direct
+			? [
+					{
+						path: input.target,
+						manifest: [],
+						blockers: [],
+						warnings: [],
+						classification: "unknown",
+						contained: true,
+					},
+				]
+			: await listContainedWorktrees(input);
 		const targetPath =
 			!rows.some((row) => row.path === input.target) &&
 			isAbsolute(input.target) &&

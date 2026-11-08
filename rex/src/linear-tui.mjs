@@ -654,12 +654,13 @@ export class LinearApp {
         this.pending.delete(id);
         this.data = this.snapshot();
         this.batch.done += 1;
-        if (!result.ok) this.batch.failed.push(`${entry.label} (${explain(result).slice(0, 80)})`);
-        const { total, done, failed } = this.batch;
+        if (result.outcome === 'duplicate') this.batch.skipped = (this.batch.skipped ?? 0) + 1;
+        else if (!result.ok) this.batch.failed.push(`${entry.label} (${explain(result).slice(0, 80)})`);
+        const { total, done, failed, skipped = 0 } = this.batch;
         if (done < total) this.status('dim', `Cleaning up: ${done} of ${total} done${failed.length ? `, ${failed.length} need attention` : ''}…`);
         else {
           this.batch = undefined;
-          this.status(failed.length ? 'yellow' : 'green', `Cleaned up ${total - failed.length} of ${total}.${failed.length ? ` Not cleaned: ${failed.join('; ')}` : ''}`);
+          this.status(failed.length ? 'yellow' : 'green', batchSummary({ total, failed, skipped }));
         }
       } else if (result.state === 'done') {
         this.pending.delete(id);
@@ -680,6 +681,15 @@ export function tabsToName(tasks, issues, named) {
     const issue = issues.find((entry) => linkedTask(entry, [task]));
     return issue ? [{ task, label: tabLabel(issue) }] : [];
   });
+}
+
+export function batchSummary({ total, failed, skipped = 0 }) {
+  const cleaned = total - failed.length - skipped;
+  return [
+    `Cleaned up ${cleaned} of ${total}.`,
+    skipped ? `${skipped} already in progress elsewhere, not counted.` : '',
+    failed.length ? `Not cleaned: ${failed.join('; ')}` : '',
+  ].filter(Boolean).join(' ');
 }
 
 export function explain(result) {

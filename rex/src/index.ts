@@ -151,7 +151,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     const matches = worktrees.records().filter((record) => !record.removed && record.path === path && record.repo === source);
     if (matches.length !== 1) throw new Error('Rex worktree ownership is missing or ambiguous.');
     worktrees.verify(matches[0]);
-    return inspectGit(path, source, { countIgnored: !inventory });
+    return inspectGit(path, source, { countIgnored: false });
   };
   cleanupOperations.listWorktrees = async (source) => {
     if (inventory?.has(source)) return inventory.get(source);
