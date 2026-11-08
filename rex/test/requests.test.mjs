@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.mjs';
+import { orphanResults, parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.mjs';
 
 const fixture = () => {
   const root = mkdtempSync(join(tmpdir(), 'rex-requests-'));
@@ -114,4 +114,15 @@ test('claimed work left when the coordinator closes is reported instead of silen
   inbox.scan();
   await inbox.close();
   assert.deepEqual(requestState(id, root), { state: 'done', ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' });
+});
+
+test('results nobody read are collected once for the next command center', async () => {
+  const { root } = fixture();
+  const inbox = new RequestInbox({ root, origin: '/coord', run: async () => ({ ok: true, text: 'Launched plt-9. More detail.' }) });
+  submitRequest({ origin: '/coord', action: 'stop', params: { id: 'task-1' } }, root);
+  await inbox.scan();
+  assert.deepEqual(orphanResults(root), [{ state: 'done', ok: true, text: 'Launched plt-9. More detail.' }]);
+  assert.deepEqual(orphanResults(root), []);
+  assert.deepEqual(orphanResults(join(root, 'missing')), []);
+  await inbox.close();
 });

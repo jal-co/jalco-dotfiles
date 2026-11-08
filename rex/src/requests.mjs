@@ -39,6 +39,14 @@ const text = (value, limit) => {
   return string;
 };
 
+export function orphanResults(root = requestRoot()) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root).filter((name) => /^[a-f0-9-]{36}\.result\.json$/.test(name)).flatMap((name) => {
+    const state = requestState(name.slice(0, 36), root);
+    return state.state === 'done' ? [state] : [];
+  });
+}
+
 export function parseRequest(request, { now = Date.now(), tasks = () => new TaskStore().list() } = {}) {
   if (request.version !== 1 || !id.test(request.id)) throw new Error('Unknown request format');
   if (!(now - request.createdAt <= REQUEST_TTL)) throw new Error(`Request expired after ${REQUEST_TTL / 1000}s without a running coordinator; nothing was launched or sent`);

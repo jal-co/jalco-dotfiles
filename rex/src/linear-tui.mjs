@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RexSurfaceProvider, callRex, surfaceTarget } from './provider.mjs';
 import { PullRequestStore } from './pull-requests.mjs';
-import { requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.mjs';
+import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.mjs';
 import { cleanText, TaskStore } from './tasks.ts';
 import { RexWorktrees } from './worktrees.mjs';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
@@ -291,6 +291,8 @@ export class LinearApp {
     this.poll = setInterval(() => this.checkRequests(), 500);
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
+    const missed = orphanResults();
+    if (missed.length) this.state.status = { tone: missed.every((result) => result.ok) ? 'green' : 'yellow', text: `While the command center was closed: ${missed.map((result) => cleanText(result.text).split('. ')[0]).join(' · ')}` };
     this.draw();
     void this.refreshLinear();
   }
