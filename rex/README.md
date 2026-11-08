@@ -4,7 +4,7 @@ A Rex-native fork of [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-a
 
 The local Pi package owns its host source under `host/`; it does not import or patch the installed Herdr package. Herdr remains installed separately for fallback use.
 
-`pinned` starts or finds the coordinator in Rex. New sessions default to **pinned**. The launcher finds a running coordinator by its process and directory, even after a label change. It never steals focus, renames an existing session or starts a second writer when inspection is uncertain.
+`pinned` starts or finds the coordinator in Rex. New sessions are named **Command**, with the coordinator in one tab and the command center in another. The launcher finds a running coordinator by its process and directory, even after a label change. It renames only a session still called `pinned`, the old default, to `Command`. It never steals focus or starts a second writer when inspection is uncertain.
 
 `pinned-rex` is the same launcher. The Herdr setup was removed; the pre-migration snapshot is commit `efdcf6f`.
 
@@ -94,7 +94,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 
 ## Command center
 
-`pinned` opens the command center as its own pinned session, `󰔖 linear` (a Nerd Font ticket glyph, since Nerd Fonts has no Linear logo), next to the coordinator's `pinned` session. Running it again leaves an open command center alone and reopens it if its session has no terminal. Its session ID is saved in `~/.rex/command-center-session.json`. When a `pinned` session exists but no coordinator runs in it, `pinned` starts the coordinator in a new tab there instead of refusing; it still refuses when several `pinned` sessions exist or a terminal cannot be inspected. Run `rex-linear` to open the command center anywhere else; it is a standalone terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
+`pinned` opens the command center as a second tab, `󰔖 linear`, in the coordinator's `Command` session, and pins that session. The tab name uses a Nerd Font ticket glyph, since Nerd Fonts has no Linear logo. Running it again leaves an open tab alone and reopens it when missing. It also folds older layouts in: a `command-center` pane in another session is closed, and the separate `󰔖 linear` session from `~/.rex/command-center-session.json` is closed. When a `Command` or `pinned` session exists but no coordinator runs in it, `pinned` starts the coordinator in a new tab there instead of refusing; it still refuses when several such sessions exist or a terminal cannot be inspected. Run `rex-linear` to open the command center anywhere else; it is a standalone terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
 
 | Tab | Shows |
 | --- | --- |

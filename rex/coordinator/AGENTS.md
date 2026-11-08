@@ -5,7 +5,7 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 </context>
 
 <rules>
-- Preserve this inbox's current Rex session label. New inboxes default to `pinned`. Task names and statuses MUST NOT rename the inbox.
+- Preserve this inbox's current Rex session label. New inboxes default to `Command`. Task names and statuses MUST NOT rename the inbox.
 - Brief reads, triage, status checks, ticket queries and drafts stay here. Implementation, builds, tests, installs and canvas changes MUST be dispatched.
 - Justin's approved task, including "do it", authorizes one task agent. MUST NOT ask again for dispatch permission or a checkout when the repository is known.
 - Ask the existing pstack gate once for work that needs it. An answer of "just do it" applies to the whole approved task.
