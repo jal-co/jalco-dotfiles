@@ -8,7 +8,7 @@ import {
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
-import { columns, fit, keys, readPreferences, readProgramStatus, renderScreen, writePreferences } from '../src/linear-tui.mjs';
+import { actionsFor, columns, explain, fit, keys, readPreferences, readProgramStatus, renderScreen, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -159,9 +159,8 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
   assert.match(screen.at(-5), /^Title/);
-  assert.match(screen.at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator · s send · D clean up · d retire · u resume · h hide +$/);
-  assert.match(renderScreen(state, 200, 24).map(plain).at(-1), /· H hidden · o link · r refresh · q quit +$/);
-  assert.match(renderScreen(state, 60, 24).map(plain).at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator +$/);
+  assert.match(screen.at(-1), /^h hide · \? all keys · n new · \/ search · c coordinator · H hidden · r refresh · q quit +$/);
+  assert.match(renderScreen(state, 40, 24).map(plain).at(-1), /^h hide · \? all keys · n new · \/ search +$/);
   const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
   assert.equal(help.length, 24);
   assert.ok(help.some((row) => /q  ctrl\+c +quit/.test(row)));
@@ -326,7 +325,8 @@ test('cleanup confirmation says what happens and the key bar offers preserving u
   assert.match(renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item, item] } }, 160, 24).map(plain).at(-5), /^Clean up 2 merged tasks\?/);
   const hidden = renderScreen({ ...state, hiddenView: true, rows: [] }, 160, 24).map(plain);
   assert.match(hidden[2], /^Hidden {2}rows you hid with h/);
-  assert.match(hidden.at(-1), /^h unhide · H back/);
+  assert.match(hidden.at(-1), /^H back · \? all keys/);
+  assert.match(renderScreen({ ...state, hiddenView: true }, 160, 24).map(plain).at(-1), /^h unhide · H back/);
 });
 
 test('Linear decides the label once the issue is done or canceled; PR state shows while it is open', () => {
@@ -363,4 +363,25 @@ test('program status is read from the task block and an unreachable block yields
   assert.deepEqual(calls[0], ['--autostart=false', 'block', 'call', '-s', 'session:s', '-b', 'block:b', 'program_status']);
   assert.equal(await readProgramStatus('session:s/block:b', (_b, _a, _o, done) => done(new Error('gone'))), undefined);
   assert.equal(await readProgramStatus('not a surface', ok), undefined);
+});
+
+test('the key bar offers only what the selected row can do', () => {
+  const keysOf = (item, records = []) => actionsFor(item, records).map(([key, label]) => `${key} ${label}`);
+  const checkout = '/w/plans';
+  const records = [{ path: checkout }];
+  const done = { state: { name: 'Done', type: 'completed' }, url: 'https://linear.app/x' };
+  const merged = { state: 'MERGED', cleanup: 'pending', url: 'https://github.com/a/b/pull/1', checkout };
+  assert.deepEqual(keysOf({ task: task('plans', 'stopped', { stopConfirmed: true, worktree: checkout }), pr: merged, issue: done }, records),
+    ['enter open PR', 'D clean up', 'a clean up all merged', 'o PR', 'l Linear', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('plans', 'stopped', { stopConfirmed: true, worktree: checkout }), pr: { ...merged, cleanup: 'removed' } }, [{ path: checkout, removed: true }]),
+    ['enter open PR', 'o PR', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('busy', 'working', { worktree: checkout }) }, records), ['enter focus', 's send', 'D clean up', 'd stop', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('crashed', 'unknown', { worktree: checkout }) }, records), ['enter focus', 'u resume', 'D clean up', 'd retire', 'h hide']);
+  assert.deepEqual(keysOf({ issue: { state: { type: 'unstarted' }, url: 'https://linear.app/y' } }), ['enter launch', 'o issue', 'h hide']);
+});
+
+test('an old coordinator is explained instead of reported as an invalid action', () => {
+  assert.match(explain({ ok: false, text: 'Unsupported request action: cleanup' }), /older code.*\/reload/);
+  assert.equal(explain({ ok: false, text: 'Dirty worktree' }), 'Dirty worktree');
+  assert.equal(explain({ ok: true, text: '' }), 'Done.');
 });

@@ -105,6 +105,8 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
 | Search | Linear search results, after `/` |
 
+The bottom bar lists only the keys that apply to the selected row, with what each will do (for example `enter open PR` or `d stop`), followed by the global keys. `?` lists every key.
+
 | Key | Action |
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |

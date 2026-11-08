@@ -99,9 +99,38 @@ export function legend(state) {
   if (state.prompt) return [['enter', 'submit'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'cleanup') return [['enter', 'clean up'], ['p', 'keep uncommitted work as a commit'], ['esc', 'cancel']];
-  if (state.hiddenView) return [['h', 'unhide'], ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
   if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
-  return [['?', 'all keys'], ['enter', 'open'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['s', 'send'], ['D', 'clean up'], ['d', 'retire'], ['u', 'resume'], ['h', 'hide'], ['H', 'hidden'], ['o', 'link'], ['r', 'refresh'], ['q', 'quit']];
+  const selected = state.rows?.[state.cursor];
+  const item = selected?.kind === 'item' ? selected : undefined;
+  if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
+  return [...(item ? actionsFor(item, state.records ?? []) : []), ['?', 'all keys'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['q', 'quit']];
+}
+
+export function enterAction(item) {
+  if (live(item.task)) return 'focus';
+  if (item.pr) return 'open PR';
+  if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return 'launch';
+  if (item.issue) return 'open issue';
+  return undefined;
+}
+
+export function actionsFor(item, records) {
+  const task = item.task;
+  const running = live(task) && !['unknown', 'error'].includes(task.state);
+  const checkout = checkoutOf(item);
+  const cleanable = checkout && (task?.id ?? item.pr?.taskId) && records.some((record) => record.path === checkout && !record.removed);
+  const enter = enterAction(item);
+  return [
+    ...(enter ? [['enter', enter]] : []),
+    ...(running ? [['s', 'send']] : []),
+    ...(task && !task.stopConfirmed && !running ? [['u', 'resume']] : []),
+    ...(cleanable ? [['D', 'clean up']] : []),
+    ...(task && !task.stopConfirmed ? [['d', running ? 'stop' : 'retire']] : []),
+    ...(item.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? [['a', 'clean up all merged']] : []),
+    ...(item.pr ? [['o', 'PR']] : item.issue ? [['o', 'issue']] : []),
+    ...(item.issue && item.pr ? [['l', 'Linear']] : []),
+    ['h', 'hide'],
+  ];
 }
 
 function detail(state, item) {
@@ -138,7 +167,7 @@ function detail(state, item) {
   }
   const last = state.prompt
     ? [[`${state.prompt.label} › `, 'blue'], [`${state.prompt.value.length > 60 ? `…${state.prompt.value.slice(-60)}` : state.prompt.value}▏`]]
-    : state.status?.text ? [[state.status.text, state.status.tone]] : item?.hint ? [[item.hint, 'blue']] : [];
+    : state.status?.text ? [[state.status.text, state.status.tone]] : [];
   if (!item) return [[], [], [], last];
   const facts = [item.id, item.issue && `Linear: ${item.issue.state.name}`, item.pr && `PR ${item.pr.state.toLowerCase()}`, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
   const agent = item.task
@@ -274,6 +303,7 @@ export class LinearApp {
     state.inboxCount = this.inboxCount();
     state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
+    state.records = this.data.records;
     state.now = Date.now();
   }
 
@@ -591,7 +621,7 @@ export class LinearApp {
         this.pending.delete(id);
         this.data = this.snapshot();
         this.batch.done += 1;
-        if (!result.ok) this.batch.failed.push(`${entry.label} (${cleanText(result.text).slice(0, 80)})`);
+        if (!result.ok) this.batch.failed.push(`${entry.label} (${explain(result).slice(0, 80)})`);
         const { total, done, failed } = this.batch;
         if (done < total) this.status('dim', `Cleaning up: ${done} of ${total} done${failed.length ? `, ${failed.length} need attention` : ''}…`);
         else {
@@ -601,13 +631,18 @@ export class LinearApp {
       } else if (result.state === 'done') {
         this.pending.delete(id);
         this.data = this.snapshot();
-        this.status(result.ok ? (result.outcome === 'queued' ? 'yellow' : 'green') : 'red', result.text || (result.ok ? 'Done.' : 'Failed.'));
+        this.status(result.ok ? (result.outcome === 'queued' ? 'yellow' : 'green') : 'red', explain(result));
       } else if (result.state === 'queued' && !entry.warned && Date.now() - entry.at > 10_000) {
         entry.warned = true;
         this.status('yellow', `The coordinator hasn't picked this up. Run pinned, or /reload it. The request expires ${REQUEST_TTL / 1000}s after sending.`);
       }
     }
   }
+}
+
+export function explain(result) {
+  if (/^Unsupported request action/.test(result.text ?? '')) return 'The coordinator is running older code that cannot do this yet. Run /reload in its tab, then try again.';
+  return result.text || (result.ok ? 'Done.' : 'Failed.');
 }
 
 export function readProgramStatus(surface, run = execFile) {
