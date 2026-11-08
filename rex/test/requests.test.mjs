@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { orphanResults, parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.mjs';
+import { orphanResults, parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.ts';
 
 const fixture = () => {
   const root = mkdtempSync(join(tmpdir(), 'rex-requests-'));

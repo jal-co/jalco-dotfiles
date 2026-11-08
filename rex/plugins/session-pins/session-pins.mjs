@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, unlinkSync,
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { callRex, rexBinary } from '../../src/provider.mjs';
+import { callRex, rexBinary } from '../../src/provider.ts';
 
 export const pinStateFile = () => process.env.REX_PIN_STATE ?? join(homedir(), '.rex', 'session-pins.json');
 

@@ -4,7 +4,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { infrastructureFor } from '../src/runtime.mjs';
+import { infrastructureFor } from '../src/runtime.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const agent = join(homedir(), '.pi/agent');

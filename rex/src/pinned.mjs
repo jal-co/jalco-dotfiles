@@ -2,7 +2,7 @@ import { existsSync, readFileSync, realpathSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { callRex } from './provider.mjs';
+import { callRex } from './provider.ts';
 import { findCoordinator } from './coordinator-session.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');

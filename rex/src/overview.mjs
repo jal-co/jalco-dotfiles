@@ -1,7 +1,7 @@
 import { mkdirSync, watch } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname } from 'node:path';
-import { moduleConfigFile, readModules } from './module-config.mjs';
+import { moduleConfigFile, readModules } from './module-config.ts';
 import { cleanText, TaskStore } from './tasks.ts';
 
 export function renderOverview(records, width = 100) {

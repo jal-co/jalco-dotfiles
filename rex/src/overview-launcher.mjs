@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, writeFileSy
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import { moduleConfigFile, readModules } from './module-config.mjs';
-import { callRex } from './provider.mjs';
+import { moduleConfigFile, readModules } from './module-config.ts';
+import { callRex } from './provider.ts';
 import { taskRoot } from './tasks.ts';
 
 export function openOverview(label = 'Task Overview') {

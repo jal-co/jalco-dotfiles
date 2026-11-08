@@ -36,19 +36,19 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `package.json` | Local `pi-rex-agents` package manifest |
 | `coordinator/settings.json` | Loads this package and disables only the upstream Herdr host in the coordinator |
 | `host/` | Package-owned agent host |
-| `src/pull-requests.mjs`, `src/pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
+| `src/pull-request-watcher.ts`, `src/pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
 | `src/index.ts` | Pi extension entry for the package |
-| `src/history.mjs` | Private task/coordinator transcript archives and searchable metadata |
-| `src/provider.mjs` | Rex session, terminal and process adapter |
-| `src/runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
+| `src/history.ts` | Private task/coordinator transcript archives and searchable metadata |
+| `src/provider.ts` | Rex session, terminal and process adapter |
+| `src/runtime.ts` | Preserves the provider and supervision together across Pi reloads |
 | `src/tasks.ts`, `src/recovery.ts`, `src/recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
 | `src/overview*.mjs`, `config/task-overview.lua` | Native Task Overview action and read-only live view |
 | `src/linear.mjs`, `src/linear-tui.mjs`, `bin/rex-linear` | Standalone command center for the inbox, Linear issues and task sessions |
 | `src/repositories.mjs` | Picks the repository for a launch from linked PRs, history and code matches |
-| `src/requests.mjs` | Request inbox the coordinator uses to launch, message, stop and resume tasks for other tools |
+| `src/requests.ts` | Request inbox the coordinator uses to launch, message, stop and resume tasks for other tools |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
-| `src/worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
+| `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
 | `config/modules.json` | Independent recovery and overview switches |
 | `config/init.lua` | Native Rex command-palette actions |
@@ -62,7 +62,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 
 The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings load the local `pi-rex-agents` package and disable the stock Herdr host extension only for this coordinator. The runtime lives in this package, so upstream package updates no longer replace or patch it. Shared model preferences remain in `pi/agent/herdr-agents/config.json` for compatibility with pstack and the fallback host; there is no second model-routing configuration to keep synchronized.
 
-Run `/reload` in the coordinator to load package changes. This does not restart task agents. New children load the fork's child protocol and `task.ts`; existing children keep their original protocol until they exit. Compatible sidecar names and policy hashes are retained so recovery can verify existing processes without changing their identity.
+Run `/reload` in the coordinator to load package changes. Pi re-reads TypeScript modules on reload, but Node keeps `.mjs` modules cached for the life of the process, so every module the coordinator imports is `.ts`; a package test enforces this. Standalone entry points such as `linear-tui.mjs` and `pinned.mjs` are not loaded by the coordinator and stay `.mjs`. This does not restart task agents. New children load the fork's child protocol and `task.ts`; existing children keep their original protocol until they exit. Compatible sidecar names and policy hashes are retained so recovery can verify existing processes without changing their identity.
 
 ## Tasks and worktrees
 

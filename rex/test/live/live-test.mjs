@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFi
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RexSurfaceProvider } from '../../src/provider.mjs';
-import { RexWorktrees, git } from '../../src/worktrees.mjs';
+import { RexSurfaceProvider } from '../../src/provider.ts';
+import { RexWorktrees, git } from '../../src/worktrees.ts';
 
 if (!process.env.REX_SESSION) throw new Error('Run this test in a dedicated Rex terminal.');
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');

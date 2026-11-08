@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmdirSync, unlinkSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { RexSurfaceProvider, repositoryFor, surfaceTarget } from '../src/provider.mjs';
+import { RexSurfaceProvider, repositoryFor, surfaceTarget } from '../src/provider.ts';
 
 const session = 'session:test-1';
 const block = 'block:test-1';

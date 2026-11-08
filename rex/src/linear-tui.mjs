@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provider.mjs';
-import { PullRequestStore } from './pull-requests.mjs';
-import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.mjs';
+import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provider.ts';
+import { PullRequestStore } from './pull-request-watcher.ts';
+import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.ts';
 import { cleanText, TaskStore } from './tasks.ts';
-import { RexWorktrees } from './worktrees.mjs';
+import { RexWorktrees } from './worktrees.ts';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {

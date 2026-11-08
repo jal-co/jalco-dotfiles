@@ -5,17 +5,17 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.mjs';
-import { RexWorktrees } from './worktrees.mjs';
-import { infrastructureFor, releaseInfrastructure } from './runtime.mjs';
-import { coordinatorInstructions } from './instructions.mjs';
-import { readModules } from './module-config.mjs';
+import { RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.ts';
+import { RexWorktrees } from './worktrees.ts';
+import { infrastructureFor, releaseInfrastructure } from './runtime.ts';
+import { coordinatorInstructions } from './instructions.ts';
+import { readModules } from './module-config.ts';
 import { processBirth, TaskStore } from './tasks.ts';
 import { registerPullRequests } from './pull-requests.ts';
-import { TaskHistory } from './history.mjs';
+import { TaskHistory } from './history.ts';
 import { RexRecovery } from './recovery.ts';
-import { RequestInbox } from './requests.mjs';
-import { cleanupTask } from './cleanup.mjs';
+import { RequestInbox } from './requests.ts';
+import { cleanupTask } from './cleanup.ts';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {

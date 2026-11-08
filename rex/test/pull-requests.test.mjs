@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PullRequestStore, PullRequestWatcher, prIdentity } from '../src/pull-requests.mjs';
+import { PullRequestStore, PullRequestWatcher, prIdentity } from '../src/pull-request-watcher.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-prs-'));

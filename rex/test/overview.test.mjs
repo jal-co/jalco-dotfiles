@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { readModules } from '../src/module-config.mjs';
+import { readModules } from '../src/module-config.ts';
 import { renderOverview } from '../src/overview.mjs';
 import taskStatus from '../src/task.ts';
 

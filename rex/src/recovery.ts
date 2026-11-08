@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rexBinary, surfaceTarget } from './provider.mjs';
+import { rexBinary, surfaceTarget } from './provider.ts';
 import { agentIdentityFile, boundedSummary, environmentHolders, sessionCwd, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
-import { leaseAlive } from './worktrees.mjs';
+import { leaseAlive } from './worktrees.ts';
 
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 

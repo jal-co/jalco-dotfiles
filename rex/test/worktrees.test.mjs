@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RexWorktrees, git, leaseAlive, registeredWorktrees } from '../src/worktrees.mjs';
+import { RexWorktrees, git, leaseAlive, registeredWorktrees } from '../src/worktrees.ts';
 import { processBirth } from '../src/tasks.ts';
 
 function fixture(t) {
@@ -301,7 +301,7 @@ test('legacy session-scoped task identities still reuse their original terminal'
 });
 
 test('linked worktrees resolve to the same canonical repository', async (t) => {
-  const { repositoryFor } = await import('../src/provider.mjs');
+  const { repositoryFor } = await import('../src/provider.ts');
   const { repo, create } = fixture(t);
   const first = await create();
   assert.equal(repositoryFor(first.path), repo);

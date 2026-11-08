@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, statSync, unlinkSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { TaskHistory } from '../src/history.mjs';
+import { TaskHistory } from '../src/history.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-history-'));

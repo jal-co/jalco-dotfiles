@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, sep } from 'node:path';
-import { surfaceTarget } from './provider.mjs';
+import { surfaceTarget } from './provider.ts';
 import { processBirth } from './tasks.ts';
 
 export function git(cwd, args) {

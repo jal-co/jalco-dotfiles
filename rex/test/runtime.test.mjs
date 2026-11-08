@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { infrastructureFor, releaseInfrastructure } from '../src/runtime.mjs';
+import { infrastructureFor, releaseInfrastructure } from '../src/runtime.ts';
 
 test('reload preserves the provider, pane ownership and supervision together', () => {
   const session = randomUUID();

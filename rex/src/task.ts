@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { readModules } from './module-config.mjs';
+import { readModules } from './module-config.ts';
 import { processBirth, processCommand, writeAgentIdentity } from './tasks.ts';
 
 type Status = 'idle' | 'working' | 'blocked' | 'done' | 'error';

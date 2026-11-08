@@ -4,7 +4,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { git } from '../src/worktrees.mjs';
+import { git } from '../src/worktrees.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const agent = join(homedir(), '.pi/agent');
@@ -22,6 +22,21 @@ test('pi-rex-agents is a local package with its own host and persistent child im
   assert.match(launch, /PI_REX_AGENT=1/);
   assert.match(launch, /\.\.\/\.\.\/\.\.\/\.\.\/src\/task\.ts/);
   assert.match(readFileSync(join(root, 'host/LICENSE'), 'utf8'), /MIT License/);
+});
+
+test('every module the coordinator loads is TypeScript, so /reload picks up changes', () => {
+  const seen = new Set();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const [, specifier] of readFileSync(file, 'utf8').matchAll(/(?:from|import\()\s*'(\.{1,2}\/[^']+)'/g)) {
+      const target = join(dirname(file), specifier);
+      if (target.startsWith(join(root, 'src'))) visit(target);
+    }
+  };
+  visit(join(root, 'src/index.ts'));
+  assert.ok(seen.size > 10);
+  assert.deepEqual([...seen].filter((file) => file.endsWith('.mjs')).map((file) => file.slice(root.length + 1)), []);
 });
 
 test('the native package loads lifecycle and PR tools without modifying the installed Herdr host', async (context) => {

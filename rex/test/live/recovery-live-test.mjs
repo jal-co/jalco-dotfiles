@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { callRex } from '../../src/provider.mjs';
+import { callRex } from '../../src/provider.ts';
 import { processBirth, TaskStore } from '../../src/tasks.ts';
 
 const source = join(dirname(fileURLToPath(import.meta.url)), '../..');

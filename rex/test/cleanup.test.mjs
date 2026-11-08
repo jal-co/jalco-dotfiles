@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cleanupTask } from '../src/cleanup.mjs';
+import { cleanupTask } from '../src/cleanup.ts';
 
 const store = (rows) => ({ list: () => rows });
 const deps = (overrides = {}) => {
