@@ -94,7 +94,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 
 ## Command center
 
-`pinned` opens the command center above the coordinator in the same session, and adds it to a running coordinator that lacks one. Its pane is labelled `command-center`. Run `rex-linear` to open it anywhere else; it is a standalone terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
+`pinned` opens the command center as its own pinned session, `󰔖 linear` (a Nerd Font ticket glyph, since Nerd Fonts has no Linear logo), next to the coordinator's `pinned` session. Running it again leaves an open command center alone and reopens it if its session has no terminal. Its session ID is saved in `~/.rex/command-center-session.json`. When a `pinned` session exists but no coordinator runs in it, `pinned` starts the coordinator in a new tab there instead of refusing; it still refuses when several `pinned` sessions exist or a terminal cannot be inspected. Run `rex-linear` to open the command center anywhere else; it is a standalone terminal app and does not need Pi. `mise dot apply` links it into `~/.local/bin`.
 
 | Tab | Shows |
 | --- | --- |
@@ -119,7 +119,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | `d` | Stop or retire a task after confirmation. Logs, branch and checkout are kept |
 | `r` | Reload Linear and the task registry |
 | `x` | Show or hide stopped tasks |
-| `q` or `esc` | Quit |
+| `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations |
 
 Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 

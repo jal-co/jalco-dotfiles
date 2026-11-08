@@ -284,7 +284,8 @@ export class LinearApp {
   listKey(name) {
     const { state } = this;
     const count = TABS.length + (state.search ? 1 : 0);
-    if (name === 'q' || name === 'escape' || name === 'ctrl-c') { this.stop(); process.exit(0); }
+    if (name === 'escape') return this.status('dim', 'Press q to quit.');
+    if (name === 'q' || name === 'ctrl-c') { this.stop(); process.exit(0); }
     if (['up', 'down', 'k', 'j', 'page-up', 'page-down'].includes(name)) {
       state.cursor = moveCursor(state.rows, state.cursor, { up: -1, k: -1, down: 1, j: 1, 'page-up': -10, 'page-down': 10 }[name]);
       this.remember();
