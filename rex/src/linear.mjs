@@ -150,9 +150,11 @@ export function agentLabel({ task, pr, issue }) {
     const [text, tone] = AGENT[task.state] ?? AGENT.unknown;
     return { text, tone };
   }
+  if (issue?.state.type === 'completed') return { text: '✓ done', tone: 'green' };
+  if (issue?.state.type === 'canceled') return { text: '– canceled', tone: 'dim' };
   if (pr?.state === 'MERGED') return { text: 'merged', tone: 'magenta' };
   if (pr?.state === 'OPEN') return { text: 'in review', tone: 'blue' };
-  if (issue?.state.type === 'completed' || task?.completed || task?.state === 'done') return { text: '✓ done', tone: 'green' };
+  if (task?.completed || task?.state === 'done') return { text: '✓ done', tone: 'green' };
   if (live(task)) return { text: '○ idle', tone: 'dim' };
   return { text: '', tone: 'dim' };
 }

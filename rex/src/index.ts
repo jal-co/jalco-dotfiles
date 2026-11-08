@@ -127,6 +127,8 @@ export default async function rexAgents(pi: ExtensionAPI) {
   provider.root ??= join(homedir(), '.rex');
   provider.repository ??= repositoryFor;
   Object.setPrototypeOf(worktrees, RexWorktrees.prototype);
+  worktrees.lockWait ??= 120_000;
+  worktrees.birth ??= processBirth;
   const inspectGit = worktreeModule.createWorktreeCleanupOperations(provider, {
     manifestDir: worktrees.registry, liveHolders: () => [],
   }).inspectGit;

@@ -86,6 +86,7 @@ const HELP = [
   ['h', 'hide, or unhide in Hidden'],
   ['H', 'open or close Hidden'],
   ['o', 'open PR or Linear issue'],
+  ['l', 'open the Linear issue'],
   ['r', 'refresh Linear and tasks'],
   ['x', 'show or hide stopped tasks'],
   ['?', 'show or hide this list'],
@@ -139,7 +140,7 @@ function detail(state, item) {
     ? [[`${state.prompt.label} › `, 'blue'], [`${state.prompt.value.length > 60 ? `…${state.prompt.value.slice(-60)}` : state.prompt.value}▏`]]
     : state.status?.text ? [[state.status.text, state.status.tone]] : item?.hint ? [[item.hint, 'blue']] : [];
   if (!item) return [[], [], [], last];
-  const facts = [item.id, item.issue?.state.name, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
+  const facts = [item.id, item.issue && `Linear: ${item.issue.state.name}`, item.pr && `PR ${item.pr.state.toLowerCase()}`, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
   const agent = item.task
     ? `agent: ${item.task.state ?? 'unknown'}${item.task.reason ? ` · ${cleanText(item.task.reason)}` : ''}${item.pr ? ` · PR ${item.pr.state.toLowerCase()}` : ''}`
     : item.pr ? `PR ${item.pr.state.toLowerCase()} · ${item.pr.url}` : 'agent: none · enter launches one';
@@ -401,6 +402,7 @@ export class LinearApp {
     if (!item) return;
     if (name === 'enter') return this.enter(item);
     if (name === 'o') return this.open(item.pr?.url ?? item.issue?.url, item.id);
+    if (name === 'l') return item.issue ? this.open(item.issue.url, item.id) : this.status('yellow', `${item.id} has no linked Linear issue.`);
     if (name === 's') return this.send(item);
     if (name === 'd') return this.retire(item);
     if (name === 'h') return this.toggleHidden(item);

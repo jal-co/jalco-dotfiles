@@ -328,3 +328,15 @@ test('cleanup confirmation says what happens and the key bar offers preserving u
   assert.match(hidden[2], /^Hidden {2}rows you hid with h/);
   assert.match(hidden.at(-1), /^h unhide · H back/);
 });
+
+test('Linear decides the label once the issue is done or canceled; PR state shows while it is open', () => {
+  const merged = { taskId: 'plans-id', url: 'https://github.com/a/b/pull/9', state: 'MERGED', cleanup: 'pending', mergedAt: new Date().toISOString(), checkedAt: '1', name: 'plans', repositoryPath: '/r/platform', checkout: '/w/plans' };
+  const tasks = [task('plans', 'stopped', { stopConfirmed: true, branch: 'jal/pltfrm-3276-plans-modal' })];
+  const view = (state) => {
+    const data = { tasks, prs: [merged], records: [], linear: { status: 'ok', open: state.type === 'completed' ? [] : [issue('PLTFRM-3276', state.type, { state })], done: state.type === 'completed' ? [issue('PLTFRM-3276', 'completed', { state })] : [] } };
+    return [...buildView(0, data), ...buildView(4, data)].find((row) => row.id === 'PLTFRM-3276').agent.text;
+  };
+  assert.equal(view({ name: 'Done', type: 'completed' }), '✓ done');
+  assert.equal(view({ name: 'In Review', type: 'started' }), 'merged');
+  assert.equal(view({ name: 'Canceled', type: 'canceled' }), '– canceled');
+});

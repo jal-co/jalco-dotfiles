@@ -114,6 +114,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | `/` | Search Linear. Pasting an issue link or ID goes straight to launching it |
 | `c` | Type to the coordinator. On a merged PR, the cleanup request is prefilled |
 | `o` | Open the PR, or the Linear issue when there is no PR |
+| `l` | Open the Linear issue |
 | `s` | Send a message to a running task. A mid-turn agent queues one message |
 | `u` | Resume a crashed task. A closed tab is reopened in its repository session |
 | `d` | Stop or retire a task after confirmation. Logs, branch and checkout are kept |
@@ -125,6 +126,8 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | `x` | Show or hide stopped tasks |
 | `?` | Show every key. Any key closes it |
 | `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations, or leaves the Hidden menu |
+
+Once a Linear issue is done or canceled, its row says so whatever its PR shows; `merged` and `in review` appear only while the issue is still open. The detail line shows both the Linear state and the PR state.
 
 Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 
@@ -189,7 +192,7 @@ Receipts prevent routine completion replay across restarts. If the coordinator d
 
 A failed command, unknown terminal status or unreachable Rex server is not proof of a crash. If supervision reports a crash while Pi remains alive, keep the task and investigate instead of launching a replacement.
 
-A stale operation lock is not removed automatically. Its `owner.json` records the PID, Rex session and creation time. Verify that owner has exited before arranging manual recovery. A failed launch retains its checkout and registry evidence rather than guessing that cleanup is safe.
+The worktree operation lock (`~/.rex/worktree-operation.lock`) waits up to two minutes while another live operation holds it, instead of failing at once. Its `owner.json` records the PID, process start time, Rex session and creation time. A lock whose owner process is gone, or whose PID now belongs to a different process, is reclaimed automatically; a live owner's lock never is. Other operation locks are not removed automatically; verify their recorded owner has exited before arranging manual recovery. A failed launch retains its checkout and registry evidence rather than guessing that cleanup is safe.
 
 The launcher does not restart a running coordinator or adopt its tasks behind its back. If multiple live coordinators use the same directory, it refuses to choose. Keep older coordinator sessions until their work is accounted for.
 

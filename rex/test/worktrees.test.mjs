@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RexWorktrees, git, leaseAlive, registeredWorktrees } from '../src/worktrees.mjs';
@@ -219,15 +219,46 @@ test('explicit removal refuses dirty work, then retains branch commits when clea
 
 test('one operation lock serializes acquisition and cleanup', async (t) => {
   const { manager } = fixture(t);
+  manager.lockWait = 300;
   let release;
   const first = manager.exclusive(() => new Promise((resolve) => { release = resolve; }));
   const owner = join(manager.root, 'worktree-operation.lock/owner.json');
   assert.equal(JSON.parse(readFileSync(owner, 'utf8')).pid, process.pid);
-  await assert.rejects(manager.exclusive(async () => {}), /Another Rex worktree operation/);
+  await assert.rejects(manager.exclusive(async () => {}), /Another Rex worktree operation owns .* \(process \d+\) and is still running after 0s/);
   release();
   await first;
   assert.equal(existsSync(owner), false);
   await manager.exclusive(async () => {});
+});
+
+test('a second operation waits for a live lock owner instead of failing at once', async (t) => {
+  const { manager } = fixture(t);
+  manager.lockWait = 5_000;
+  const order = [];
+  let release;
+  const first = manager.exclusive(() => new Promise((resolve) => { release = () => { order.push('first'); resolve(); }; }));
+  const second = manager.exclusive(async () => { order.push('second'); });
+  setTimeout(() => release(), 300);
+  await Promise.all([first, second]);
+  assert.deepEqual(order, ['first', 'second']);
+});
+
+test('a lock left by an exited or replaced process is reclaimed, a live one never is', async (t) => {
+  const { manager } = fixture(t);
+  manager.lockWait = 300;
+  const lock = join(manager.root, 'worktree-operation.lock');
+  const plant = (holder) => { mkdirSync(lock, { recursive: true }); writeFileSync(join(lock, 'owner.json'), JSON.stringify(holder)); };
+  manager.birth = (pid) => (pid === 4242 ? null : pid === 5151 ? 'new start' : pid === process.pid ? 'me' : 'alive');
+  plant({ pid: 4242, createdAt: 1 });
+  await manager.exclusive(async () => {});
+  assert.equal(existsSync(lock), false);
+  plant({ pid: 5151, birth: 'old start', createdAt: 2 });
+  await manager.exclusive(async () => {});
+  assert.equal(existsSync(lock), false);
+  plant({ pid: 6161, createdAt: 3 });
+  await assert.rejects(manager.exclusive(async () => {}), /process 6161/);
+  assert.equal(JSON.parse(readFileSync(join(lock, 'owner.json'), 'utf8')).pid, 6161);
+  assert.deepEqual(readdirSync(manager.root).filter((name) => name.includes('.stale-')), []);
 });
 
 test('repository identity is passed through while each task retains a unique cleanup target', async (t) => {

@@ -40,9 +40,11 @@ export function leaseAlive(lease, { birth = processBirth, savedAt } = {}) {
 export const currentLease = () => ({ pid: process.pid, birth: processBirth(process.pid) });
 
 export class RexWorktrees {
-  constructor(provider, { root = join(homedir(), '.rex') } = {}) {
+  constructor(provider, { root = join(homedir(), '.rex'), lockWait = 120_000, birth = processBirth } = {}) {
     this.provider = provider;
     this.root = root;
+    this.lockWait = lockWait;
+    this.birth = birth;
     this.registry = join(root, 'registry');
     this.checkouts = join(root, 'worktrees');
     this.checkHolders = async () => { throw new Error('Worktree process inspection is not configured.'); };
@@ -73,20 +75,50 @@ export class RexWorktrees {
   async exclusive(operation) {
     mkdirSync(this.root, { recursive: true, mode: 0o700 });
     const lock = join(this.root, 'worktree-operation.lock');
-    try {
-      mkdirSync(lock, { mode: 0o700 });
-    } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`Another Rex worktree operation owns ${lock}. Do not retry until its owner is known to have exited.`);
-      throw error;
-    }
     const owner = join(lock, 'owner.json');
+    const deadline = Date.now() + this.lockWait;
+    for (;;) {
+      try {
+        mkdirSync(lock, { mode: 0o700 });
+        break;
+      } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+      }
+      let holder;
+      try { holder = JSON.parse(readFileSync(owner, 'utf8')); } catch {}
+      if (holder && this.ownerGone(holder)) {
+        this.reclaim(lock, holder);
+        continue;
+      }
+      if (Date.now() > deadline) throw new Error(`Another Rex worktree operation owns ${lock}${holder ? ` (process ${holder.pid})` : ''} and is still running after ${Math.round(this.lockWait / 1000)}s. Try again when it finishes.`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
     try {
-      writeFileSync(owner, JSON.stringify({ pid: process.pid, session: process.env.REX_SESSION, createdAt: Date.now() }), { mode: 0o600 });
+      writeFileSync(owner, JSON.stringify({ pid: process.pid, birth: this.birth(process.pid), session: process.env.REX_SESSION, createdAt: Date.now() }), { mode: 0o600 });
       return await operation();
     } finally {
       if (existsSync(owner)) unlinkSync(owner);
       rmdirSync(lock);
     }
+  }
+
+  ownerGone(holder) {
+    if (!Number.isInteger(holder.pid) || holder.pid <= 0) return false;
+    const started = this.birth(holder.pid);
+    return started === null || (Boolean(holder.birth) && started !== holder.birth);
+  }
+
+  reclaim(lock, holder) {
+    const tomb = `${lock}.stale-${randomUUID()}`;
+    try { renameSync(lock, tomb); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
+    let moved;
+    try { moved = JSON.parse(readFileSync(join(tomb, 'owner.json'), 'utf8')); } catch {}
+    if (moved?.pid !== holder.pid || moved?.createdAt !== holder.createdAt) {
+      try { renameSync(tomb, lock); } catch {}
+      return;
+    }
+    unlinkSync(join(tomb, 'owner.json'));
+    rmdirSync(tomb);
   }
 
   leaseHolders(path) {
