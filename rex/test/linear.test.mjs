@@ -8,7 +8,8 @@ import {
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
-import { actionsFor, columns, explain, fit, keys, readPreferences, readProgramStatus, renderScreen, writePreferences } from '../src/linear-tui.mjs';
+import { Input } from '@earendil-works/pi-tui';
+import { actionsFor, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -24,7 +25,7 @@ const sections = (rows) => {
   }
   return out;
 };
-const plain = (text) => text.replace(/\u001b\[[0-9;]*m/g, '');
+const plain = (text) => text.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b_[^\u0007]*\u0007/g, '');
 const task = (name, state, extra = {}) => ({
   id: `${name}-id`, name, state, surface: 'session:a/block:b', originCwd: '/coord', persistent: true,
   branch: `jal/${name}`, worktree: `/Users/j/.rex/worktrees/platform-726f824a9a36/${name}`, updatedAt: Date.now(), ...extra,
@@ -153,8 +154,11 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[0], /^1 Inbox 3 {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today +● 1 working {3}agents 8\/8$/);
-  assert.match(plain(renderScreen({ ...state, tab: 5, search: { query: 'x' } }, 140, 24)[0]), /5 Today {3}6 Search/);
+  assert.match(screen[0], /^ 4 Sessions {3}5 Today|^ 1 Inbox {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today +● 1 working {3}agents 8\/8$/);
+  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[0]), /^ 1 Inbox 3 {3}2 Issues 12 {3}3 Backlog 22 {3}4 Sessions 5 {3}5 Today 7 +● 1 working/);
+  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /\u001b\[34;1;48;5;237m 2 Issues 12 \u001b\[0m/);
+  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /Inbox\u001b\[33m 3/);
+  assert.match(plain(renderScreen({ ...state, tab: 5, search: { query: 'x' } }, 140, 24)[0]), /5 Today {3}6 Search /);
   assert.match(screen[2], /^Brief {2}List/);
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
@@ -168,15 +172,44 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.ok(renderScreen({ ...state, help: true }, 100, 40).map(plain).some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
   assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
   assert.match(help.at(-1), /^any key close this list/);
-  assert.match(renderScreen({ ...state, prompt: { label: 'search', value: 'x' } }, 100, 24).map(plain).at(-1), /^enter submit · esc cancel/);
+  assert.match(renderScreen({ ...state, prompt: { kind: 'input', label: 'search', component: { render: () => ['search › x'] } } }, 100, 24).map(plain).at(-1), /^enter submit · esc cancel/);
   const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
   assert.match(retire.at(-5), /^Retire ui-fix\?/);
   assert.match(retire.at(-3), /Logs, branch and checkout are kept/);
   assert.match(retire.at(-1), /^enter confirm · esc cancel/);
 });
 
-test('raw input splits into keys, including escape sequences and pasted text', () => {
-  assert.deepEqual(keys('\u001b[Ajk\r\u001b[Z\u001b'), ['\u001b[A', 'j', 'k', '\r', '\u001b[Z', '\u001b']);
+test('terminal input maps to key names, including Kitty-encoded letters', () => {
+  assert.deepEqual(['\u001b[A', '\r', '\u001b[Z', '\u001b', '\u0003', 'j', 'D', '\u001b[5~'].map(keyName), ['up', 'enter', 'shift-tab', 'escape', 'ctrl-c', 'j', 'D', 'page-up']);
+  assert.equal(keyName('\u001b[100u'), 'd');
+});
+
+test('a prompt shows the live pi-tui input in the detail area and the key bar names its action', () => {
+  const input = new Input({ prompt: 'search › ' });
+  input.setValue('storage');
+  input.focused = true;
+  const state = { tab: 0, rows: [], cursor: -1, working: 0, capacity: { used: 1, max: 8 }, doneCount: 0, now: Date.now(), prompt: { kind: 'input', label: 'search', component: input, verb: 'search' } };
+  const screen = renderScreen(state, 100, 24);
+  assert.equal(screen.length, 24);
+  assert.match(plain(screen.at(-2)), /^search › storage/);
+  assert.match(plain(screen.at(-1)), /^enter search · esc cancel/);
+  const editor = { render: () => ['╭──╮', '│hi│', '╰──╯'] };
+  const composing = renderScreen({ ...state, prompt: { kind: 'editor', label: 'Message pltfrm-2879', component: editor } }, 100, 24).map(plain);
+  assert.equal(composing.length, 24);
+  assert.deepEqual(composing.slice(-5, -1).map((row) => row.trim()), ['Message pltfrm-2879', '╭──╮', '│hi│', '╰──╯']);
+  assert.match(composing.at(-1), /^enter send · shift\+enter new line · esc cancel/);
+});
+
+test('linked running agents get one tab name from their issue; named, stopped and unlinked ones are skipped', () => {
+  const issue = { identifier: 'PLTFRM-3240', title: 'Billing page shows "Upgrade to Teams" for Free users', branchName: 'jal/pltfrm-3240-billing' };
+  assert.equal(tabLabel(issue), 'PLTFRM-3240 Billing page shows "Upgrade…');
+  const tasks = [
+    task('pltfrm-3240', 'working', { branch: 'jal/pltfrm-3240-billing' }),
+    task('named', 'working', { branch: 'jal/pltfrm-3240-billing', id: 'named-id' }),
+    task('stopped', 'stopped', { stopConfirmed: true, branch: 'jal/pltfrm-3240-billing' }),
+    task('plain', 'working', { branch: 'jal/no-issue' }),
+  ];
+  assert.deepEqual(tabsToName(tasks, [issue], { 'named-id': false }).map(({ task: row, label }) => [row.name, label]), [['pltfrm-3240', 'PLTFRM-3240 Billing page shows "Upgrade…']]);
 });
 
 test('issue launches use the coordinator brief template and a persistent interactive worktree agent', () => {

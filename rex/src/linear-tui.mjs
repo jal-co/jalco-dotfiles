@@ -1,6 +1,7 @@
-import { execFile, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { execFile } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { decodeKittyPrintable, Editor, Input, matchesKey, ProcessTerminal, truncateToWidth, TuiAltScreen, visibleWidth } from '@earendil-works/pi-tui';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provider.ts';
@@ -16,26 +17,12 @@ import {
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
-const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36', selected: '48;5;236' };
-const wide = /\p{Extended_Pictographic}|[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/u;
-const segmenter = new Intl.Segmenter();
-
-export function columns(text) {
-  let total = 0;
-  for (const { segment } of segmenter.segment(text)) total += wide.test(segment) ? 2 : 1;
-  return total;
-}
+const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36', selected: '48;5;236', tab: '48;5;237' };
+export const columns = visibleWidth;
 
 export function fit(text, width) {
   if (width <= 0) return '';
-  const clean = cleanText(text);
-  if (columns(clean) <= width) return clean + ' '.repeat(width - columns(clean));
-  let out = '';
-  for (const { segment } of segmenter.segment(clean)) {
-    if (columns(out + segment) > width - 1) break;
-    out += segment;
-  }
-  return `${out}…${' '.repeat(width - 1 - columns(out))}`;
+  return truncateToWidth(cleanText(text), width, '…', true).replaceAll('\u001b[0m', '');
 }
 
 const paint = (text, styles = [], selected = false) => {
@@ -96,7 +83,8 @@ const HELP = [
 
 export function legend(state) {
   if (state.help) return [['any key', 'close this list']];
-  if (state.prompt) return [['enter', 'submit'], ['esc', 'cancel']];
+  if (state.prompt?.kind === 'editor') return [['enter', state.prompt.verb ?? 'send'], ['shift+enter', 'new line'], ['esc', 'cancel']];
+  if (state.prompt) return [['enter', state.prompt.verb ?? 'submit'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'cleanup') return [['enter', 'clean up'], ['p', 'keep uncommitted work as a commit'], ['esc', 'cancel']];
   if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
@@ -165,9 +153,7 @@ function detail(state, item) {
       state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
-  const last = state.prompt
-    ? [[`${state.prompt.label} › `, 'blue'], [`${state.prompt.value.length > 60 ? `…${state.prompt.value.slice(-60)}` : state.prompt.value}▏`]]
-    : state.status?.text ? [[state.status.text, state.status.tone]] : [];
+  const last = state.status?.text ? [[state.status.text, state.status.tone]] : [];
   if (!item) return [[], [], [], last];
   const facts = [item.id, item.issue && `Linear: ${item.issue.state.name}`, item.pr && `PR ${item.pr.state.toLowerCase()}`, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
   const agent = item.task
@@ -176,12 +162,24 @@ function detail(state, item) {
   return [[[item.title, 'bold']], [[facts, 'dim']], [[agent, 'dim']], last];
 }
 
+export function tabCells(state) {
+  const names = [...TABS, ...(state.search ? ['Search'] : [])];
+  return names.flatMap((name, index) => {
+    const count = state.counts?.[index];
+    const active = index === state.tab && !state.hiddenView;
+    const urgent = index === 0 && count > 0;
+    const cells = active
+      ? [[` ${index + 1} ${name}${count ? ` ${count}` : ''} `, 'blue', 'bold', 'tab']]
+      : [[` ${index + 1} `, 'dim'], [name, ''], [count ? ` ${count}` : '', urgent ? 'yellow' : 'dim'], [' ', '']];
+    return [...cells, [' ', '']];
+  });
+}
+
 export function renderScreen(state, width, height) {
   const names = [...TABS, ...(state.search ? ['Search'] : [])];
-  const labels = names.map((name, index) => `${index + 1} ${name}${index === 0 && state.inboxCount ? ` ${state.inboxCount}` : ''}`);
-  const tabs = labels.flatMap((label, index) => [[label, index === state.tab ? 'blue' : 'dim', index === state.tab ? 'bold' : ''], ['   ']]);
+  const tabs = tabCells(state);
   const right = `● ${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`;
-  const tabWidth = labels.reduce((sum, label) => sum + columns(label) + 3, 0);
+  const tabWidth = tabs.reduce((sum, [text]) => sum + columns(text), 0);
   const gap = width - tabWidth - columns(right);
   const header = gap >= 1
     ? line([...tabs, [' '.repeat(gap)], ['● ', 'yellow'], [right.slice(2), 'dim']], width)
@@ -195,7 +193,14 @@ export function renderScreen(state, width, height) {
   const hint = line([[`${date} · ${state.doneCount} done since yesterday · enter launch/focus or open PR · o open${state.tab === 4 ? ' · ←→ brief' : ''}`, 'dim']], width);
   const ids = state.rows.filter((row) => row.kind === 'item').map((row) => columns(row.id));
   const idWidth = Math.min(22, Math.max(8, ...ids));
-  const body = Math.max(1, height - 11);
+  const selectedRow = state.rows[state.cursor];
+  const selectedItem = selectedRow?.kind === 'item' ? selectedRow : undefined;
+  const info = detail(state, selectedItem).map((cells) => line(cells, width));
+  const promptLines = state.prompt ? state.prompt.component.render(width) : [];
+  const detailLines = !state.prompt ? info
+    : state.prompt.kind === 'editor' ? [line([[state.prompt.label, 'blue', 'bold']], width), ...promptLines]
+    : [...info.slice(0, 3), ...promptLines];
+  const body = Math.max(1, height - 7 - detailLines.length);
   const start = Math.max(0, Math.min(Math.max(0, state.cursor) - Math.floor(body / 2), state.rows.length - body));
   const keysLine = line(keyline(legend(state).filter((_pair, index, pairs) => columns(pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join(' · ')) <= width)), width);
   if (state.help) {
@@ -213,25 +218,32 @@ export function renderScreen(state, width, height) {
     if (row.kind === 'note') return line([['  '], [row.text, row.tone]], width);
     return line([], width);
   });
-  const selected = state.rows[state.cursor];
   return [
     header, line([], width), title, hint, line([], width),
     ...rows, ...Array.from({ length: body - rows.length }, () => line([], width)),
     line([['─'.repeat(width), 'dim']], width),
-    ...detail(state, selected?.kind === 'item' ? selected : undefined).map((cells) => line(cells, width)),
+    ...detailLines,
     keysLine,
-  ];
+  ].slice(0, Math.max(height, 1));
 }
 
-export function keys(data) {
-  return data.match(/\u001b\[[0-9;]*[A-Za-z~]|\u001bO[A-Za-z]|\u001b|[\s\S]/gu) ?? [];
+const NAMED_KEYS = [['up', 'up'], ['down', 'down'], ['left', 'left'], ['right', 'right'], ['enter', 'enter'], ['shift+tab', 'shift-tab'], ['tab', 'tab'],
+  ['escape', 'escape'], ['ctrl+c', 'ctrl-c'], ['pageUp', 'page-up'], ['pageDown', 'page-down'], ['backspace', 'backspace']];
+
+export function keyName(data) {
+  for (const [id, name] of NAMED_KEYS) if (matchesKey(data, id)) return name;
+  return decodeKittyPrintable(data) ?? data;
 }
 
-const KEY = { '\u001b[A': 'up', '\u001bOA': 'up', '\u001b[B': 'down', '\u001bOB': 'down', '\u001b[C': 'right', '\u001b[D': 'left', '\r': 'enter', '\n': 'enter', '\t': 'tab', '\u001b[Z': 'shift-tab', '\u001b': 'escape', '\u0003': 'ctrl-c', '\u007f': 'backspace', '\u001b[5~': 'page-up', '\u001b[6~': 'page-down' };
+const dim = (text) => `\u001b[2m${text}\u001b[0m`;
+const editorTheme = {
+  borderColor: dim,
+  selectList: { selectedPrefix: (text) => text, selectedText: (text) => text, description: dim, scrollInfo: dim, noMatch: dim },
+};
 
 export class LinearApp {
-  constructor({ origin = process.env.REX_COORDINATOR_CWD ?? join(homedir(), 'rex-coord'), output = process.stdout, input = process.stdin } = {}) {
-    Object.assign(this, { origin, output, input });
+  constructor({ origin = process.env.REX_COORDINATOR_CWD ?? join(homedir(), 'rex-coord') } = {}) {
+    this.origin = origin;
     this.state = { tab: 4, mode: 'brief', showStopped: false, selected: {}, rows: [], cursor: -1 };
     this.linear = { status: 'loading', message: 'Loading Linear issues…', open: [], done: [] };
     this.pending = new Map();
@@ -287,7 +299,24 @@ export class LinearApp {
 
   async refreshLinear() {
     this.linear = await loadLinear({ token: this.linear.token });
+    this.nameTabs();
     this.draw();
+  }
+
+  nameTabs() {
+    const preferences = readPreferences();
+    const named = preferences.tabNames ?? {};
+    const pending = tabsToName(this.data.tasks, [...this.linear.open, ...this.linear.done], named);
+    if (!pending.length) return;
+    const provider = new RexSurfaceProvider();
+    for (const { task, label } of pending) {
+      try {
+        const window = provider.windowOf(task.surface);
+        if (window) callRex(['window', 'rename', '-s', surfaceTarget(task.surface).session, window, label]);
+        named[task.id] = window ? label : false;
+      } catch {}
+    }
+    writePreferences({ ...readPreferences(), tabNames: named });
   }
 
   layout() {
@@ -301,6 +330,8 @@ export class LinearApp {
     this.remember();
     state.doneCount = brief(data).done.length;
     state.inboxCount = this.inboxCount();
+    const count = (tab) => withoutHidden(buildView(tab, data, { showStopped: false }), this.hidden).filter((row) => row.kind === 'item').length;
+    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, state.search?.issues?.length];
     state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.records = this.data.records;
@@ -315,22 +346,29 @@ export class LinearApp {
   }
 
   draw() {
-    if (this.paused) return;
-    this.layout();
-    const width = this.output.columns ?? 100;
-    const height = this.output.rows ?? 30;
-    this.output.write(`\u001b[H${renderScreen(this.state, width, height).join('\r\n')}\u001b[J`);
+    this.tui?.requestRender();
   }
 
   status(tone, text) { this.state.status = text ? { tone, text } : undefined; this.draw(); }
 
   start() {
-    this.output.write('\u001b[?1049h\u001b[?25l');
-    this.input.setRawMode?.(true);
-    this.input.resume();
-    this.input.on('data', (data) => { for (const key of keys(data.toString('utf8'))) this.key(KEY[key] ?? key); });
-    this.output.on('resize', () => this.draw());
-    const refresh = () => { if (this.timer) return; this.timer = setTimeout(() => { this.timer = undefined; this.data = this.snapshot(); this.draw(); }, 150); };
+    this.terminal = new ProcessTerminal();
+    this.tui = new TuiAltScreen(this.terminal, false);
+    this.root = {
+      capturesViewportInput: true,
+      render: (width) => { this.layout(); return renderScreen(this.state, width, this.terminal.rows); },
+      handleInput: (data) => this.key(keyName(data)),
+      invalidate() {},
+    };
+    this.tui.addChild(this.root);
+    this.tui.setFocus(this.root);
+    this.tui.addInputListener((data) => {
+      if (!this.state.prompt || !(matchesKey(data, 'escape') || matchesKey(data, 'ctrl+c'))) return undefined;
+      this.closePrompt('Cancelled.');
+      return { consume: true };
+    });
+    this.tui.start();
+    const refresh = () => { if (this.timer) return; this.timer = setTimeout(() => { this.timer = undefined; this.data = this.snapshot(); this.nameTabs(); this.draw(); }, 150); };
     this.watchers = [new TaskStore().root, new PullRequestStore().root].map((root) => {
       mkdirSync(root, { recursive: true, mode: 0o700 });
       const watcher = watch(root, refresh);
@@ -354,15 +392,12 @@ export class LinearApp {
     clearInterval(this.statusTimer);
     clearInterval(this.reload);
     clearTimeout(this.timer);
-    this.input.setRawMode?.(false);
-    this.input.pause();
-    this.output.write('\u001b[?25h\u001b[?1049l');
+    this.tui?.stop({ preserveScreen: true });
   }
 
   key(name) {
     try {
       if (this.state.help) { this.state.help = false; return this.draw(); }
-      if (this.state.prompt) return this.promptKey(name);
       if (this.state.confirm) return this.confirmKey(name);
       this.listKey(name);
     } catch (error) {
@@ -370,19 +405,23 @@ export class LinearApp {
     }
   }
 
-  ask(label, submit, value = '') {
-    this.state.prompt = { label, value, submit };
+  ask(label, submit, value = '', { multiline = false, verb } = {}) {
+    const component = multiline ? new Editor(this.tui, editorTheme, { paddingX: 1 }) : new Input({ prompt: `${label} › ` });
+    if (multiline) component.setText(value); else component.setValue(value);
+    component.onSubmit = (text) => {
+      this.closePrompt();
+      submit(String(text).trim());
+    };
+    this.state.prompt = { label, kind: multiline ? 'editor' : 'input', component, verb };
     this.state.status = undefined;
+    this.tui?.setFocus(component);
     this.draw();
   }
 
-  promptKey(name) {
-    const prompt = this.state.prompt;
-    if (name === 'escape' || name === 'ctrl-c') { this.state.prompt = undefined; return this.status('dim', 'Cancelled.'); }
-    if (name === 'enter') { this.state.prompt = undefined; this.draw(); return prompt.submit(prompt.value.trim()); }
-    if (name === 'backspace') prompt.value = [...prompt.value].slice(0, -1).join('');
-    else if (name.length && !name.startsWith('\u001b') && !/[\p{Cc}]/u.test(name)) prompt.value += name;
-    this.draw();
+  closePrompt(message) {
+    this.state.prompt = undefined;
+    this.tui?.setFocus(this.root);
+    if (message) this.status('dim', message); else this.draw();
   }
 
   confirmKey(name) {
@@ -406,7 +445,7 @@ export class LinearApp {
     }
     if (name === 'tab' && confirm.choices.length > 1) { confirm.index = (confirm.index + 1) % confirm.choices.length; return this.prepare(); }
     if (name === 't') return this.ask('repository path', (path) => this.typedRepository(confirm, path), join(homedir(), 'dev', ''));
-    if (name === 'e') { confirm.brief = this.edit(confirm.brief); return this.draw(); }
+    if (name === 'e') return this.ask(`Brief for ${confirm.label}`, (text) => { if (text) confirm.brief = text; this.draw(); }, confirm.brief, { multiline: true, verb: 'save' });
     if (name !== 'enter') return;
     if (!confirm.base) return this.status('yellow', 'Still fetching the base branch…');
     if (!confirm.brief.trim()) { this.state.confirm = undefined; return this.status('dim', 'Empty brief; nothing launched.'); }
@@ -448,7 +487,7 @@ export class LinearApp {
     if (name === '/') return this.ask('search Linear or paste an issue link', (text) => this.search(text));
     if (name === 'c') {
       const cleanup = item?.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? `Clean up ${item.task?.name ?? 'the task'} now that ${item.pr.url} is merged.` : '';
-      return this.ask('coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), cleanup);
+      return this.ask('Message the coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), cleanup, { multiline: true });
     }
     if (!item) return;
     if (name === 'enter') return this.enter(item);
@@ -489,9 +528,9 @@ export class LinearApp {
   send(item) {
     if (!live(item.task)) return this.status('yellow', item.task ? `${item.task.name} is stopped; nothing to send to.` : `${item.id} has no running agent. Press enter to launch one.`);
     const { task } = item;
-    this.ask(`message ${task.name}`, (message) => (message
+    this.ask(`Message ${task.name}`, (message) => (message
       ? this.request('send', { id: task.logicalId ?? task.id, message }, `Sending to ${task.name}…`)
-      : this.status('dim', 'Nothing sent.')));
+      : this.status('dim', 'Nothing sent.')), '', { multiline: true });
   }
 
   resume(item) {
@@ -590,24 +629,6 @@ export class LinearApp {
     this.status('dim', '');
   }
 
-  edit(text) {
-    const directory = mkdtempSync(join(tmpdir(), 'rex-linear-brief-'));
-    const file = join(directory, 'brief.md');
-    writeFileSync(file, text, { mode: 0o600 });
-    this.paused = true;
-    this.input.setRawMode?.(false);
-    this.output.write('\u001b[?25h\u001b[?1049l');
-    try {
-      spawnSync(process.env.VISUAL || process.env.EDITOR || 'vi', [file], { stdio: 'inherit' });
-      return readFileSync(file, 'utf8');
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-      this.output.write('\u001b[?1049h\u001b[?25l');
-      this.input.setRawMode?.(true);
-      this.paused = false;
-    }
-  }
-
   request(action, params, message, meta = {}) {
     const id = submitRequest({ origin: this.origin, action, params });
     this.pending.set(id, { at: Date.now(), warned: false, ...meta });
@@ -638,6 +659,15 @@ export class LinearApp {
       }
     }
   }
+}
+
+export const tabLabel = (issue) => fit(`${issue.identifier} ${issue.title}`, 40).trimEnd();
+
+export function tabsToName(tasks, issues, named) {
+  return tasks.filter((task) => live(task) && !(task.id in named)).flatMap((task) => {
+    const issue = issues.find((entry) => linkedTask(entry, [task]));
+    return issue ? [{ task, label: tabLabel(issue) }] : [];
+  });
 }
 
 export function explain(result) {

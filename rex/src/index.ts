@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.ts';
-import { RexWorktrees } from './worktrees.ts';
+import { discardCheckout, RexWorktrees } from './worktrees.ts';
 import { infrastructureFor, releaseInfrastructure } from './runtime.ts';
 import { coordinatorInstructions } from './instructions.ts';
 import { readModules } from './module-config.ts';
@@ -145,6 +145,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     }
     return canonical;
   };
+  cleanupOperations.removeCheckout = (source, path) => { discardCheckout(source, path); };
   let inventory: Map<string, unknown[]> | undefined;
   cleanupOperations.inspectGit = (path, source) => {
     const matches = worktrees.records().filter((record) => !record.removed && record.path === path && record.repo === source);

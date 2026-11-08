@@ -367,7 +367,7 @@ async function inspectGit(
 	let dirtyFiles = 0;
 	const fields = status.split("\0");
 	for (let i = 0; i < fields.length; i++) {
-		if (!fields[i]) continue;
+		if (!fields[i] || fields[i].startsWith(" D ")) continue;
 		dirtyFiles++;
 		if (/^[RC]|^.[RC]/.test(fields[i])) i++;
 	}

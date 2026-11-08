@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, sep } from 'node:path';
 import { surfaceTarget } from './provider.ts';
@@ -16,6 +16,23 @@ export function git(cwd, args) {
 export function contained(root, path) {
   const rel = relative(root, path);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+export function discardCheckout(repo, path, trash = join(homedir(), '.rex', 'trash')) {
+  const common = realpathSync(git(repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']).trim());
+  const pointer = /^gitdir: (.+)$/m.exec(readFileSync(join(path, '.git'), 'utf8'))?.[1]?.trim();
+  if (!pointer) throw new Error(`${path} is not a linked Git worktree.`);
+  const admin = realpathSync(pointer);
+  if (!contained(join(common, 'worktrees'), admin) || admin === join(common, 'worktrees')) throw new Error(`${path} points outside its repository's worktree metadata.`);
+  if (registeredWorktrees(repo).some((row) => row.path === path && row.locked)) throw new Error(`${path} is a locked Git worktree.`);
+  const changes = git(path, ['status', '--porcelain=v1', '--untracked-files=all', '-z']).split('\0').filter((entry) => entry && !entry.startsWith(' D '));
+  if (changes.length) throw new Error(`${path} has ${changes.length} uncommitted or untracked change${changes.length === 1 ? '' : 's'}; commit or preserve them first.`);
+  mkdirSync(trash, { recursive: true, mode: 0o700 });
+  const target = join(trash, `${basename(path)}-${randomUUID()}`);
+  renameSync(path, target);
+  rmSync(admin, { recursive: true, force: true });
+  spawn('rm', ['-rf', '--', target], { detached: true, stdio: 'ignore' }).unref();
+  return target;
 }
 
 export function registeredWorktrees(repo) {
@@ -276,7 +293,7 @@ export class RexWorktrees {
     const record = matches[0];
     this.verify(record);
     await this.assertUnused(record);
-    git(record.repo, ['worktree', 'remove', '--', record.path]);
+    discardCheckout(record.repo, record.path);
     record.removed = true;
     this.save(record);
     this.provider.closeSurface(record.surfaceId);

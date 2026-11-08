@@ -318,7 +318,7 @@ export function moveCursor(rows, cursor, step) {
 
 export function issueBrief(issue, branch) {
   const description = String(issue.description ?? '').replace(/[^\P{Cc}\n\t]/gu, ' ').trim().slice(0, 4000) || 'No description in Linear.';
-  return taskBrief({ goal: `Resolve ${issue.identifier}: ${cleanText(issue.title)}`, context: [`Linear: ${issue.url}`, '', description], branch, linear: true });
+  return taskBrief({ goal: `Resolve ${issue.identifier}: ${cleanText(issue.title)}`, context: [`Linear: ${issue.url}`, 'Tab: Your Rex tab is named after this issue. Keep that name.', '', description], branch, linear: true });
 }
 
 export function taskBrief({ goal, context = [], branch, linear = false }) {

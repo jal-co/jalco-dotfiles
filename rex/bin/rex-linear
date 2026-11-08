@@ -1,2 +1,6 @@
 #!/bin/sh
+if [ ! -d "$HOME/dotfiles/rex/node_modules/@earendil-works/pi-tui" ]; then
+  echo "The command center needs its terminal library. Run: npm install --prefix ~/dotfiles/rex" >&2
+  exit 1
+fi
 exec node "$HOME/dotfiles/rex/src/linear-tui.mjs" "$@"

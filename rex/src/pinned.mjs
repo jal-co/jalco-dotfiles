@@ -75,6 +75,7 @@ if (sessions.some((entry) => entry.session_id === legacy && entry.label === cent
 if (legacy) unlinkSync(centerFile);
 
 const view = JSON.parse(callRex(['session', 'inspect', session.session_id, '--json']));
+const installed = existsSync(join(root, 'node_modules/@earendil-works/pi-tui'));
 const coordinatorWindow = existing && !existing.stopped && (view.windows ?? []).find((window) => /^Window [0-9a-f]{8}$/.test(window.label ?? '')
   && window.layers.some((layer) => layer.blocks.some((block) => terminals(session.session_id).some((info) => info.block_id === block.block_id
     && [info.foreground, ...(info.ancestors ?? [])].some((process) => process?.argv0 === 'pi' && process.cwd === cwd)))));
@@ -82,6 +83,8 @@ if (coordinatorWindow) callRex(['window', 'rename', '-s', session.session_id, co
 const open = (view.windows ?? []).some((window) => window.label === centerLabel && window.layers.some((layer) => layer.blocks.length));
 if (open) {
   console.log(`The ${JSON.stringify(centerLabel)} tab is already open.`);
+} else if (!installed) {
+  console.log(`The command center needs its terminal library. Run npm install --prefix ${root}, then pinned again.`);
 } else {
   callRex(['window', 'new', '-s', session.session_id, centerLabel, '-c', cwd, '--focus=false', '--json', '--shell=none', '--',
     join(homedir(), '.local/share/mise/shims/node'), commandCenter]);

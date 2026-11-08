@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RexWorktrees, git, leaseAlive, registeredWorktrees } from '../src/worktrees.ts';
+import { RexWorktrees, discardCheckout, git, leaseAlive, registeredWorktrees } from '../src/worktrees.ts';
 import { processBirth } from '../src/tasks.ts';
 
 function fixture(t) {
@@ -306,4 +306,39 @@ test('linked worktrees resolve to the same canonical repository', async (t) => {
   const first = await create();
   assert.equal(repositoryFor(first.path), repo);
   assert.equal(repositoryFor(repo), repo);
+});
+
+test('a checkout is discarded instantly: moved to trash, unregistered, branch kept, deleted in the background', async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'rex-discard-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repo = join(root, 'repo');
+  mkdirSync(repo);
+  git(repo, ['init', '-q', '-b', 'main']);
+  writeFileSync(join(repo, '.gitignore'), 'node_modules/\n');
+  git(repo, ['add', '.gitignore']);
+  git(repo, ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'init']);
+  const checkout = join(root, 'worktrees', 'task');
+  const other = join(root, 'worktrees', 'other');
+  git(repo, ['worktree', 'add', '-q', '-b', 'task', checkout]);
+  git(repo, ['worktree', 'add', '-q', '-b', 'other', other]);
+  mkdirSync(join(checkout, 'node_modules', 'deep'), { recursive: true });
+  writeFileSync(join(checkout, 'node_modules', 'deep', 'file.js'), 'x');
+  const trash = join(root, 'trash');
+  const moved = discardCheckout(repo, checkout, trash);
+  assert.equal(existsSync(checkout), false);
+  assert.deepEqual(registeredWorktrees(repo).map((row) => row.path).sort(), [repo, other].sort());
+  assert.equal(git(repo, ['rev-parse', '--verify', '-q', 'task']).trim().length, 40);
+  for (let attempt = 0; attempt < 50 && existsSync(moved); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(existsSync(moved), false);
+  writeFileSync(join(other, 'notes.txt'), 'uncommitted');
+  assert.throws(() => discardCheckout(repo, other, trash), /1 uncommitted or untracked change/);
+  rmSync(join(other, 'notes.txt'));
+  writeFileSync(join(other, '.git'), 'gitdir: /etc\n');
+  assert.throws(() => discardCheckout(repo, other, trash), /outside its repository's worktree metadata/);
+  assert.equal(existsSync(other), true);
+  const partial = join(root, 'worktrees', 'partial');
+  git(repo, ['worktree', 'add', '-q', '-b', 'partial', partial]);
+  rmSync(join(partial, '.gitignore'));
+  discardCheckout(repo, partial, trash);
+  assert.equal(existsSync(partial), false);
 });
