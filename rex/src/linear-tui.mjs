@@ -70,7 +70,32 @@ function itemLine(item, width, selected, idWidth) {
 }
 
 const keyline = (pairs) => pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : ' · '}`, 'dim']]);
-const LEGEND = [['n', 'new task'], ['c', 'coordinator'], ['/', 'search'], ['s', 'send'], ['u', 'resume'], ['d', 'retire'], ['q', 'quit']];
+const HELP = [
+  ['↑ ↓  j k', 'move'],
+  ['tab  1-6', 'switch tabs'],
+  ['← →', 'brief or list, on Today'],
+  ['enter', 'focus the agent, open its PR, or launch an issue'],
+  ['n', 'new task from a one-line goal'],
+  ['/', 'search Linear, or paste an issue link to take it on'],
+  ['c', 'type to the coordinator'],
+  ['s', 'send a message to the selected agent'],
+  ['u', 'resume a crashed agent'],
+  ['d', 'stop or retire the selected agent'],
+  ['o', 'open the PR or Linear issue'],
+  ['r', 'refresh Linear and tasks'],
+  ['x', 'show or hide stopped tasks'],
+  ['?', 'show or hide this list'],
+  ['q  ctrl+c', 'quit'],
+  ['esc', 'cancel typing or a confirmation; never quits'],
+];
+
+export function legend(state) {
+  if (state.help) return [['any key', 'close this list']];
+  if (state.prompt) return [['enter', 'submit'], ['esc', 'cancel']];
+  if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
+  if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
+  return [['?', 'all keys'], ['enter', 'open'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['s', 'send'], ['u', 'resume'], ['d', 'retire'], ['o', 'link'], ['r', 'refresh'], ['q', 'quit']];
+}
 
 function detail(state, item) {
   const confirm = state.confirm;
@@ -81,7 +106,7 @@ function detail(state, item) {
       [[`${running ? 'Stop' : 'Retire'} ${task.name}?`, 'bold']],
       [[running ? `The agent is ${task.state}. It stops gracefully after its current step.` : `${cleanText(task.reason ?? 'Its process is unverified')}. Only a confirmed exit is retired.`, 'dim']],
       [['Logs, branch and checkout are kept. The tab closes and its agent slot is freed.', 'dim']],
-      keyline([['enter', 'confirm'], ['esc', 'cancel']]),
+      state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
   if (confirm?.kind === 'launch') {
@@ -91,12 +116,12 @@ function detail(state, item) {
       [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
       [[`why: ${choice.reasons.join('; ')}${confirm.choices.length > 1 && next !== choice ? ` · next: ${next.name}` : ''}`, 'dim']],
       [[`${directCheckout(choice.path) ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`} · ${confirm.brief.split('\n')[0]}`, 'dim']],
-      state.status?.text ? [[state.status.text, state.status.tone]] : keyline([['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']]),
+      state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
   const last = state.prompt
     ? [[`${state.prompt.label} › `, 'blue'], [`${state.prompt.value.length > 60 ? `…${state.prompt.value.slice(-60)}` : state.prompt.value}▏`]]
-    : state.status?.text ? [[state.status.text, state.status.tone]] : item?.hint ? [[item.hint, 'blue']] : keyline(LEGEND);
+    : state.status?.text ? [[state.status.text, state.status.tone]] : item?.hint ? [[item.hint, 'blue']] : [];
   if (!item) return [[], [], [], last];
   const facts = [item.id, item.issue?.state.name, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
   const agent = item.task
@@ -122,8 +147,14 @@ export function renderScreen(state, width, height) {
   const hint = line([[`${date} · ${state.doneCount} done since yesterday · enter launch/focus or open PR · o open${state.tab === 4 ? ' · ←→ brief' : ''}`, 'dim']], width);
   const ids = state.rows.filter((row) => row.kind === 'item').map((row) => columns(row.id));
   const idWidth = Math.min(22, Math.max(8, ...ids));
-  const body = Math.max(1, height - 10);
+  const body = Math.max(1, height - 11);
   const start = Math.max(0, Math.min(Math.max(0, state.cursor) - Math.floor(body / 2), state.rows.length - body));
+  const keysLine = line(keyline(legend(state).filter((_pair, index, pairs) => columns(pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join(' · ')) <= width)), width);
+  if (state.help) {
+    const helpWidth = Math.max(...HELP.map(([keys]) => columns(keys)));
+    const help = [line([['  '], ['Keys', 'bold']], width), ...HELP.map(([keys, text]) => line([['  '], [fit(keys, helpWidth + 3), 'bold'], [text, 'dim']], width))].slice(0, height - 6);
+    return [header, line([], width), title, hint, line([], width), ...help, ...Array.from({ length: height - 6 - help.length }, () => line([], width)), keysLine];
+  }
   const rows = state.rows.slice(start, start + body).map((row, offset) => {
     if (row.kind === 'item') return itemLine(row, width, start + offset === state.cursor, idWidth);
     if (row.kind === 'section') return line([['  '], [row.title, 'bold'], [` ${row.count}`, 'dim']], width);
@@ -136,6 +167,7 @@ export function renderScreen(state, width, height) {
     ...rows, ...Array.from({ length: body - rows.length }, () => line([], width)),
     line([['─'.repeat(width), 'dim']], width),
     ...detail(state, selected?.kind === 'item' ? selected : undefined).map((cells) => line(cells, width)),
+    keysLine,
   ];
 }
 
@@ -237,6 +269,7 @@ export class LinearApp {
 
   key(name) {
     try {
+      if (this.state.help) { this.state.help = false; return this.draw(); }
       if (this.state.prompt) return this.promptKey(name);
       if (this.state.confirm) return this.confirmKey(name);
       this.listKey(name);
@@ -284,6 +317,7 @@ export class LinearApp {
   listKey(name) {
     const { state } = this;
     const count = TABS.length + (state.search ? 1 : 0);
+    if (name === '?') { state.help = true; return this.draw(); }
     if (name === 'escape') return this.status('dim', 'Press q to quit.');
     if (name === 'q' || name === 'ctrl-c') { this.stop(); process.exit(0); }
     if (['up', 'down', 'k', 'j', 'page-up', 'page-down'].includes(name)) {

@@ -158,11 +158,19 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.match(screen[2], /^Brief {2}List/);
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
-  assert.match(screen.at(-4), /^Title/);
-  assert.match(screen.at(-1), /n new task · c coordinator · \/ search/);
+  assert.match(screen.at(-5), /^Title/);
+  assert.match(screen.at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator · s send · u resume · d retire · o link · r refresh · q quit +$/);
+  assert.match(renderScreen(state, 60, 24).map(plain).at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator +$/);
+  const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
+  assert.equal(help.length, 24);
+  assert.ok(help.some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
+  assert.ok(help.some((row) => /^ {2}esc +cancel typing or a confirmation; never quits/.test(row)));
+  assert.match(help.at(-1), /^any key close this list/);
+  assert.match(renderScreen({ ...state, prompt: { label: 'search', value: 'x' } }, 100, 24).map(plain).at(-1), /^enter submit · esc cancel/);
   const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
-  assert.match(retire.at(-4), /^Retire ui-fix\?/);
-  assert.match(retire.at(-2), /Logs, branch and checkout are kept/);
+  assert.match(retire.at(-5), /^Retire ui-fix\?/);
+  assert.match(retire.at(-3), /Logs, branch and checkout are kept/);
+  assert.match(retire.at(-1), /^enter confirm · esc cancel/);
 });
 
 test('raw input splits into keys, including escape sequences and pasted text', () => {
