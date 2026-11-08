@@ -338,6 +338,7 @@ function countIgnoredFiles(cwd: string): Promise<number> {
 async function inspectGit(
 	path: string,
 	sourceRepo: string,
+	{ countIgnored = true }: { countIgnored?: boolean } = {},
 ): Promise<CleanupGitState> {
 	const records = git(sourceRepo, ["worktree", "list", "--porcelain", "-z"])
 		.split("\0\0")
@@ -391,7 +392,7 @@ async function inspectGit(
 		])
 			.split("\0")
 			.filter(Boolean).length,
-		ignoredFiles: await countIgnoredFiles(path),
+		ignoredFiles: countIgnored ? await countIgnoredFiles(path) : undefined,
 		conflicts: git(path, ["diff", "--name-only", "--diff-filter=U", "-z"])
 			.split("\0")
 			.filter(Boolean).length,
@@ -402,6 +403,17 @@ async function inspectGit(
 }
 
 /** Individual visibility gaps warn; failed enumeration still blocks cleanup. */
+let sharedProcessTable: { output?: string } | undefined;
+
+export async function shareProcessTable<T>(run: () => Promise<T>): Promise<T> {
+	sharedProcessTable = {};
+	try {
+		return await run();
+	} finally {
+		sharedProcessTable = undefined;
+	}
+}
+
 function processHolders(
 	path: string,
 	idleShellPids = new Set<number>(),
@@ -476,16 +488,19 @@ function processHolders(
 		// A nonzero lsof exit is a global failure, even if partial stdout exists.
 		let output: string;
 		try {
-			output = execFileSync(
-				"lsof",
-				["-n", "-P", "-a", "-u", String(uid), "-d", "cwd", "-Fpcn"],
-				{
-					encoding: "utf8",
-					timeout: CLEANUP_TIMEOUT_MS,
-					killSignal: "SIGKILL",
-					stdio: ["ignore", "pipe", "pipe"],
-				},
-			);
+			output =
+				sharedProcessTable?.output ??
+				execFileSync(
+					"lsof",
+					["-n", "-P", "-a", "-u", String(uid), "-d", "cwd", "-Fpcn"],
+					{
+						encoding: "utf8",
+						timeout: CLEANUP_TIMEOUT_MS,
+						killSignal: "SIGKILL",
+						stdio: ["ignore", "pipe", "pipe"],
+					},
+				);
+			if (sharedProcessTable) sharedProcessTable.output = output;
 		} catch {
 			// Command errors may embed partial process output; never disclose it.
 			throw new Error("lsof failed to enumerate processes");

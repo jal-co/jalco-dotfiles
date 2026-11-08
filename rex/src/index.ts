@@ -15,6 +15,7 @@ import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.mjs';
 import { RexRecovery } from './recovery.ts';
 import { RequestInbox } from './requests.mjs';
+import { cleanupTask } from './cleanup.mjs';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
@@ -62,6 +63,29 @@ export default async function rexAgents(pi: ExtensionAPI) {
   let latestContext;
   const reportModuleError = (error) => latestContext?.ui.notify(`Rex task module: ${String(error)}. Existing agents were not restarted.`, 'error');
   const wrappedTools = new Map();
+  const approvedRemovals = new Set<string>();
+  const toolText = (result) => result.content.map((part) => part.text ?? '').join(' ').trim();
+  const callTool = (name, params, ctx) => wrappedTools.get(name).execute(randomUUID(), params, new AbortController().signal, () => {}, ctx);
+  const cleanup = (params, ctx) => cleanupTask(params, {
+    stop: async (task) => {
+      const result = await callTool('subagent_stop', { id: task.logicalId ?? task.id }, ctx);
+      return { ok: !result.details?.error, text: toolText(result) };
+    },
+    exited: (task) => {
+      const current = new TaskStore().read(task.id);
+      return Boolean(current?.stopConfirmed) || recovery?.probe({ ...current }).state === 'crashed';
+    },
+    checkouts: () => worktrees.records(),
+    reconcile: () => pullRequests.reconcileCleanup(worktrees.records()),
+    remove: async (target, preserve) => {
+      approvedRemovals.add(target);
+      try {
+        return toolText(await callTool('worktree_remove', { target, preserve }, ctx));
+      } finally {
+        approvedRemovals.delete(target);
+      }
+    },
+  });
   const { provider, worktrees, cleanupOperations, worktreeOperations, supervision } = infrastructureFor(process.env.REX_SESSION, () => {
     const provider = new RexSurfaceProvider();
     const worktrees = new RexWorktrees(provider);
@@ -119,15 +143,17 @@ export default async function rexAgents(pi: ExtensionAPI) {
     }
     return canonical;
   };
+  let inventory: Map<string, unknown[]> | undefined;
   cleanupOperations.inspectGit = (path, source) => {
     const matches = worktrees.records().filter((record) => !record.removed && record.path === path && record.repo === source);
     if (matches.length !== 1) throw new Error('Rex worktree ownership is missing or ambiguous.');
     worktrees.verify(matches[0]);
-    return inspectGit(path, source);
+    return inspectGit(path, source, { countIgnored: !inventory });
   };
   cleanupOperations.listWorktrees = async (source) => {
+    if (inventory?.has(source)) return inventory.get(source);
     const live = provider.json(['ls', '--json']).sessions;
-    return worktrees.records().filter((record) => !record.removed && record.repo === source).flatMap((record) => {
+    const rows = worktrees.records().filter((record) => !record.removed && record.repo === source).flatMap((record) => {
       let branch;
       try { ({ branch } = worktrees.verify(record)); } catch { return []; }
       return [{
@@ -135,6 +161,8 @@ export default async function rexAgents(pi: ExtensionAPI) {
         workspaceId: record.workspaceId && live.some((entry) => entry.session_id === surfaceTarget(record.surfaceId).session) ? record.workspaceId : undefined,
       }];
     });
+    inventory?.set(source, rows);
+    return rows;
   };
   pi.on('before_agent_start', (event) => {
     if (event.systemPromptOptions.appendSystemPrompt.startsWith('This is the experimental Rex coordinator,')) {
@@ -173,7 +201,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
         execute: async (id, params, signal, onUpdate, ctx) => {
           const cleanup = ['worktree_list', 'worktree_remove'].includes(tool.name);
           if (tool.name === 'worktree_remove') {
-            if (!ctx.hasUI || !await ctx.ui.confirm('Remove Rex worktree?', `Remove ${params.target}? Dirty checkouts and active agents block cleanup. Branches and commits remain. Preservation commits require preserve:true; ignored files are not committed.`)) {
+            if (!approvedRemovals.delete(params.target) && (!ctx.hasUI || !await ctx.ui.confirm('Remove Rex worktree?', `Remove ${params.target}? Dirty checkouts and active agents block cleanup. Branches and commits remain. Preservation commits require preserve:true; ignored files are not committed.`))) {
               throw new Error('Rex worktree removal was not confirmed. Nothing removed.');
             }
             const result = await worktrees.exclusive(async () => {
@@ -211,7 +239,14 @@ export default async function rexAgents(pi: ExtensionAPI) {
             const recovered = recovery?.control(tool.name, params);
             if (recovered) return { content: [{ type: 'text', text: JSON.stringify(recovered) }], details: recovered };
           }
-          const result = await tool.execute(id, params, signal, onUpdate, cleanup ? { ...ctx, cwd: homedir() } : ctx);
+          if (tool.name === 'worktree_list') inventory = new Map();
+          let result;
+          try {
+            const run = () => tool.execute(id, params, signal, onUpdate, cleanup ? { ...ctx, cwd: homedir() } : ctx);
+            result = tool.name === 'worktree_list' ? await worktreeModule.shareProcessTable(run) : await run();
+          } finally {
+            if (tool.name === 'worktree_list') inventory = undefined;
+          }
           if (['subagent', 'subagent_send', 'subagent_stop'].includes(tool.name)) {
             try { recovery?.capture(); } catch (error) { reportModuleError(error); }
           }
@@ -256,8 +291,13 @@ export default async function rexAgents(pi: ExtensionAPI) {
           pi.sendUserMessage(params.message, { deliverAs: 'followUp' });
           return { ok: true, text: 'Sent to the coordinator.' };
         }
-        const result = await wrappedTools.get(name).execute(randomUUID(), params, new AbortController().signal, () => {}, ctx);
-        const text = result.content.map((part) => part.text ?? '').join(' ').trim();
+        if (name === 'cleanup') {
+          const done = await cleanup(params, ctx);
+          pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear cleaned up ${params.checkout}: ${done.text}` }, { deliverAs: 'nextTurn' });
+          return done;
+        }
+        const result = await callTool(name, params, ctx);
+        const text = toolText(result);
         const summary = { subagent: `launched ${params.name} ${params.worktree ? `on ${params.worktree.branch}` : `in ${params.cwd}`}`, subagent_send: `sent a follow-up to ${params.id}`, subagent_stop: `asked to stop ${params.id}`, subagent_resume: `asked to resume ${params.name}` }[name];
         pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear ${summary}: ${text}` }, { deliverAs: 'nextTurn' });
         return { ok: !result.details?.error, outcome: result.details?.outcome, text };

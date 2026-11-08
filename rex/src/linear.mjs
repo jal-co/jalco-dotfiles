@@ -220,14 +220,14 @@ export function inbox(data) {
     return { ...taskItem(task, data), hint };
   });
   const waiting = (task) => ['OPEN', 'MERGED'].includes(pullRequestFor(task, data.prs)?.state);
-  const asked = pick((task) => task.state === 'blocked', 'enter opens its tab to answer · s reply');
-  const broken = pick((task) => ['error', 'unknown'].includes(task.state), 'u resume · d retire · enter opens its tab');
-  const review = pick((task) => task.state === 'done' && !waiting(task), 'enter opens its tab to review · s follow up · d stop');
+  const asked = pick((task) => task.state === 'blocked', 'enter opens its tab to answer · s reply · h hide');
+  const broken = pick((task) => ['error', 'unknown'].includes(task.state), 'u resume · d retire · D clean up · h hide');
+  const review = pick((task) => task.state === 'done' && !waiting(task), 'enter opens its tab to review · s follow up · D clean up · h hide');
   const merged = data.prs.filter((pr) => pr.state === 'MERGED' && pr.cleanup === 'pending' && !shown.has(pr.taskId))
     .sort((a, b) => String(b.mergedAt).localeCompare(String(a.mergedAt))).map((pr) => {
       const task = data.tasks.find((row) => row.id === pr.taskId);
       if (task) shown.add(task.id);
-      return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, hint: 'o open PR · c ask the coordinator to clean it up · d stop the agent' };
+      return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, hint: 'D clean up · a clean up all merged · o open PR · h hide' };
     });
   return { asked, broken, review, merged, count: asked.length + broken.length + review.length + merged.length };
 }
@@ -272,6 +272,29 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
     ...section('Done since yesterday', done, 'Nothing finished since yesterday.'),
   ];
 }
+
+export function withoutHidden(rows, hidden) {
+  const out = [];
+  let section;
+  for (const row of rows) {
+    if (row.kind === 'section') { section = { ...row, count: 0 }; out.push(section); continue; }
+    if (row.kind === 'item' && hidden.has(row.key)) continue;
+    if (row.kind === 'item' && section) section.count += 1;
+    out.push(row);
+  }
+  return out.filter((row, index) => row.kind !== 'section' || row.count > 0 || out[index + 1]?.kind === 'note')
+    .filter((row, index, kept) => row.kind !== 'blank' || (kept[index - 1] && kept[index - 1].kind !== 'blank'));
+}
+
+export function hiddenView(data, hidden, { search } = {}) {
+  const seen = new Map();
+  for (const tab of [0, 1, 2, 3, 4, 5]) {
+    for (const row of buildView(tab, data, { showStopped: true, search })) if (row.kind === 'item' && hidden.has(row.key) && !seen.has(row.key)) seen.set(row.key, row);
+  }
+  return section('Hidden', [...seen.values()], 'Nothing hidden. Press h on a row to hide it.');
+}
+
+export const checkoutOf = (item) => item.task?.worktree ?? item.pr?.checkout;
 
 export function moveCursor(rows, cursor, step) {
   const items = rows.flatMap((row, index) => (row.kind === 'item' ? [index] : []));

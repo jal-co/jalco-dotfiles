@@ -117,9 +117,14 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | `s` | Send a message to a running task. A mid-turn agent queues one message |
 | `u` | Resume a crashed task. A closed tab is reopened in its repository session |
 | `d` | Stop or retire a task after confirmation. Logs, branch and checkout are kept |
+| `D` | Clean up a task: stop its agent if running, archive its logs and remove its checkout. Branch and commits stay. `p` instead of `enter` first commits uncommitted work |
+| `a` | On a merged PR in the Inbox, clean up every merged task waiting on cleanup, with progress and a summary of any that need attention |
+| `h` | Hide the selected row everywhere. In the Hidden menu, unhide it |
+| `H` | Open or close the Hidden menu |
 | `r` | Reload Linear and the task registry |
 | `x` | Show or hide stopped tasks |
-| `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations |
+| `?` | Show every key. Any key closes it |
+| `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations, or leaves the Hidden menu |
 
 Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 
@@ -131,6 +136,10 @@ Launching works out the repository instead of asking for a path. It ranks the ch
 The launch screen names the pick and why, and marks a close call as a best guess. `tab` cycles to the next candidate, `t` takes a typed path, `e` edits the brief in `$VISUAL` or `$EDITOR` and `enter` launches. Linear issues use their branch name. Free-form tasks get a short slug from the goal and a `jal/` branch. The base is the repository's `origin/HEAD`, fetched first. Dotfiles tasks run directly in the checkout without a worktree. Confirming a launch remembers the repository for that Linear team in `~/.rex/linear.json`. A full agent cap shows a message and launches nothing.
 
 Launch, send, stop, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
+
+Cleanup from the command center runs as one coordinator request per task. Your confirmation stands in for the coordinator's removal dialog through a one-shot internal approval the model cannot set; every other removal check still applies: ownership, leases, processes, Git state and the log archive. A running agent is stopped first and its exit confirmed within 30 seconds; otherwise nothing is removed. Requests are claimed when they arrive, so a long cleanup queue never expires the requests behind it. Hidden rows are stored as row keys in `~/.rex/command-center.json`; hiding changes nothing about the task.
+
+`worktree_list` shares one Git worktree listing per repository and one process snapshot for the whole inventory, and skips counting ignored files, which can number in the hundreds of thousands per checkout. Removal still inspects freshly and counts ignored files. With 65 checkouts the inventory went from about 210 seconds to about 24. At startup, uncertain merge notifications are summarized in one line and skip PRs whose cleanup is already decided.
 
 Retiring an agent that predates process attestation requires evidence that it exited: the process table must be readable, and no process may still run with the task's `PI_SUBAGENT_ID`. Leftover descendants, such as a dev server the agent started, block retirement until they stop.
 

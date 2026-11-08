@@ -15,7 +15,7 @@ export interface CleanupGitState {
 	locked: boolean;
 	dirtyFiles: number;
 	untrackedFiles: number;
-	ignoredFiles: number;
+	ignoredFiles?: number;
 	conflicts: number;
 	submodules: boolean;
 }
@@ -50,6 +50,7 @@ export interface WorktreeCleanupOperations {
 	inspectGit(
 		path: string,
 		sourceRepo: string,
+		options?: { countIgnored?: boolean },
 	): CleanupGitState | Promise<CleanupGitState>;
 	listWorktrees(
 		sourceRepo: string,
@@ -239,7 +240,7 @@ export function formatWorktreeInventory(
 			)
 			.map(
 				(row) =>
-					`${row.branch ?? "unknown branch"} — ${row.path}\nSource: ${row.sourceRepo ?? "unknown"} · workspace: ${row.workspaceId ?? "none"} · manifest: ${row.manifest.length ? row.manifest.map(({ value }) => value.state ?? "unknown").join(", ") : "absent"}\n${row.classification} · Git: ${row.git ? `${row.git.dirtyFiles} dirty, ${row.git.untrackedFiles} untracked, ${row.git.ignoredFiles} ignored, ${row.git.conflicts} conflicts` : "unknown"}${row.blockers.length ? ` · ${row.blockers.join("; ")}` : " · clean"}${row.warnings.length ? `\nWarning: ${row.warnings.join("; ")}` : ""}`,
+					`${row.branch ?? "unknown branch"} — ${row.path}\nSource: ${row.sourceRepo ?? "unknown"} · workspace: ${row.workspaceId ?? "none"} · manifest: ${row.manifest.length ? row.manifest.map(({ value }) => value.state ?? "unknown").join(", ") : "absent"}\n${row.classification} · Git: ${row.git ? `${row.git.dirtyFiles} dirty, ${row.git.untrackedFiles} untracked, ${row.git.ignoredFiles === undefined ? "" : `${row.git.ignoredFiles} ignored, `}${row.git.conflicts} conflicts` : "unknown"}${row.blockers.length ? ` · ${row.blockers.join("; ")}` : " · clean"}${row.warnings.length ? `\nWarning: ${row.warnings.join("; ")}` : ""}`,
 			)
 			.join("\n\n") || "No managed worktrees found."
 	);

@@ -180,9 +180,9 @@ export class PullRequestWatcher {
     }
   }
   start() {
-    for (const row of this.store.list(this.origin)) {
-      if (row.notification === 'pending') this.notify(`Merge notification delivery is uncertain for ${row.url}. Inspect /rex-prs; cleanup still needs approval.`);
-    }
+    const uncertain = this.store.list(this.origin).filter((row) => row.notification === 'pending' && row.cleanup === 'pending');
+    if (uncertain.length === 1) this.notify(`Merge notification delivery is uncertain for ${uncertain[0].url}. Inspect /rex-prs; cleanup still needs approval.`);
+    if (uncertain.length > 1) this.notify(`Merge notification delivery is uncertain for ${uncertain.length} merged PRs. They wait in the command center Inbox under "Merged, cleanup pending"; cleanup still needs approval.`);
     void this.tick();
     this.timer = setInterval(() => { void this.tick(); }, this.interval);
     this.timer.unref();

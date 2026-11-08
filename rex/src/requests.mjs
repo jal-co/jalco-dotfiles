@@ -53,6 +53,11 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
     if (!task) throw new Error('No retained task matches this resume request');
     return { tool: 'subagent_resume', params: { sessionPath: task.sessionFile, name: task.name } };
   }
+  if (request.action === 'cleanup') {
+    if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
+    if (!isAbsolute(String(params.checkout))) throw new Error('Cleanup needs the task checkout path');
+    return { tool: 'cleanup', params: { id: params.id, checkout: params.checkout, preserve: params.preserve === true } };
+  }
   if (request.action === 'stop') {
     if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
     return { tool: 'subagent_stop', params: { id: params.id } };
@@ -85,31 +90,41 @@ export class RequestInbox {
     this.scan();
   }
   scan() {
-    this.busy = this.busy.then(async () => {
-      if (this.closed || !existsSync(this.root)) return;
-      for (const name of readdirSync(this.root).filter((entry) => /^[a-f0-9-]{36}\.json$/.test(entry)).sort()) {
-        if (this.closed) return;
-        await this.handle(name.slice(0, -5));
-      }
-    });
+    if (this.closed || !existsSync(this.root)) return this.busy;
+    for (const name of readdirSync(this.root).filter((entry) => /^[a-f0-9-]{36}\.json$/.test(entry)).sort()) {
+      const job = this.claim(name.slice(0, -5));
+      if (job) this.busy = this.busy.then(() => this.execute(job));
+    }
     return this.busy;
   }
-  async handle(requestId) {
+  claim(requestId) {
     const file = join(this.root, `${requestId}.json`);
     let request;
-    try { request = JSON.parse(readFileSync(file, 'utf8')); } catch { return; }
-    if (request.origin !== this.origin) return;
+    try { request = JSON.parse(readFileSync(file, 'utf8')); } catch { return undefined; }
+    if (request.origin !== this.origin) return undefined;
     const claimed = join(this.root, `${requestId}.claimed`);
-    try { renameSync(file, claimed); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
+    try { renameSync(file, claimed); } catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
+    try {
+      return { requestId, ...parseRequest(request, { now: this.now(), tasks: this.tasks }) };
+    } catch (error) {
+      this.finish(requestId, { ok: false, text: cleanText(error.message) });
+      return undefined;
+    }
+  }
+  async execute({ requestId, tool, params }) {
     let result;
     try {
-      const { tool, params } = parseRequest(request, { now: this.now(), tasks: this.tasks });
-      result = await this.run(tool, params);
+      result = this.closed
+        ? { ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' }
+        : await this.run(tool, params);
     } catch (error) {
       result = { ok: false, text: cleanText(error.message) };
     }
+    this.finish(requestId, result);
+  }
+  finish(requestId, result) {
     write(join(this.root, `${requestId}.result.json`), result);
-    unlinkSync(claimed);
+    unlinkSync(join(this.root, `${requestId}.claimed`));
   }
   close() {
     this.closed = true;

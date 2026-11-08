@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -39,6 +39,9 @@ test('send, stop, resume and coordinator messages map to the coordinator; resume
   assert.throws(() => parseRequest(request('resume', { id: 'task-1' }, { origin: '/other' }), { tasks }), /No retained task/);
   assert.deepEqual(parseRequest(request('message', { message: 'clean up plt-4' })), { tool: 'message', params: { message: 'clean up plt-4' } });
   assert.throws(() => parseRequest(request('message', { message: '' })), /missing/);
+  assert.deepEqual(parseRequest(request('cleanup', { id: 'task-1', checkout: '/w/plt-4', preserve: 'yes' })), { tool: 'cleanup', params: { id: 'task-1', checkout: '/w/plt-4', preserve: false } });
+  assert.equal(parseRequest(request('cleanup', { id: 'task-1', checkout: '/w/plt-4', preserve: true })).params.preserve, true);
+  assert.throws(() => parseRequest(request('cleanup', { id: 'task-1', checkout: 'relative' })), /checkout path/);
   assert.throws(() => parseRequest(request('shell', {})), /Unsupported/);
 });
 
@@ -74,4 +77,41 @@ test('tool failures are reported as results and the claim is released', async ()
   assert.deepEqual(requestState(id, root), { state: 'done', ok: false, text: 'Persistent specialist cap (8) reached' });
   assert.deepEqual(readdirSync(root).sort(), ['not-a-request.txt']);
   await inbox.close();
+});
+
+test('requests are claimed on arrival, so a slow job ahead of them never expires them', async () => {
+  const { root } = fixture();
+  let clock = 0;
+  let release;
+  const started = new Promise((resolve) => { release = resolve; });
+  let finishSlow;
+  const order = [];
+  const inbox = new RequestInbox({ root, origin: '/coord', now: () => clock, run: async (_tool, params) => {
+    order.push(params.id);
+    if (params.id === 'slow') { release(); await new Promise((resolve) => { finishSlow = resolve; }); }
+    return { ok: true, text: params.id };
+  } });
+  const age = (id) => writeFileSync(join(root, `${id}.json`), JSON.stringify({ ...JSON.parse(readFileSync(join(root, `${id}.json`), 'utf8')), createdAt: 0 }));
+  age(submitRequest({ origin: '/coord', action: 'stop', params: { id: 'slow' } }, root));
+  inbox.scan();
+  await started;
+  const queued = submitRequest({ origin: '/coord', action: 'stop', params: { id: 'queued' } }, root);
+  age(queued);
+  inbox.scan();
+  assert.deepEqual(requestState(queued, root), { state: 'running' });
+  clock = REQUEST_TTL * 5;
+  finishSlow();
+  await inbox.busy;
+  assert.deepEqual(order, ['slow', 'queued']);
+  assert.deepEqual(requestState(queued, root), { state: 'done', ok: true, text: 'queued' });
+  await inbox.close();
+});
+
+test('claimed work left when the coordinator closes is reported instead of silently dropped', async () => {
+  const { root } = fixture();
+  const inbox = new RequestInbox({ root, origin: '/coord', run: async () => ({ ok: true, text: 'ran' }) });
+  const id = submitRequest({ origin: '/coord', action: 'stop', params: { id: 'task-1' } }, root);
+  inbox.scan();
+  await inbox.close();
+  assert.deepEqual(requestState(id, root), { state: 'done', ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' });
 });

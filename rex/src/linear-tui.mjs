@@ -1,7 +1,7 @@
 import { execFile, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RexSurfaceProvider, callRex, surfaceTarget } from './provider.mjs';
 import { PullRequestStore } from './pull-requests.mjs';
@@ -11,8 +11,8 @@ import { RexWorktrees } from './worktrees.mjs';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  TABS, brief, buildView, capacityOf, defaultBase, findIssues, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
-  directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief,
+  TABS, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
@@ -73,28 +73,34 @@ const keyline = (pairs) => pairs.flatMap(([key, label], index) => [[key, 'bold']
 const HELP = [
   ['↑ ↓  j k', 'move'],
   ['tab  1-6', 'switch tabs'],
-  ['← →', 'brief or list, on Today'],
-  ['enter', 'focus the agent, open its PR, or launch an issue'],
-  ['n', 'new task from a one-line goal'],
-  ['/', 'search Linear, or paste an issue link to take it on'],
+  ['← →', 'brief or list on Today'],
+  ['enter', 'focus, open PR or launch'],
+  ['n', 'new task from a goal'],
+  ['/', 'search or paste a link'],
   ['c', 'type to the coordinator'],
-  ['s', 'send a message to the selected agent'],
+  ['s', 'message the selected agent'],
   ['u', 'resume a crashed agent'],
-  ['d', 'stop or retire the selected agent'],
-  ['o', 'open the PR or Linear issue'],
+  ['d', 'stop or retire the agent'],
+  ['D', 'stop, remove checkout'],
+  ['a', 'clean up all merged'],
+  ['h', 'hide, or unhide in Hidden'],
+  ['H', 'open or close Hidden'],
+  ['o', 'open PR or Linear issue'],
   ['r', 'refresh Linear and tasks'],
   ['x', 'show or hide stopped tasks'],
   ['?', 'show or hide this list'],
   ['q  ctrl+c', 'quit'],
-  ['esc', 'cancel typing or a confirmation; never quits'],
+  ['esc', 'cancel; never quits'],
 ];
 
 export function legend(state) {
   if (state.help) return [['any key', 'close this list']];
   if (state.prompt) return [['enter', 'submit'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
+  if (state.confirm?.kind === 'cleanup') return [['enter', 'clean up'], ['p', 'keep uncommitted work as a commit'], ['esc', 'cancel']];
+  if (state.hiddenView) return [['h', 'unhide'], ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
   if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
-  return [['?', 'all keys'], ['enter', 'open'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['s', 'send'], ['u', 'resume'], ['d', 'retire'], ['o', 'link'], ['r', 'refresh'], ['q', 'quit']];
+  return [['?', 'all keys'], ['enter', 'open'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['s', 'send'], ['D', 'clean up'], ['d', 'retire'], ['u', 'resume'], ['h', 'hide'], ['H', 'hidden'], ['o', 'link'], ['r', 'refresh'], ['q', 'quit']];
 }
 
 function detail(state, item) {
@@ -106,6 +112,16 @@ function detail(state, item) {
       [[`${running ? 'Stop' : 'Retire'} ${task.name}?`, 'bold']],
       [[running ? `The agent is ${task.state}. It stops gracefully after its current step.` : `${cleanText(task.reason ?? 'Its process is unverified')}. Only a confirmed exit is retired.`, 'dim']],
       [['Logs, branch and checkout are kept. The tab closes and its agent slot is freed.', 'dim']],
+      state.status?.text ? [[state.status.text, state.status.tone]] : [],
+    ];
+  }
+  if (confirm?.kind === 'cleanup') {
+    const [first] = confirm.items;
+    const label = first.task?.name ?? first.id;
+    return [
+      [[confirm.items.length > 1 ? `Clean up ${confirm.items.length} merged tasks?` : `Clean up ${label}?`, 'bold']],
+      [[confirm.items.length > 1 ? 'Each one: stop its agent if running, archive its logs, remove its checkout.' : `Stops its agent if running, archives its logs, removes ${checkoutOf(first)}.`, 'dim']],
+      [['Branches and commits stay. Uncommitted work blocks removal unless you press p.', 'dim']],
       state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
@@ -140,7 +156,9 @@ export function renderScreen(state, width, height) {
   const header = gap >= 1
     ? line([...tabs, [' '.repeat(gap)], ['● ', 'yellow'], [right.slice(2), 'dim']], width)
     : line(tabs, width);
-  const title = state.tab === 4
+  const title = state.hiddenView
+    ? line([['Hidden', 'bold'], ['  rows you hid with h · h unhides · H goes back', 'dim']], width)
+    : state.tab === 4
     ? line([['Brief', state.mode === 'brief' ? 'blue' : 'dim', 'bold'], ['  '], ['List', state.mode === 'list' ? 'blue' : 'dim', 'bold']], width)
     : line([[names[state.tab], 'bold']], width);
   const date = new Date(state.now).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -152,7 +170,11 @@ export function renderScreen(state, width, height) {
   const keysLine = line(keyline(legend(state).filter((_pair, index, pairs) => columns(pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join(' · ')) <= width)), width);
   if (state.help) {
     const helpWidth = Math.max(...HELP.map(([keys]) => columns(keys)));
-    const help = [line([['  '], ['Keys', 'bold']], width), ...HELP.map(([keys, text]) => line([['  '], [fit(keys, helpWidth + 3), 'bold'], [text, 'dim']], width))].slice(0, height - 6);
+    const room = height - 7;
+    const split = HELP.length > room ? Math.ceil(HELP.length / 2) : HELP.length;
+    const half = split < HELP.length ? Math.floor((width - 4) / 2) : width - 2;
+    const cell = ([keys, text] = ['', '']) => [[fit(keys, helpWidth + 2), 'bold'], [fit(text, Math.max(0, half - helpWidth - 2)), 'dim']];
+    const help = [line([['  '], ['Keys', 'bold']], width), ...HELP.slice(0, split).map((pair, index) => line([['  '], ...cell(pair), ...(split < HELP.length ? [['  '], ...cell(HELP[split + index])] : [])], width))].slice(0, height - 6);
     return [header, line([], width), title, hint, line([], width), ...help, ...Array.from({ length: height - 6 - help.length }, () => line([], width)), keysLine];
   }
   const rows = state.rows.slice(start, start + body).map((row, offset) => {
@@ -185,7 +207,19 @@ export class LinearApp {
     this.pending = new Map();
     this.bases = new Map();
     this.data = this.snapshot();
-    if (inbox(this.view()).count) this.state.tab = 0;
+    this.hidden = new Set(readPreferences().hidden);
+    if (this.inboxCount()) this.state.tab = 0;
+  }
+
+  inboxCount() {
+    return withoutHidden(buildView(0, this.view()), this.hidden).filter((row) => row.kind === 'item').length;
+  }
+
+  toggleHidden(item) {
+    const hiding = !this.hidden.has(item.key);
+    if (hiding) this.hidden.add(item.key); else this.hidden.delete(item.key);
+    writePreferences({ ...readPreferences(), hidden: [...this.hidden] });
+    this.status('dim', hiding ? `Hid ${item.id}. Press H to see hidden rows.` : `${item.id} is visible again.`);
   }
 
   view() { return { ...this.data, linear: this.linear }; }
@@ -211,20 +245,24 @@ export class LinearApp {
   layout() {
     const data = this.view();
     const { state } = this;
-    state.rows = buildView(state.tab, data, { mode: state.tab === 4 ? state.mode : 'brief', showStopped: state.showStopped, search: state.search });
-    const found = state.rows.findIndex((row) => row.kind === 'item' && row.key === state.selected[state.tab]);
+    state.rows = state.hiddenView
+      ? hiddenView(data, this.hidden, { search: state.search })
+      : withoutHidden(buildView(state.tab, data, { mode: state.tab === 4 ? state.mode : 'brief', showStopped: state.showStopped, search: state.search }), this.hidden);
+    const found = state.rows.findIndex((row) => row.kind === 'item' && row.key === state.selected[this.slot()]);
     state.cursor = found === -1 ? moveCursor(state.rows, -1, 0) : found;
     this.remember();
     state.doneCount = brief(data).done.length;
-    state.inboxCount = inbox(data).count;
+    state.inboxCount = this.inboxCount();
     state.working = this.data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.now = Date.now();
   }
 
+  slot() { return this.state.hiddenView ? 'hidden' : this.state.tab; }
+
   remember() {
     const row = this.state.rows[this.state.cursor];
-    if (row?.kind === 'item') this.state.selected[this.state.tab] = row.key;
+    if (row?.kind === 'item') this.state.selected[this.slot()] = row.key;
   }
 
   draw() {
@@ -296,6 +334,17 @@ export class LinearApp {
   confirmKey(name) {
     const confirm = this.state.confirm;
     if (name === 'escape' || name === 'ctrl-c' || name === 'q') { this.state.confirm = undefined; return this.status('dim', 'Cancelled.'); }
+    if (confirm.kind === 'cleanup') {
+      if (name !== 'enter' && name !== 'p') return;
+      this.state.confirm = undefined;
+      const preserve = name === 'p';
+      this.batch = confirm.items.length > 1 ? { total: confirm.items.length, done: 0, failed: [] } : undefined;
+      for (const item of confirm.items) {
+        this.request('cleanup', { id: item.task?.logicalId ?? item.task?.id ?? item.pr?.taskId, checkout: checkoutOf(item), preserve },
+          this.batch ? `Cleaning up ${confirm.items.length} tasks…` : `Cleaning up ${item.task?.name ?? item.id}…`, { batch: Boolean(this.batch), label: item.task?.name ?? item.id });
+      }
+      return;
+    }
     if (confirm.kind === 'retire') {
       if (name !== 'enter') return;
       this.state.confirm = undefined;
@@ -318,6 +367,7 @@ export class LinearApp {
     const { state } = this;
     const count = TABS.length + (state.search ? 1 : 0);
     if (name === '?') { state.help = true; return this.draw(); }
+    if (name === 'escape' && state.hiddenView) { state.hiddenView = false; return this.draw(); }
     if (name === 'escape') return this.status('dim', 'Press q to quit.');
     if (name === 'q' || name === 'ctrl-c') { this.stop(); process.exit(0); }
     if (['up', 'down', 'k', 'j', 'page-up', 'page-down'].includes(name)) {
@@ -327,11 +377,13 @@ export class LinearApp {
     }
     if ((/^[1-6]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
       state.tab = /^[1-6]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
+      state.hiddenView = false;
       state.status = undefined;
       return this.draw();
     }
     if ((name === 'left' || name === 'right') && state.tab === 4) { state.mode = state.mode === 'brief' ? 'list' : 'brief'; return this.draw(); }
     if (name === 'x') { state.showStopped = !state.showStopped; return this.draw(); }
+    if (name === 'H') { state.hiddenView = !state.hiddenView; state.status = undefined; return this.draw(); }
     if (name === 'r') {
       this.data = this.snapshot();
       this.status('dim', 'Refreshing…');
@@ -349,6 +401,12 @@ export class LinearApp {
     if (name === 'o') return this.open(item.pr?.url ?? item.issue?.url, item.id);
     if (name === 's') return this.send(item);
     if (name === 'd') return this.retire(item);
+    if (name === 'h') return this.toggleHidden(item);
+    if (name === 'D') return this.cleanup([item]);
+    if (name === 'a') {
+      if (!(item.pr?.state === 'MERGED' && item.pr.cleanup === 'pending')) return this.status('yellow', 'Select a merged PR in the Inbox to clean up all merged tasks.');
+      return this.cleanup(inbox(this.view()).merged.filter((entry) => !this.hidden.has(entry.key) && checkoutOf(entry)));
+    }
     if (name === 'u') return this.resume(item);
   }
 
@@ -386,6 +444,14 @@ export class LinearApp {
     if (item.task.stopConfirmed) return this.status('yellow', `${item.task.name} was retired and its tab closed. Launch a new task instead.`);
     if (live(item.task) && item.task.state !== 'unknown') return this.status('yellow', `${item.task.name} is ${item.task.state}. Use s to send it a message.`);
     this.request('resume', { id: item.task.logicalId ?? item.task.id }, `Asked the coordinator to resume ${item.task.name}…`);
+  }
+
+  cleanup(items) {
+    const usable = items.filter((item) => checkoutOf(item) && (item.task?.id ?? item.pr?.taskId));
+    if (!usable.length) return this.status('yellow', `${items[0]?.id ?? 'This row'} has no checkout to clean up.`);
+    this.state.confirm = { kind: 'cleanup', items: usable };
+    this.state.status = undefined;
+    this.draw();
   }
 
   retire(item) {
@@ -487,16 +553,27 @@ export class LinearApp {
     }
   }
 
-  request(action, params, message) {
+  request(action, params, message, meta = {}) {
     const id = submitRequest({ origin: this.origin, action, params });
-    this.pending.set(id, { at: Date.now(), warned: false });
+    this.pending.set(id, { at: Date.now(), warned: false, ...meta });
     this.status('dim', message);
   }
 
   checkRequests() {
     for (const [id, entry] of this.pending) {
       const result = requestState(id, requestRoot());
-      if (result.state === 'done') {
+      if (result.state === 'done' && entry.batch && this.batch) {
+        this.pending.delete(id);
+        this.data = this.snapshot();
+        this.batch.done += 1;
+        if (!result.ok) this.batch.failed.push(`${entry.label} (${cleanText(result.text).slice(0, 80)})`);
+        const { total, done, failed } = this.batch;
+        if (done < total) this.status('dim', `Cleaning up: ${done} of ${total} done${failed.length ? `, ${failed.length} need attention` : ''}…`);
+        else {
+          this.batch = undefined;
+          this.status(failed.length ? 'yellow' : 'green', `Cleaned up ${total - failed.length} of ${total}.${failed.length ? ` Not cleaned: ${failed.join('; ')}` : ''}`);
+        }
+      } else if (result.state === 'done') {
         this.pending.delete(id);
         this.data = this.snapshot();
         this.status(result.ok ? (result.outcome === 'queued' ? 'yellow' : 'green') : 'red', result.text || (result.ok ? 'Done.' : 'Failed.'));
@@ -506,6 +583,20 @@ export class LinearApp {
       }
     }
   }
+}
+
+const preferencesFile = () => process.env.REX_COMMAND_CENTER_PREFS ?? join(homedir(), '.rex', 'command-center.json');
+
+export function readPreferences(file = preferencesFile()) {
+  if (!existsSync(file)) return { hidden: [] };
+  const value = JSON.parse(readFileSync(file, 'utf8'));
+  return { ...value, hidden: Array.isArray(value.hidden) ? value.hidden.map(String) : [] };
+}
+
+export function writePreferences(value, file = preferencesFile()) {
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  writeFileSync(`${file}.tmp`, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  renameSync(`${file}.tmp`, file);
 }
 
 const readMaxAgents = () => loadPersistentConfig(getSubagentsConfigDir(), getSubagentsConfigExamplePath()).maxAgents;

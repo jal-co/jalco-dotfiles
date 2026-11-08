@@ -4,11 +4,11 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  buildView, capacityOf, findIssues, inbox, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
-import { columns, fit, keys, renderScreen } from '../src/linear-tui.mjs';
+import { columns, fit, keys, readPreferences, renderScreen, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -159,12 +159,15 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
   assert.match(screen.at(-5), /^Title/);
-  assert.match(screen.at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator · s send · u resume · d retire · o link · r refresh · q quit +$/);
+  assert.match(screen.at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator · s send · D clean up · d retire · u resume · h hide +$/);
+  assert.match(renderScreen(state, 200, 24).map(plain).at(-1), /· H hidden · o link · r refresh · q quit +$/);
   assert.match(renderScreen(state, 60, 24).map(plain).at(-1), /^\? all keys · enter open · n new · \/ search · c coordinator +$/);
   const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
   assert.equal(help.length, 24);
-  assert.ok(help.some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
-  assert.ok(help.some((row) => /^ {2}esc +cancel typing or a confirmation; never quits/.test(row)));
+  assert.ok(help.some((row) => /q  ctrl\+c +quit/.test(row)));
+  assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
+  assert.ok(renderScreen({ ...state, help: true }, 100, 40).map(plain).some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
+  assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
   assert.match(help.at(-1), /^any key close this list/);
   assert.match(renderScreen({ ...state, prompt: { label: 'search', value: 'x' } }, 100, 24).map(plain).at(-1), /^enter submit · esc cancel/);
   const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
@@ -216,7 +219,7 @@ test('the inbox collects questions, failures, finished work and merged PRs waiti
   assert.deepEqual(sections(buildView(0, data)), {
     'Needs an answer': ['asks'], 'Failed or crashed': ['crashed'], 'Ready for review': ['finished'], 'Merged, cleanup pending': ['merged', 'gone'],
   });
-  assert.match(result.merged[0].hint, /c ask the coordinator to clean it up/);
+  assert.match(result.merged[0].hint, /^D clean up · a clean up all merged/);
   assert.deepEqual(buildView(0, { ...data, tasks: [], prs: [] }).map((row) => row.text), ['Nothing needs you right now.']);
 });
 
@@ -288,4 +291,40 @@ test('repository ranking prefers linked PRs, then team history, then distinctive
   assert.equal(githubRepository('git@github.com:Mastra-AI/Platform.git'), 'mastra-ai/platform');
   assert.deepEqual(terms({ title: 'Fix the rex-linear TUI', description: 'Call `loadLinear()` early. ![x](https://a.b/c.png)' }).map((term) => [term.text, term.weight]),
     [['loadLinear()', 2], ['rex-linear', 2], ['rex-linear tui', 1], ['call loadlinear', 0.5], ['loadlinear early', 0.5]]);
+});
+
+test('hidden rows leave every tab, empty sections collapse, and the Hidden menu lists them', () => {
+  const tasks = [task('keep', 'blocked'), task('noise', 'blocked'), task('crashed', 'unknown')];
+  const data = { tasks, prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
+  const hidden = new Set(['t:noise-id', 't:crashed-id']);
+  const rows = withoutHidden(buildView(0, data), hidden);
+  assert.deepEqual(sections(rows), { 'Needs an answer': ['keep'] });
+  assert.equal(rows.find((row) => row.kind === 'section').count, 1);
+  assert.notEqual(rows[0].kind, 'blank');
+  assert.ok(rows.every((row, index) => row.kind !== 'blank' || rows[index - 1]?.kind !== 'blank'));
+  assert.deepEqual(sections(hiddenView(data, hidden)), { Hidden: ['noise', 'crashed'] });
+  assert.match(hiddenView(data, new Set()).find((row) => row.kind === 'note').text, /Nothing hidden/);
+});
+
+test('hidden keys persist privately and a missing file means nothing is hidden', () => {
+  const file = join(mkdtempSync(join(tmpdir(), 'rex-prefs-')), 'nested', 'command-center.json');
+  assert.deepEqual(readPreferences(file), { hidden: [] });
+  writePreferences({ hidden: ['t:a', 'p:https://x'] }, file);
+  assert.deepEqual(readPreferences(file), { hidden: ['t:a', 'p:https://x'] });
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+});
+
+test('cleanup confirmation says what happens and the key bar offers preserving uncommitted work', () => {
+  const item = { kind: 'item', key: 't:a', id: 'a', title: 'A', project: 'p', agent: { text: '', tone: 'dim' }, task: task('ds-inputs', 'done') };
+  assert.equal(checkoutOf(item), item.task.worktree);
+  assert.equal(checkoutOf({ pr: { checkout: '/w/x' } }), '/w/x');
+  const state = { tab: 0, rows: [item], cursor: 0, working: 0, capacity: { used: 1, max: 8 }, doneCount: 0, now: Date.now() };
+  const one = renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item] } }, 160, 24).map(plain);
+  assert.match(one.at(-5), /^Clean up ds-inputs\?/);
+  assert.ok(one.at(-4).includes(item.task.worktree));
+  assert.match(one.at(-1), /^enter clean up · p keep uncommitted work as a commit · esc cancel/);
+  assert.match(renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item, item] } }, 160, 24).map(plain).at(-5), /^Clean up 2 merged tasks\?/);
+  const hidden = renderScreen({ ...state, hiddenView: true, rows: [] }, 160, 24).map(plain);
+  assert.match(hidden[2], /^Hidden {2}rows you hid with h/);
+  assert.match(hidden.at(-1), /^h unhide · H back/);
 });

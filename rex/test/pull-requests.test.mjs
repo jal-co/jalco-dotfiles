@@ -53,6 +53,15 @@ test('crash between delivery and receipt reports uncertainty instead of replay',
   assert.match(f.notices[0], /uncertain/);
 });
 
+test('uncertain deliveries are summarized once and skip PRs whose cleanup is decided', async () => {
+  const f = fixture();
+  const row = (url, cleanup) => ({ version: 1, origin: '/coordinator', url, taskId: 't', name: 'n', checkout: '/c', repositoryPath: '/r', branch: 'b', state: 'MERGED', mergedAt: 'now', cleanup, notification: 'pending' });
+  for (const [number, cleanup] of [[11, 'pending'], [12, 'pending'], [13, 'removed'], [14, 'retained']]) f.store.write(row(`https://github.com/o/r/pull/${number}`, cleanup));
+  const watcher = new PullRequestWatcher({ ...f.options, tasks: () => [] });
+  watcher.start(); await watcher.pending; await watcher.close();
+  assert.deepEqual(f.notices, ['Merge notification delivery is uncertain for 2 merged PRs. They wait in the command center Inbox under "Merged, cleanup pending"; cleanup still needs approval.']);
+});
+
 test('closed unmerged PRs are not treated as merged and reopened PRs remain watched', async () => {
   const f = fixture(); f.pr.state = 'CLOSED';
   await f.watcher.tick(); assert.equal(f.messages.length, 0);
