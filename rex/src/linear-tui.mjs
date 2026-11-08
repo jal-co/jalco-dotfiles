@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RexSurfaceProvider, callRex, surfaceTarget } from './provider.mjs';
+import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provider.mjs';
 import { PullRequestStore } from './pull-requests.mjs';
 import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.mjs';
 import { cleanText, TaskStore } from './tasks.ts';
@@ -11,7 +11,7 @@ import { RexWorktrees } from './worktrees.mjs';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  TABS, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  TABS, applyProgramStatus, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
@@ -207,6 +207,7 @@ export class LinearApp {
     this.linear = { status: 'loading', message: 'Loading Linear issues…', open: [], done: [] };
     this.pending = new Map();
     this.bases = new Map();
+    this.programStatus = new Map();
     this.data = this.snapshot();
     this.hidden = new Set(readPreferences().hidden);
     if (this.inboxCount()) this.state.tab = 0;
@@ -223,7 +224,24 @@ export class LinearApp {
     this.status('dim', hiding ? `Hid ${item.id}. Press H to see hidden rows.` : `${item.id} is visible again.`);
   }
 
-  view() { return { ...this.data, linear: this.linear }; }
+  view() {
+    return { ...this.data, tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear };
+  }
+
+  async pollStatus() {
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      const watched = this.data.tasks.filter((task) => !task.stopConfirmed && task.state !== 'stopped');
+      const results = await Promise.all(watched.map((task) => readProgramStatus(task.surface)));
+      const next = new Map(watched.flatMap((task, index) => (results[index] ? [[task.id, results[index]]] : [])));
+      const changed = JSON.stringify([...next]) !== JSON.stringify([...this.programStatus]);
+      this.programStatus = next;
+      if (changed) this.draw();
+    } finally {
+      this.polling = false;
+    }
+  }
 
   snapshot() {
     try {
@@ -254,7 +272,7 @@ export class LinearApp {
     this.remember();
     state.doneCount = brief(data).done.length;
     state.inboxCount = this.inboxCount();
-    state.working = this.data.tasks.filter((task) => live(task) && task.state === 'working').length;
+    state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.now = Date.now();
   }
@@ -290,6 +308,8 @@ export class LinearApp {
       return watcher;
     });
     this.poll = setInterval(() => this.checkRequests(), 500);
+    this.statusTimer = setInterval(() => { void this.pollStatus(); }, 3_000);
+    void this.pollStatus();
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
     const missed = orphanResults();
@@ -301,6 +321,7 @@ export class LinearApp {
   stop() {
     for (const watcher of this.watchers ?? []) watcher.close();
     clearInterval(this.poll);
+    clearInterval(this.statusTimer);
     clearInterval(this.reload);
     clearTimeout(this.timer);
     this.input.setRawMode?.(false);
@@ -587,6 +608,17 @@ export class LinearApp {
       }
     }
   }
+}
+
+export function readProgramStatus(surface, run = execFile) {
+  let target;
+  try { target = surfaceTarget(surface); } catch { return Promise.resolve(undefined); }
+  return new Promise((resolve) => {
+    run(rexBinary(), ['--autostart=false', 'block', 'call', '-s', target.session, '-b', target.block, 'program_status'], { encoding: 'utf8', timeout: 5_000 }, (error, stdout) => {
+      if (error) return resolve(undefined);
+      try { resolve(JSON.parse(stdout).records ?? []); } catch { resolve(undefined); }
+    });
+  });
 }
 
 const preferencesFile = () => process.env.REX_COMMAND_CENTER_PREFS ?? join(homedir(), '.rex', 'command-center.json');

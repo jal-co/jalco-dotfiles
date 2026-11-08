@@ -137,6 +137,16 @@ export function linkedTask(issue, tasks) {
 
 export const live = (task) => Boolean(task) && !task.stopConfirmed && task.state !== 'stopped';
 
+const PROGRAM_STATES = new Set(['idle', 'working', 'blocked', 'done', 'error']);
+
+export function applyProgramStatus(task, records) {
+  const record = records?.find((entry) => entry.id === 'rex-task');
+  if (!record || task.stopConfirmed) return task;
+  const state = PROGRAM_STATES.has(record.state) ? record.state : 'idle';
+  const reason = cleanText(record.msg) || task.reason;
+  return { ...task, state, reason, live: true };
+}
+
 export function startOfYesterday(now = Date.now()) {
   const day = new Date(now);
   day.setHours(0, 0, 0, 0);

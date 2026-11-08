@@ -127,7 +127,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | `?` | Show every key. Any key closes it |
 | `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations, or leaves the Hidden menu |
 
-Once a Linear issue is done or canceled, its row says so whatever its PR shows; `merged` and `in review` appear only while the issue is still open. The detail line shows both the Linear state and the PR state.
+Agent state comes from Rex's live program status, the same `rex-task` indicator the sidebar shows, read every 3 seconds for every task that is not stopped. The task registry is the fallback when a tab is gone. Once a Linear issue is done or canceled, its row says so whatever its PR shows; `merged` and `in review` appear only while the issue is still open. The detail line shows both the Linear state and the PR state.
 
 Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 

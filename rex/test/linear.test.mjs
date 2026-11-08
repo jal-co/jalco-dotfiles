@@ -4,11 +4,11 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  applyProgramStatus, buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
-import { columns, fit, keys, readPreferences, renderScreen, writePreferences } from '../src/linear-tui.mjs';
+import { columns, fit, keys, readPreferences, readProgramStatus, renderScreen, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -339,4 +339,28 @@ test('Linear decides the label once the issue is done or canceled; PR state show
   assert.equal(view({ name: 'Done', type: 'completed' }), '✓ done');
   assert.equal(view({ name: 'In Review', type: 'started' }), 'merged');
   assert.equal(view({ name: 'Canceled', type: 'canceled' }), '– canceled');
+});
+
+test('live Rex program status overrides a stale registry state, and stopped tasks keep theirs', () => {
+  const stale = task('pltfrm-3240', 'unknown', { reason: 'No current activity evidence' });
+  assert.deepEqual(applyProgramStatus(stale, [{ state: 'working', msg: 'bc69' }, { id: 'rex-task', state: 'working', msg: 'bash' }]),
+    { ...stale, state: 'working', reason: 'bash', live: true });
+  assert.equal(applyProgramStatus(stale, [{ id: 'rex-task', state: 'blocked', msg: 'Waiting for user' }]).reason, 'Waiting for user');
+  assert.equal(applyProgramStatus(stale, [{ id: 'rex-task', state: 'surprising' }]).state, 'idle');
+  assert.equal(applyProgramStatus(stale, [{ state: 'working' }]), stale);
+  assert.equal(applyProgramStatus(stale, undefined), stale);
+  const stopped = task('old', 'stopped', { stopConfirmed: true });
+  assert.equal(applyProgramStatus(stopped, [{ id: 'rex-task', state: 'working' }]), stopped);
+  const data = { tasks: [applyProgramStatus(stale, [{ id: 'rex-task', state: 'working', msg: 'bash' }])], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
+  assert.equal(inbox(data).count, 0);
+  assert.equal(items(buildView(3, data))[0].agent.text, '● working');
+});
+
+test('program status is read from the task block and an unreachable block yields nothing', async () => {
+  const calls = [];
+  const ok = (_bin, args, _options, done) => { calls.push(args); done(null, JSON.stringify({ records: [{ id: 'rex-task', state: 'working' }] })); };
+  assert.deepEqual(await readProgramStatus('session:s/block:b', ok), [{ id: 'rex-task', state: 'working' }]);
+  assert.deepEqual(calls[0], ['--autostart=false', 'block', 'call', '-s', 'session:s', '-b', 'block:b', 'program_status']);
+  assert.equal(await readProgramStatus('session:s/block:b', (_b, _a, _o, done) => done(new Error('gone'))), undefined);
+  assert.equal(await readProgramStatus('not a surface', ok), undefined);
 });
