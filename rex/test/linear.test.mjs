@@ -182,7 +182,7 @@ test('raw input splits into keys, including escape sequences and pasted text', (
 test('issue launches use the coordinator brief template and a persistent interactive worktree agent', () => {
   const item = issue('PLT-4', 'unstarted', { description: 'Line one\n\u001b[31mred\u001b[0m' });
   const brief = issueBrief(item, 'jal/plt-4-fix');
-  for (const part of ['Goal: Resolve PLT-4', 'Files:', 'Verification:', 'Commit: Commit on jal/plt-4-fix', 'Report:']) assert.ok(brief.includes(part), part);
+  for (const part of ['Goal: Resolve PLT-4', 'Files:', 'Verification:', 'Commit: Commit on jal/plt-4-fix', 'Questions: Ask Justin questions and decisions in this session with ask_user_question', 'Report:']) assert.ok(brief.includes(part), part);
   assert.doesNotMatch(brief, /\u001b/);
   assert.match(brief, /Line one\n/);
   assert.deepEqual(launchParams(item, { repo: '/r', base: 'origin/main', brief }), {
@@ -377,6 +377,7 @@ test('the key bar offers only what the selected row can do', () => {
     ['enter open PR', 'o PR', 'h hide']);
   assert.deepEqual(keysOf({ task: task('busy', 'working', { worktree: checkout }) }, records), ['enter focus', 's send', 'D clean up', 'd stop', 'h hide']);
   assert.deepEqual(keysOf({ task: task('crashed', 'unknown', { worktree: checkout }) }, records), ['enter focus', 'u resume', 'D clean up', 'd retire', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('asks', 'blocked', { worktree: checkout }) }, records), ['enter answer', 's send', 'D clean up', 'd stop', 'h hide']);
   assert.deepEqual(keysOf({ issue: { state: { type: 'unstarted' }, url: 'https://linear.app/y' } }), ['enter launch', 'o issue', 'h hide']);
 });
 

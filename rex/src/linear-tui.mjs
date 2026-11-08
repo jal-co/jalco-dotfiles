@@ -107,7 +107,7 @@ export function legend(state) {
 }
 
 export function enterAction(item) {
-  if (live(item.task)) return 'focus';
+  if (live(item.task)) return item.task.state === 'blocked' ? 'answer' : 'focus';
   if (item.pr) return 'open PR';
   if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return 'launch';
   if (item.issue) return 'open issue';
@@ -477,7 +477,7 @@ export class LinearApp {
     const window = new RexSurfaceProvider().windowOf(task.surface);
     if (!window) return this.status('yellow', `${task.name}'s tab is closed. Press u to resume it in a new tab.`);
     callRex(['do', 'session.select', '--args', JSON.stringify({ session_id: surfaceTarget(task.surface).session, window_id: window })]);
-    this.status('green', `Focused ${task.name}.`);
+    this.status('green', task.state === 'blocked' ? `Opened ${task.name}; answer it there.` : `Focused ${task.name}.`);
   }
 
   open(url, label) {

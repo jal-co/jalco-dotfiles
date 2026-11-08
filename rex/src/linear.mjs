@@ -329,6 +329,7 @@ export function taskBrief({ goal, context = [], branch, linear = false }) {
     'Files: Change only the files this task needs. Ask before touching anything outside that scope.',
     'Verification: Run the repository checks relevant to the changed code. Report the exact commands and their results.',
     `Commit: Commit on ${branch} with a conventional message. Do not push${linear ? ', open a PR or change the Linear issue' : ' or open a PR'}.`,
+    'Questions: Ask Justin questions and decisions in this session with ask_user_question and wait for his answer. Use caller_ping only when the coordinator must act.',
     'Report: Summarize what changed, the files touched, the commit SHA, check results and anything you could not verify. Then call subagent_done.',
   ].join('\n');
 }
