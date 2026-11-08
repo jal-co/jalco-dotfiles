@@ -126,3 +126,32 @@ test('results nobody read are collected once for the next command center', async
   assert.deepEqual(orphanResults(join(root, 'missing')), []);
   await inbox.close();
 });
+
+test('a request for work already queued or running is skipped as a duplicate, and allowed again once it finishes', async () => {
+  const { root } = fixture();
+  let finish;
+  const started = [];
+  const inbox = new RequestInbox({ root, origin: '/coord', tasks, run: async (tool, params) => {
+    started.push(params.checkout ?? params.id);
+    if (started.length === 1) await new Promise((resolve) => { finish = resolve; });
+    return { ok: true, text: 'done' };
+  } });
+  const send = (params) => submitRequest({ origin: '/coord', action: 'cleanup', params }, root);
+  const first = send({ id: 'task-1', checkout: '/w/a' });
+  inbox.scan();
+  const copies = [send({ id: 'task-1', checkout: '/w/a' }), send({ id: 'task-1', checkout: '/w/a' })];
+  const other = send({ id: 'task-2', checkout: '/w/b' });
+  inbox.scan();
+  for (const id of copies) assert.deepEqual(requestState(id, root), { state: 'done', ok: true, outcome: 'duplicate', text: 'Already queued or running; this duplicate was skipped.' });
+  while (!finish) await new Promise((resolve) => setTimeout(resolve, 5));
+  finish();
+  await inbox.busy;
+  assert.deepEqual(started, ['/w/a', '/w/b']);
+  assert.equal(requestState(first, root).text, 'done');
+  assert.equal(requestState(other, root).text, 'done');
+  const again = send({ id: 'task-1', checkout: '/w/a' });
+  await inbox.scan();
+  assert.equal(requestState(again, root).text, 'done');
+  assert.deepEqual(started, ['/w/a', '/w/b', '/w/a']);
+  await inbox.close();
+});

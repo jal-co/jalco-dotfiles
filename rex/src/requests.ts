@@ -86,10 +86,18 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
   throw new Error(`Unsupported request action: ${cleanText(request.action)}`);
 }
 
+export function duplicateKey({ tool, params }) {
+  if (tool === 'cleanup') return `cleanup:${params.checkout}`;
+  if (tool === 'subagent_stop' || tool === 'subagent_resume') return `task:${params.id ?? params.sessionPath}`;
+  if (tool === 'subagent') return `launch:${params.name}`;
+  return undefined;
+}
+
 export class RequestInbox {
   constructor({ origin, run, root = requestRoot(), now = Date.now, tasks = () => new TaskStore().list() }) {
     Object.assign(this, { origin, run, root, now, tasks });
     this.busy = Promise.resolve();
+    this.active = new Set();
   }
   start() {
     mkdirSync(this.root, { recursive: true, mode: 0o700 });
@@ -112,14 +120,22 @@ export class RequestInbox {
     if (request.origin !== this.origin) return undefined;
     const claimed = join(this.root, `${requestId}.claimed`);
     try { renameSync(file, claimed); } catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
+    let job;
     try {
-      return { requestId, ...parseRequest(request, { now: this.now(), tasks: this.tasks }) };
+      job = { requestId, ...parseRequest(request, { now: this.now(), tasks: this.tasks }) };
     } catch (error) {
       this.finish(requestId, { ok: false, text: cleanText(error.message) });
       return undefined;
     }
+    job.key = duplicateKey(job);
+    if (job.key && this.active.has(job.key)) {
+      this.finish(requestId, { ok: true, outcome: 'duplicate', text: 'Already queued or running; this duplicate was skipped.' });
+      return undefined;
+    }
+    if (job.key) this.active.add(job.key);
+    return job;
   }
-  async execute({ requestId, tool, params }) {
+  async execute({ requestId, tool, params, key }) {
     let result;
     try {
       result = this.closed
@@ -128,6 +144,7 @@ export class RequestInbox {
     } catch (error) {
       result = { ok: false, text: cleanText(error.message) };
     }
+    if (key) this.active.delete(key);
     this.finish(requestId, result);
   }
   finish(requestId, result) {

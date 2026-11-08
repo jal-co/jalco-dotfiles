@@ -431,10 +431,10 @@ export class LinearApp {
       if (name !== 'enter' && name !== 'p') return;
       this.state.confirm = undefined;
       const preserve = name === 'p';
-      this.batch = confirm.items.length > 1 ? { total: confirm.items.length, done: 0, failed: [] } : undefined;
+      if (confirm.items.length > 1 || this.batch) this.batch = this.batch ? { ...this.batch, total: this.batch.total + confirm.items.length } : { total: confirm.items.length, done: 0, failed: [] };
       for (const item of confirm.items) {
         this.request('cleanup', { id: item.task?.logicalId ?? item.task?.id ?? item.pr?.taskId, checkout: checkoutOf(item), preserve },
-          this.batch ? `Cleaning up ${confirm.items.length} tasks…` : `Cleaning up ${item.task?.name ?? item.id}…`, { batch: Boolean(this.batch), label: item.task?.name ?? item.id });
+          this.batch ? `Cleaning up: ${this.batch.done} of ${this.batch.total} done…` : `Cleaning up ${item.task?.name ?? item.id}…`, { batch: Boolean(this.batch), label: item.task?.name ?? item.id, checkout: checkoutOf(item) });
       }
       return;
     }
@@ -540,8 +540,20 @@ export class LinearApp {
     this.request('resume', { id: item.task.logicalId ?? item.task.id }, `Asked the coordinator to resume ${item.task.name}…`);
   }
 
+  cleaning() {
+    return new Set([...this.pending.values()].flatMap((entry) => (entry.checkout ? [entry.checkout] : [])));
+  }
+
   cleanup(items) {
-    const usable = items.filter((item) => checkoutOf(item) && (item.task?.id ?? item.pr?.taskId));
+    const busy = this.cleaning();
+    const seen = new Set();
+    const usable = items.filter((item) => {
+      const checkout = checkoutOf(item);
+      if (!checkout || !(item.task?.id ?? item.pr?.taskId) || busy.has(checkout) || seen.has(checkout)) return false;
+      seen.add(checkout);
+      return true;
+    });
+    if (!usable.length && items.some((item) => busy.has(checkoutOf(item)))) return this.status('yellow', this.batch ? `Already cleaning up: ${this.batch.done} of ${this.batch.total} done.` : 'Already cleaning that up.');
     if (!usable.length) return this.status('yellow', `${items[0]?.id ?? 'This row'} has no checkout to clean up.`);
     this.state.confirm = { kind: 'cleanup', items: usable };
     this.state.status = undefined;
