@@ -50,6 +50,15 @@ export function probeProcess(identity, { birth = processBirth, command = process
   return { state: 'alive', reason: `Process ${identity.pid} start time and command line match` };
 }
 
+export function environmentHolders(id, list = () => execFileSync('ps', ['-E', '-ww', '-A', '-o', 'pid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })) {
+  assert.match(id, /^[a-zA-Z0-9-]+$/, 'Invalid task ID');
+  const rows = list().split('\n');
+  const self = rows.find((row) => row.trim().startsWith(`${process.pid} `));
+  if (!self || !/\sHOME=/.test(self)) return null;
+  const marker = new RegExp(`\\sPI_SUBAGENT_ID=${id}(\\s|$)`);
+  return rows.filter((row) => marker.test(row)).map((row) => Number(row.trim().split(/\s+/, 1)[0]));
+}
+
 export function agentIdentityFile(sessionFile, id) {
   assert.match(id, /^[a-zA-Z0-9-]+$/, 'Invalid task identity ID');
   return `${sessionFile}.rex-process-${id}.json`;
@@ -66,6 +75,20 @@ export function writeAgentIdentity(value) {
     try { linkSync(temporary, file); } catch (error) { if (error.code !== 'EEXIST') throw error; }
     assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), value, 'A different task process already owns this identity file');
   } finally { unlinkSync(temporary); }
+}
+
+export function sessionCwd(file) {
+  let descriptor;
+  try {
+    descriptor = openSync(file, 'r');
+    const bytes = Buffer.alloc(4096);
+    const header = bytes.subarray(0, readSync(descriptor, bytes, 0, bytes.length, 0)).toString('utf8').split('\n', 1)[0];
+    return JSON.parse(header).cwd;
+  } catch {
+    return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
 }
 
 export function boundedSummary(file, at = '9999') {

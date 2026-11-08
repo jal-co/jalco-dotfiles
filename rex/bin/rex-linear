@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node "$HOME/dotfiles/rex/src/linear-tui.mjs" "$@"

@@ -4,14 +4,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  buildRows, capacityOf, issueBrief, issueQuery, launchParams, linkedTask, loadLinear, moveCursor,
-  readLinearConfig, readToken, renderView, saveRepository, selectable,
+  buildView, capacityOf, issueBrief, issueQuery, launchParams, linkedTask, loadLinear, moveCursor,
+  readLinearConfig, readToken, saveRepository,
 } from '../src/linear.mjs';
+import { columns, fit, keys, renderScreen } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
   priority: 3, description: 'Do the thing', state: { name: type, type }, team: { key: identifier.split('-')[0] }, project: { name: 'Billing' }, ...extra,
 });
+const items = (rows) => rows.filter((row) => row.kind === 'item');
+const sections = (rows) => {
+  const out = {};
+  let current;
+  for (const row of rows) {
+    if (row.kind === 'section') current = out[row.title] = [];
+    else if (row.kind === 'item') current.push(row.id);
+  }
+  return out;
+};
+const plain = (text) => text.replace(/\u001b\[[0-9;]*m/g, '');
 const task = (name, state, extra = {}) => ({
   id: `${name}-id`, name, state, surface: 'session:a/block:b', originCwd: '/coord', persistent: true,
   branch: `jal/${name}`, worktree: `/Users/j/.rex/worktrees/platform-726f824a9a36/${name}`, updatedAt: Date.now(), ...extra,
@@ -66,62 +78,93 @@ test('linked tasks match the issue branch exactly or by identifier boundary', ()
   assert.equal(linkedTask(issue('PLTFRM-30', 'started', { branchName: 'unrelated' }), tasks), undefined);
 });
 
-test('the command center groups live tasks by project, shows PR state and hides stopped tasks until toggled', () => {
+test('sessions group live tasks by repository with agent and PR labels, hiding stopped tasks until toggled', () => {
   const tasks = [
     task('ui-fix', 'working'),
     task('old-run', 'stopped', { stopConfirmed: true }),
     task('docs', 'blocked', { worktree: '/Users/j/.rex/worktrees/docs-0123456789ab/docs' }),
-    task('direct', 'done', { worktree: undefined }),
+    task('shipped', 'done', { worktree: '/Users/j/.rex/worktrees/platform-726f824a9a36/shipped' }),
   ];
-  const prs = [{ taskId: 'ui-fix-id', url: 'https://github.com/a/b/pull/1', state: 'OPEN', checkedAt: '2026-11-08' }];
+  const prs = [{ taskId: 'shipped-id', url: 'https://github.com/a/b/pull/7', state: 'MERGED', checkedAt: '2026-11-08' }];
   const data = { tasks, prs, records: [{ path: tasks[0].worktree, repo: '/Users/j/platform' }], linear: { status: 'missing', message: 'none', open: [], done: [] } };
-  const rows = buildRows(2, data);
-  const text = rows.map((row) => row.text).join('\n');
-  assert.deepEqual(rows.filter((row) => row.kind === 'header').map((row) => row.text), ['docs', 'No checkout', 'platform']);
-  assert.match(text, /● working\s+ui-fix\s+PR open/);
-  assert.match(text, /! blocked\s+docs/);
-  assert.doesNotMatch(text, /old-run/);
-  assert.match(text, /1 stopped task hidden/);
-  assert.match(buildRows(2, data, { showStopped: true }).map((row) => row.text).join('\n'), /– stopped\s+old-run/);
+  const rows = buildView(2, data);
+  assert.deepEqual(sections(rows), { docs: ['docs'], platform: ['ui-fix', 'shipped'] });
+  assert.deepEqual(items(rows).map((row) => row.agent.text), ['! blocked', '● working', 'merged']);
+  assert.match(rows.at(-1).text, /1 stopped task hidden/);
+  assert.ok(items(buildView(2, data, { showStopped: true })).some((row) => row.id === 'old-run'));
+  assert.equal(buildView(2, { ...data, tasks: [task('merged', 'stopped', { stopConfirmed: true, id: 'shipped-id' })] }, { showStopped: true })[1].agent.text, 'merged');
 });
 
-test('issue tabs show empty states, split started from todo and mark issues that already have agents', () => {
-  const empty = { tasks: [], prs: [], records: [], linear: { status: 'missing', message: 'No Linear token configured.', open: [], done: [] } };
-  assert.deepEqual(buildRows(0, empty).map((row) => row.text.trim()), ['No Linear token configured.']);
+test('issue tabs show the empty state, split started from todo and label issues with their agent', () => {
+  const empty = { tasks: [], prs: [], records: [], linear: { status: 'missing', message: 'No Linear token configured.\nAdd it.', open: [], done: [] } };
+  assert.deepEqual(buildView(0, empty).map((row) => row.text), ['No Linear token configured.', 'Add it.']);
   const open = [issue('PLT-2', 'unstarted', { priority: 1 }), issue('PLT-1', 'started'), issue('PLT-3', 'backlog')];
   const data = { ...empty, tasks: [task('plt-1', 'working', { branch: 'jal/plt-1-fix' })], linear: { status: 'ok', open, done: [] } };
-  const rows = buildRows(0, data);
-  assert.deepEqual(rows.filter((row) => row.kind === 'header').map((row) => row.text), ['In progress', 'Todo']);
-  assert.match(rows.find((row) => row.item?.identifier === 'PLT-1').text, /● /);
-  assert.match(rows.find((row) => row.item?.identifier === 'PLT-2').text, /!! PLT-2/);
-  assert.deepEqual(buildRows(1, data).filter(selectable).map((row) => row.item.identifier), ['PLT-3']);
+  assert.deepEqual(sections(buildView(0, data)), { 'In progress': ['PLT-1'], Todo: ['PLT-2'] });
+  assert.equal(items(buildView(0, data))[0].agent.text, '● working');
+  assert.deepEqual(sections(buildView(1, data)), { Billing: ['PLT-3'] });
 });
 
-test('today separates in-progress work, up-next issues and work finished since midnight', () => {
+test('the brief separates in progress, up next and done since yesterday without duplicates', () => {
   const now = new Date('2026-11-08T15:00:00').getTime();
-  const tasks = [task('active', 'working'), task('shipped', 'done', { updatedAt: now - 1000 }), task('yesterday', 'done', { updatedAt: now - 86_400_000 })];
+  const tasks = [
+    task('active', 'working'),
+    task('plt-8', 'working', { branch: 'jal/plt-8-fix' }),
+    task('shipped', 'done', { updatedAt: now - 1000 }),
+    task('yesterday', 'done', { updatedAt: now - 86_400_000 }),
+    task('old', 'done', { updatedAt: now - 3 * 86_400_000 }),
+  ];
+  const prs = [
+    { taskId: 'shipped-id', url: 'https://github.com/a/b/pull/1', state: 'MERGED', mergedAt: new Date(now).toISOString(), name: 'shipped', repositoryPath: '/r/platform' },
+    { taskId: 'gone', url: 'https://github.com/a/b/pull/2', state: 'MERGED', mergedAt: new Date(now).toISOString(), name: 'fix build', repositoryPath: '/r/harbor' },
+  ];
   const linear = { status: 'ok', open: [issue('PLT-9', 'unstarted'), issue('PLT-8', 'started')], done: [issue('PLT-7', 'completed')] };
-  const rows = buildRows(3, { tasks, prs: [], records: [], linear }, { now });
-  const sections = {};
-  let current;
-  for (const row of rows) {
-    if (row.kind === 'header') current = sections[row.text] = [];
-    else if (selectable(row)) current.push(row.item.name ?? row.item.identifier);
-  }
-  assert.deepEqual(sections, { 'In progress': ['active', 'PLT-8'], 'Up next': ['PLT-9'], 'Done today': ['shipped', 'PLT-7'] });
+  const data = { tasks, prs, records: [], linear };
+  assert.deepEqual(sections(buildView(3, data, { now })), {
+    'In progress': ['active', 'PLT-8'],
+    'Up next': ['PLT-9'],
+    'Done since yesterday': ['PLT-7', 'shipped', 'yesterday', '#2'],
+  });
+  assert.deepEqual(items(buildView(3, data, { now, mode: 'list' })).map((row) => row.id), ['active', 'PLT-8', 'PLT-9', 'PLT-7', 'shipped', 'yesterday', '#2']);
+  assert.equal(items(buildView(3, data, { now })).find((row) => row.id === 'shipped').agent.text, 'merged');
 });
 
-test('cursor skips headers and the render fits its width without control sequences', () => {
-  const rows = [{ kind: 'header', text: 'g' }, { kind: 'task', text: 'a', item: {} }, { kind: 'note', text: '' }, { kind: 'issue', text: 'b', item: {} }];
+test('cursor skips headers, notes and blanks', () => {
+  const rows = [{ kind: 'section' }, { kind: 'item' }, { kind: 'blank' }, { kind: 'note' }, { kind: 'item' }];
   assert.equal(moveCursor(rows, -1, 0), 1);
-  assert.equal(moveCursor(rows, 1, 1), 3);
-  assert.equal(moveCursor(rows, 3, 1), 3);
-  assert.equal(moveCursor([{ kind: 'header' }], -1, 1), -1);
-  const lines = renderView({ tab: 2, rows: [{ kind: 'task', text: `x\u001b]52;payload\u0007${'y'.repeat(200)}`, tone: 'text' }], cursor: 0, status: { tone: 'error', text: 'boom' }, capacity: { used: 8, max: 8 }, counts: [1, 2, 3, undefined] }, 40, 20);
-  assert.ok(lines.every((line) => [...line.text].length <= 40 && !/[\u001b\u0007]/.test(line.text)));
-  assert.equal(lines.length, 20);
-  assert.ok(lines.some((line) => line.selected));
-  assert.match(renderView({ tab: 2, rows: [], cursor: -1, capacity: { used: 8, max: 8 }, counts: [1, 2, 3, undefined] }, 120, 12)[0].text, /\[3 Sessions 3\] +4 Today\s+agents 8\/8$/);
+  assert.equal(moveCursor(rows, 1, 1), 4);
+  assert.equal(moveCursor(rows, 4, 10), 4);
+  assert.equal(moveCursor([{ kind: 'section' }], -1, 1), -1);
+});
+
+test('the screen fills the terminal exactly, measures wide characters and strips control sequences', () => {
+  assert.equal(columns('ab🙂漢'), 6);
+  assert.equal(fit('漢字漢字', 5), '漢字…');
+  assert.equal(columns(fit('x\u001b]52;payload\u0007yz', 8)), 8);
+  const rows = [
+    { kind: 'section', title: 'In progress', count: 1 },
+    { kind: 'item', key: 'i:A-1', id: 'A-1', title: `Title 🙂 ${'y'.repeat(200)}`, project: 'Billing', agent: { text: '● working', tone: 'yellow' } },
+  ];
+  const state = { tab: 3, mode: 'brief', rows, cursor: 1, working: 1, capacity: { used: 8, max: 8 }, doneCount: 2, now: Date.now() };
+  for (const width of [40, 80, 140]) {
+    const screen = renderScreen(state, width, 24).map(plain);
+    assert.equal(screen.length, 24);
+    assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
+  }
+  const screen = renderScreen(state, 120, 24).map(plain);
+  assert.match(screen[0], /^1 Issues {3}2 Backlog {3}3 Sessions {3}4 Today +● 1 working {3}agents 8\/8$/);
+  assert.match(screen[2], /^Brief {2}List/);
+  assert.match(screen[5], /^ {2}In progress 1/);
+  assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
+  assert.match(screen.at(-4), /^Title/);
+  assert.match(screen.at(-1), /s send · u resume · d retire/);
+  const retire = renderScreen({ ...state, confirm: { retire: true, task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
+  assert.match(retire.at(-4), /^Retire ui-fix\?/);
+  assert.match(retire.at(-2), /Logs, branch and checkout are kept/);
+});
+
+test('raw input splits into keys, including escape sequences and pasted text', () => {
+  assert.deepEqual(keys('\u001b[Ajk\r\u001b[Z\u001b'), ['\u001b[A', 'j', 'k', '\r', '\u001b[Z', '\u001b']);
 });
 
 test('issue launches use the coordinator brief template and a persistent interactive worktree agent', () => {

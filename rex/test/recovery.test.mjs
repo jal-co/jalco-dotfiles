@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { RexRecovery } from '../src/recovery.ts';
-import { agentIdentityFile, TaskStore, boundedSummary, cleanText, probeProcess, processBirth, processCommand, taskState, writeAgentIdentity } from '../src/tasks.ts';
+import { agentIdentityFile, TaskStore, boundedSummary, cleanText, environmentHolders, probeProcess, processBirth, processCommand, taskState, writeAgentIdentity } from '../src/tasks.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-recovery-'));
@@ -25,7 +25,7 @@ function fixture() {
       appendPersistentDeliveryLedger: (_file, row) => ledger.push(row), writePersistentTaskInbox: (_file, sequence, row) => inbox.push({ sequence, ...row }) },
     activity: { readSubagentActivityFile: () => ({ ok: true, activity: { phase: 'waiting' } }) },
     running: () => new Map(), send: (message) => messages.push(message), notify: () => {}, flags: { recovery: true, overview: true },
-    owner: { pid: 333, birth: 'new' }, originCwd: root, birth: (pid) => pid === 222 ? 'agent' : pid === 333 ? 'new' : null });
+    owner: { pid: 333, birth: 'new' }, originCwd: root, holders: () => null, birth: (pid) => pid === 222 ? 'agent' : pid === 333 ? 'new' : null });
   return { root, store, record, events, ledger, messages, inbox, recovery, policy, closed, scripts };
 }
 
@@ -273,6 +273,41 @@ test('retire never touches live, unattested or unreadable process identities', (
   }
 });
 
+test('an unattested task is retired only when no process carries its task ID', () => {
+  for (const [holders, outcome] of [[() => [], 'retired'], [() => [4242], /process 4242 still runs/], [() => null, /identity is unavailable/], [() => { throw new Error('ps failed'); }, /ps failed/]]) {
+    const f = fixture();
+    delete f.record.identity; f.store.write(f.record);
+    f.recovery.holders = holders;
+    if (outcome === 'retired') {
+      const result = f.recovery.retire({ name: 'fixture' });
+      assert.equal(result.status, 'retired');
+      assert.match(result.reason, /predates process attestation/);
+      assert.equal(f.store.read('run-a').stopConfirmed, true);
+      assert.deepEqual(f.closed, ['session:a/block:a']);
+    } else {
+      assert.throws(() => f.recovery.retire({ name: 'fixture' }), outcome);
+      assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+    }
+  }
+});
+
+test('an attestation mismatch is never bypassed by the environment check', () => {
+  const f = fixture();
+  delete f.record.identity; f.store.write(f.record);
+  writeFileSync(agentIdentityFile(f.record.sessionFile, 'run-a'), JSON.stringify({ version: 1, id: 'run-a', sessionFile: f.record.sessionFile, surface: 'session:other/block:x', generationId: 'generation-a', policyHash: 'hash', pid: 222, birth: 'agent' }));
+  f.recovery.holders = () => [];
+  assert.throws(() => f.recovery.retire({ name: 'fixture' }), /attestation does not match/);
+});
+
+test('environment holders read the process table only when environments are visible', () => {
+  const me = process.pid;
+  const table = `${me} node x HOME=/h\n  41 pi PI_SUBAGENT_ID=task-1 HOME=/h\n  42 vite PI_SUBAGENT_ID=task-10 HOME=/h\n  43 sh PI_SUBAGENT_ID=task-1\n`;
+  assert.deepEqual(environmentHolders('task-1', () => table), [41, 43]);
+  assert.deepEqual(environmentHolders('task-2', () => table), []);
+  assert.equal(environmentHolders('task-1', () => `${me} node x\n41 pi PI_SUBAGENT_ID=task-1\n`), null);
+  assert.throws(() => environmentHolders('../x', () => table), /Invalid task ID/);
+});
+
 test('retire preserves ownership, generation and binding safety checks', () => {
   for (const mode of ['owner', 'policy', 'changed']) {
     const f = fixture();
@@ -371,13 +406,33 @@ test('a crashed session resumes in its retained tab and worktree with the same i
   f.recovery.close();
 });
 
-test('resume refuses live, unverifiable, supervised, stopped and tabless tasks', async () => {
+test('a crashed task whose tab was closed resumes in a new tab in its repository session', async () => {
+  const f = fixture();
+  f.record.worktree = join(f.root, 'checkout');
+  f.store.write(f.record);
+  writeFileSync(f.record.sessionFile, `${JSON.stringify({ type: 'session', cwd: f.record.worktree })}\n`);
+  f.recovery.worktrees = { records: () => [], save: () => {} };
+  f.recovery.birth = (pid) => pid === 333 ? 'new' : null;
+  const created = [];
+  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+  f.recovery.provider.createSurface = (options) => { created.push(options); return 'session:repo/block:new'; };
+  const result = await f.recovery.resume({ sessionPath: f.record.sessionFile });
+  assert.equal(result.surface, 'session:repo/block:new');
+  assert.match(result.reason, /in a reopened tab/);
+  assert.deepEqual(created, [{ name: 'fixture', cwd: f.record.worktree }]);
+  assert.equal(f.scripts[0].surface, 'session:repo/block:new');
+  assert.ok(f.scripts[0].command.includes("PI_SUBAGENT_SURFACE='session:repo/block:new'"));
+  assert.equal(f.store.read('run-a').surface, 'session:repo/block:new');
+  f.recovery.close();
+});
+
+test('resume refuses live, unverifiable, supervised, stopped and unreachable tasks', async () => {
   const cases = {
     alive: [(f) => {}, /still running/],
     unknown: [(f) => { f.recovery.birth = () => { throw new Error('ps failed'); }; }, /liveness cannot be established/],
     supervised: [(f) => { f.recovery.birth = () => null; f.recovery.running = () => new Map([['run-a', {}]]); }, /still supervised/],
     stopped: [(f) => { f.recovery.birth = () => null; f.store.write({ ...f.record, stopConfirmed: true }); }, /was stopped/],
-    tabless: [(f) => { f.recovery.birth = () => null; f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' }); }, /no longer has its retained tab/],
+    unreachable: [(f) => { f.recovery.birth = () => null; f.recovery.provider.inspectSurface = async () => ({ kind: 'unavailable', error: 'server down' }); }, /cannot confirm .*server down/],
   };
   for (const [name, [arrange, error]] of Object.entries(cases)) {
     const f = fixture();

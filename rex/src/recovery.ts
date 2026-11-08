@@ -4,14 +4,14 @@ import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync }
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.mjs';
-import { agentIdentityFile, boundedSummary, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
+import { agentIdentityFile, boundedSummary, environmentHolders, sessionCwd, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
 import { leaseAlive } from './worktrees.mjs';
 
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 
 export class RexRecovery {
-  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, onChange, launch }) {
-    Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth, command, parentOf, onChange, launch });
+  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, holders = environmentHolders, onChange, launch }) {
+    Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth, command, parentOf, holders, onChange, launch });
     this.recovered = new Set();
     this.view = new Map();
     this.watchers = new Map();
@@ -286,10 +286,22 @@ export class RexRecovery {
       if (ids.size >= capacity) throw new Error(`Persistent specialist cap (${capacity}) reached, including retained agents. Stop an existing specialist before dispatching another.`);
     }
   }
+  exitEvidence(record) {
+    const probe = this.probe(record);
+    if (probe.state !== 'unknown' || record.identity || probe.reason !== 'Recorded process identity is unavailable') return probe;
+    try {
+      const pids = this.holders(record.id);
+      if (pids === null) return probe;
+      if (pids.length) return { state: 'unknown', reason: `process ${pids.join(', ')} still runs with this task's PI_SUBAGENT_ID` };
+      return { state: 'crashed', reason: "No process runs with this task's PI_SUBAGENT_ID; it predates process attestation" };
+    } catch (error) {
+      return { state: 'unknown', reason: String(error) };
+    }
+  }
   retire(params) {
     const record = this.resolve(params, true);
     if (!record) return undefined;
-    const probe = this.probe({ ...record });
+    const probe = this.exitEvidence({ ...record });
     if (probe.state === 'alive') return undefined;
     if (probe.state === 'unknown') {
       if (this.running().has(record.id) || this.recovered.has(record.id)) return undefined;
@@ -303,7 +315,7 @@ export class RexRecovery {
         if (stamp && (!current.owner.birth || stamp === current.owner.birth)) throw new Error('Another live coordinator owns this task');
       }
       this.checkPolicy(current);
-      const confirmed = this.probe(current);
+      const confirmed = this.exitEvidence(current);
       if (confirmed.state !== 'crashed') throw new Error(`Agent process exit is no longer confirmed (${confirmed.reason}); nothing was retired`);
       if (this.running().has(current.id)) this.retireStopped(current.id);
       current.owner = this.owner;
@@ -359,21 +371,25 @@ export class RexRecovery {
     if (!record) return undefined;
     if (!this.flags.recovery) throw new Error('Recovery is disabled; retained task sessions cannot be resumed');
     if (this.running().has(record.id)) throw new Error(`Task "${record.name}" is still supervised by this coordinator; wait for its result before resuming`);
-    const probe = this.probe({ ...record });
+    const probe = this.exitEvidence({ ...record });
     if (probe.state === 'alive') throw new Error(`Task "${record.name}" is still running (${probe.reason}); use subagent_send instead of resuming it`);
     if (probe.state === 'unknown') throw new Error(`Task "${record.name}" liveness cannot be established (${probe.reason}); nothing was resumed`);
     if (record.stopConfirmed) throw new Error(`Task "${record.name}" was stopped and its tab closed; launch a new task instead`);
     const surface = await this.provider.inspectSurface(record.surface);
-    if (surface.kind !== 'present') throw new Error(`Task "${record.name}" no longer has its retained tab (${surface.kind}); nothing was resumed`);
-    await this.provider.waitForShellReady(record.surface);
+    if (surface.kind === 'unavailable') throw new Error(`Rex cannot confirm whether task "${record.name}" still has its tab (${surface.error}); nothing was resumed`);
+    const cwd = sessionCwd(record.sessionFile) ?? record.worktree ?? record.originCwd;
+    const target = surface.kind === 'present' ? record.surface : this.provider.createSurface({ name: record.name, cwd });
+    await this.provider.waitForShellReady(target);
     return this.store.exclusive(record.id, () => {
       const current = this.store.read(record.id);
+      if (current.surface !== record.surface || current.sessionFile !== record.sessionFile) throw new Error(`Task binding changed while resuming; nothing was resumed. Close the new tab ${target} if it is unused`);
       if (!this.owned(current)) {
         const stamp = this.birth(current.owner.pid);
         if (stamp && (!current.owner.birth || stamp === current.owner.birth)) throw new Error('Another live coordinator owns this task');
       }
       const policy = this.checkPolicy(current);
-      if (this.probe(current).state !== 'crashed') throw new Error('Agent process exit is no longer confirmed; nothing was resumed');
+      if (this.exitEvidence(current).state !== 'crashed') throw new Error('Agent process exit is no longer confirmed; nothing was resumed');
+      current.surface = target;
       const stamp = Date.now();
       for (const file of [agentIdentityFile(current.sessionFile, current.id), `${current.sessionFile}.rex-process.json`, `${current.sessionFile}.exit`]) {
         if (existsSync(file)) renameSync(file, `${file}.crashed-${stamp}`);
@@ -382,8 +398,6 @@ export class RexRecovery {
       const messageFile = join(artifacts, 'subagent-resume', `${current.id}-${stamp}.md`);
       mkdirSync(dirname(messageFile), { recursive: true });
       writeFileSync(messageFile, params.message || 'Your previous agent process exited before finishing. Continue from where it stopped.', { mode: 0o600 });
-      const header = readFileSync(current.sessionFile, 'utf8').split('\n', 1)[0];
-      const cwd = JSON.parse(header).cwd ?? current.worktree ?? current.originCwd;
       const autoExit = !current.persistent;
       const tools = this.launch.toolAllowlist(policy.tools?.join(','), autoExit);
       const env = [
@@ -414,7 +428,7 @@ export class RexRecovery {
       current.stopNotified = false;
       current.owner = this.owner;
       current.state = 'unknown';
-      current.reason = `Resumed after ${probe.reason}`;
+      current.reason = `Resumed${target === record.surface ? '' : ' in a reopened tab'} after ${probe.reason}`;
       current.updatedAt = stamp;
       this.store.write(current);
       this.recovered.add(current.id);

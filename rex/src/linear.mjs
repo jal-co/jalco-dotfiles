@@ -3,25 +3,25 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
-import { cleanText } from './tasks.ts';
+import { cleanText, sessionCwd } from './tasks.ts';
 
 const run = promisify(execFile);
 const reference = /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/([^/\r\n]+\/)?[^/\r\n]+$/;
 
 export const TABS = ['Issues', 'Backlog', 'Sessions', 'Today'];
-export const STATES = {
-  blocked: { icon: '!', tone: 'warning' },
-  error: { icon: '✕', tone: 'error' },
-  unknown: { icon: '?', tone: 'warning' },
-  working: { icon: '●', tone: 'accent' },
-  stopping: { icon: '◌', tone: 'muted' },
-  done: { icon: '✓', tone: 'success' },
-  idle: { icon: '○', tone: 'muted' },
-  stopped: { icon: '–', tone: 'dim' },
+const AGENT = {
+  blocked: ['! blocked', 'red'],
+  error: ['✕ error', 'red'],
+  working: ['● working', 'yellow'],
+  unknown: ['? unknown', 'yellow'],
+  stopping: ['◌ stopping', 'dim'],
+  idle: ['○ idle', 'dim'],
+  done: ['✓ done', 'green'],
 };
-const order = Object.keys(STATES);
+const order = [...Object.keys(AGENT), 'stopped'];
 const rank = (state) => (order.includes(state) ? order.indexOf(state) : order.indexOf('unknown'));
 const priority = (issue) => (issue.priority ? issue.priority : 5);
+const byPriority = (a, b) => priority(a) - priority(b) || a.identifier.localeCompare(b.identifier, undefined, { numeric: true });
 
 export const linearConfigFile = () => process.env.REX_LINEAR_CONFIG ?? join(homedir(), '.rex', 'linear.json');
 
@@ -70,8 +70,7 @@ export function issueQuery(since) {
 }
 
 export async function fetchIssues(token, { fetch = globalThis.fetch, now = new Date() } = {}) {
-  const since = new Date(now);
-  since.setHours(0, 0, 0, 0);
+  const since = startOfYesterday(now.getTime());
   const response = await fetch('https://api.linear.app/graphql', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: token.startsWith('lin_api_') ? token : `Bearer ${token}` },
@@ -101,7 +100,8 @@ export function projectOf(task, records) {
   const record = records.find((row) => row.path === task.worktree);
   if (record?.repo) return basename(record.repo);
   if (task.worktree) return basename(dirname(task.worktree)).replace(/-[0-9a-f]{12}$/, '');
-  return 'No checkout';
+  const cwd = sessionCwd(task.sessionFile);
+  return cwd ? basename(cwd) : 'No checkout';
 }
 
 export function pullRequestFor(task, prs) {
@@ -116,106 +116,120 @@ export function linkedTask(issue, tasks) {
   return matches.find((task) => !task.stopConfirmed) ?? matches[0];
 }
 
-const live = (task) => Boolean(task) && !task.stopConfirmed && task.state !== 'stopped';
+export const live = (task) => Boolean(task) && !task.stopConfirmed && task.state !== 'stopped';
 
-function taskRow(task, prs) {
-  const state = task.state ?? 'unknown';
-  const pr = pullRequestFor(task, prs);
-  const { icon, tone } = STATES[state] ?? STATES.unknown;
+export function startOfYesterday(now = Date.now()) {
+  const day = new Date(now);
+  day.setHours(0, 0, 0, 0);
+  day.setDate(day.getDate() - 1);
+  return day;
+}
+
+export function agentLabel({ task, pr, issue }) {
+  const settled = !live(task) || ['done', 'idle'].includes(task.state);
+  if (!settled) {
+    const [text, tone] = AGENT[task.state] ?? AGENT.unknown;
+    return { text, tone };
+  }
+  if (pr?.state === 'MERGED') return { text: 'merged', tone: 'magenta' };
+  if (pr?.state === 'OPEN') return { text: 'in review', tone: 'blue' };
+  if (issue?.state.type === 'completed' || task?.completed || task?.state === 'done') return { text: '✓ done', tone: 'green' };
+  if (live(task)) return { text: '○ idle', tone: 'dim' };
+  return { text: '', tone: 'dim' };
+}
+
+function issueItem(issue, data) {
+  const task = linkedTask(issue, data.tasks);
+  const pr = task && pullRequestFor(task, data.prs);
   return {
-    kind: 'task', item: task, tone,
-    text: `  ${icon} ${state.padEnd(8)} ${cleanText(task.name).padEnd(24)} ${(pr ? `PR ${pr.state.toLowerCase()}` : '').padEnd(10)} ${cleanText(task.branch ?? 'no branch')}`,
+    kind: 'item', key: `i:${issue.identifier}`, id: issue.identifier, title: cleanText(issue.title),
+    project: cleanText(issue.project?.name ?? issue.team.key), issue, task, pr, agent: agentLabel({ task, pr, issue }),
   };
 }
 
-function issueRow(issue, tasks) {
-  const task = linkedTask(issue, tasks);
-  const marker = task && live(task) ? (STATES[task.state] ?? STATES.unknown).icon : ' ';
-  const flag = issue.priority === 1 ? '!!' : issue.priority === 2 ? '! ' : '  ';
+function taskItem(task, data) {
+  const issue = [...data.linear.open, ...data.linear.done].find((entry) => linkedTask(entry, [task]));
+  const pr = pullRequestFor(task, data.prs);
   return {
-    kind: 'issue', item: issue, tone: task && live(task) ? (STATES[task.state] ?? STATES.unknown).tone : 'text',
-    text: `  ${marker} ${flag} ${issue.identifier.padEnd(12)} ${cleanText(issue.state.name).padEnd(12)} ${cleanText(issue.title)}`,
+    kind: 'item', key: `t:${task.id}`, id: issue?.identifier ?? cleanText(task.name),
+    title: issue ? cleanText(issue.title) : cleanText(task.branch ?? task.reason ?? ''),
+    project: projectOf(task, data.records), issue, task, pr, agent: agentLabel({ task, pr, issue }),
   };
 }
 
-const header = (text) => ({ kind: 'header', text, tone: 'title' });
-const note = (text, tone = 'muted') => ({ kind: 'note', text: `  ${text}`, tone });
+function pullRequestItem(pr) {
+  return {
+    kind: 'item', key: `p:${pr.url}`, id: `#${pr.url.split('/').at(-1)}`, title: cleanText(pr.name),
+    project: basename(pr.repositoryPath), pr, agent: agentLabel({ pr }),
+  };
+}
 
-function grouped(items, key, row) {
+const note = (text, tone = 'dim') => ({ kind: 'note', text, tone });
+
+function section(title, items, empty) {
+  if (!items.length && !empty) return [];
+  return [{ kind: 'section', title, count: items.length }, ...(items.length ? items : [note(empty)]), { kind: 'blank' }];
+}
+
+function grouped(items, key) {
   const groups = new Map();
   for (const item of items) groups.set(key(item), [...(groups.get(key(item)) ?? []), item]);
-  return [...groups].sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, entries]) => [header(name), ...entries.map(row), note('')]);
+  return [...groups].sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, entries]) => section(name, entries));
 }
 
-const byPriority = (a, b) => priority(a) - priority(b) || a.identifier.localeCompare(b.identifier);
+export function brief(data, now = Date.now()) {
+  const since = startOfYesterday(now).getTime();
+  const started = data.linear.open.filter((issue) => issue.state.type === 'started').sort(byPriority).map((issue) => issueItem(issue, data));
+  const claimed = new Set(started.flatMap((item) => (item.task ? [item.task.id] : [])));
+  const active = data.tasks.filter((task) => live(task) && !['done', 'idle'].includes(task.state) && !claimed.has(task.id))
+    .sort((a, b) => rank(a.state) - rank(b.state)).map((task) => taskItem(task, data));
+  const next = data.linear.open.filter((issue) => issue.state.type === 'unstarted' && !live(linkedTask(issue, data.tasks)))
+    .sort(byPriority).slice(0, 10).map((issue) => issueItem(issue, data));
+  const finished = data.linear.done.map((issue) => issueItem(issue, data));
+  const shown = new Set(finished.flatMap((item) => (item.task ? [item.task.id] : [])));
+  const tasks = data.tasks.filter((task) => !shown.has(task.id) && (task.state === 'done' || task.completed) && task.updatedAt >= since)
+    .map((task) => taskItem(task, data));
+  for (const item of tasks) shown.add(item.task.id);
+  const merged = data.prs.filter((pr) => pr.state === 'MERGED' && Date.parse(pr.mergedAt) >= since && !shown.has(pr.taskId)).map(pullRequestItem);
+  return { inProgress: [...active, ...started], next, done: [...finished, ...tasks, ...merged] };
+}
 
-export function buildRows(tab, data, { showStopped = false, now = Date.now() } = {}) {
-  const { tasks, prs, records, linear } = data;
-  const empty = linear.status === 'ok' ? undefined : linear.message.split('\n').map((line) => note(line, linear.status === 'error' ? 'error' : 'warning'));
+export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now() } = {}) {
+  const unavailable = data.linear.status === 'ok' ? undefined : data.linear.message.split('\n').map((line) => note(line, data.linear.status === 'error' ? 'red' : 'yellow'));
   if (tab === 0 || tab === 1) {
-    if (empty) return empty;
-    const types = tab === 0 ? ['started', 'unstarted'] : ['backlog', 'triage'];
-    const issues = linear.open.filter((issue) => types.includes(issue.state.type)).sort(byPriority);
-    if (!issues.length) return [note(tab === 0 ? 'No started or todo issues are assigned to you.' : 'Your backlog is empty.')];
-    return tab === 0
-      ? types.flatMap((type) => {
-          const rows = issues.filter((issue) => issue.state.type === type);
-          return rows.length ? [header(type === 'started' ? 'In progress' : 'Todo'), ...rows.map((issue) => issueRow(issue, tasks)), note('')] : [];
-        })
-      : grouped(issues, (issue) => cleanText(issue.project?.name ?? 'No project'), (issue) => issueRow(issue, tasks));
+    if (unavailable) return unavailable;
+    if (tab === 0) {
+      const of = (type) => data.linear.open.filter((issue) => issue.state.type === type).sort(byPriority).map((issue) => issueItem(issue, data));
+      return [...section('In progress', of('started'), 'Nothing started.'), ...section('Todo', of('unstarted'), 'No todo issues.')];
+    }
+    const backlog = data.linear.open.filter((issue) => ['backlog', 'triage'].includes(issue.state.type)).sort(byPriority).map((issue) => issueItem(issue, data));
+    return backlog.length ? grouped(backlog, (item) => item.project) : [note('Your backlog is empty.')];
   }
   if (tab === 2) {
-    const shown = tasks.filter((task) => showStopped || live(task));
-    const hidden = tasks.length - shown.length;
-    const rows = grouped(shown.sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name)),
-      (task) => projectOf(task, records), (task) => taskRow(task, prs));
-    if (!tasks.length) return [note('No tracked Rex tasks yet.')];
-    return [...rows, ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden. Press x to show them.`, 'dim')] : [])];
+    if (!data.tasks.length) return [note('No tracked Rex tasks yet.')];
+    const shown = data.tasks.filter((task) => showStopped || live(task)).sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
+    const hidden = data.tasks.length - shown.length;
+    return [...grouped(shown.map((task) => taskItem(task, data)), (item) => item.project),
+      ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden · x shows them`)] : [])];
   }
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  const active = tasks.filter((task) => live(task) && !['done', 'idle'].includes(task.state));
-  const linked = (issue) => live(linkedTask(issue, tasks));
-  const started = linear.open.filter((issue) => issue.state.type === 'started' && !linked(issue)).sort(byPriority);
-  const next = linear.open.filter((issue) => issue.state.type === 'unstarted' && !linked(issue)).sort(byPriority).slice(0, 10);
-  const finished = tasks.filter((task) => task.state === 'done' && task.updatedAt >= midnight);
-  const section = (title, rows, blank) => [header(title), ...(rows.length ? rows : [note(blank, 'dim')]), note('')];
+  const { inProgress, next, done } = brief(data, now);
+  if (mode === 'list') {
+    const items = [...inProgress, ...next, ...done];
+    return items.length ? items : [note('Nothing to show.')];
+  }
   return [
-    ...section('In progress', [...active.sort((a, b) => rank(a.state) - rank(b.state)).map((task) => taskRow(task, prs)), ...started.map((issue) => issueRow(issue, tasks))], 'Nothing in flight.'),
-    ...section('Up next', next.map((issue) => issueRow(issue, tasks)), empty ? linear.message.split('\n')[0] : 'No todo issues waiting.'),
-    ...section('Done today', [...finished.map((task) => taskRow(task, prs)), ...linear.done.map((issue) => issueRow(issue, tasks))], 'Nothing finished yet today.'),
+    ...section('In progress', inProgress, 'Nothing in flight.'),
+    ...section('Up next', next, unavailable ? data.linear.message.split('\n')[0] : 'No todo issues waiting.'),
+    ...section('Done since yesterday', done, 'Nothing finished since yesterday.'),
   ];
 }
-
-export const selectable = (row) => row.kind === 'task' || row.kind === 'issue';
 
 export function moveCursor(rows, cursor, step) {
-  const indexes = rows.flatMap((row, index) => (selectable(row) ? [index] : []));
-  if (!indexes.length) return -1;
-  const position = indexes.indexOf(cursor);
-  if (position === -1) return indexes[0];
-  return indexes[Math.min(indexes.length - 1, Math.max(0, position + step))];
-}
-
-export function renderView({ tab, rows, cursor, status, capacity, counts }, width, height) {
-  const fit = (text) => [...cleanText(text)].slice(0, Math.max(10, width)).join('');
-  const tabs = TABS.map((name, index) => {
-    const label = `${index + 1} ${name}${counts[index] === undefined ? '' : ` ${counts[index]}`}`;
-    return index === tab ? `[${label}]` : ` ${label} `;
-  }).join(' ');
-  const agents = capacity ? `agents ${capacity.used}/${capacity.max}` : '';
-  const top = `REX LINEAR  ${tabs}`;
-  const body = Math.max(3, height - 5);
-  const start = Math.max(0, Math.min(Math.max(0, cursor) - Math.floor(body / 2), rows.length - body));
-  const visible = rows.slice(start, start + body);
-  return [
-    { text: fit(`${top}${' '.repeat(Math.max(2, width - top.length - agents.length))}${agents}`), tone: 'title' },
-    { text: fit('─'.repeat(width)), tone: 'dim' },
-    ...visible.map((row, index) => ({ text: fit(row.text), tone: row.tone, selected: start + index === cursor })),
-    ...Array.from({ length: Math.max(0, body - visible.length) }, () => ({ text: '', tone: 'text' })),
-    { text: fit('─'.repeat(width)), tone: 'dim' },
-    { text: fit(status?.text ?? ''), tone: status?.tone ?? 'muted' },
-    { text: fit('↑↓ move  enter launch/focus  o open PR  s send  r refresh  x stopped  tab/1-4 switch  esc close'), tone: 'dim' },
-  ];
+  const items = rows.flatMap((row, index) => (row.kind === 'item' ? [index] : []));
+  if (!items.length) return -1;
+  const position = items.indexOf(cursor);
+  if (position === -1) return items[0];
+  return items[Math.min(items.length - 1, Math.max(0, position + step))];
 }
 
 export function issueBrief(issue, branch) {

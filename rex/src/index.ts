@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync, realpathSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
@@ -13,7 +14,7 @@ import { processBirth, TaskStore } from './tasks.ts';
 import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.mjs';
 import { RexRecovery } from './recovery.ts';
-import { registerLinearView } from './linear-view.ts';
+import { RequestInbox } from './requests.mjs';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
@@ -163,7 +164,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
           : tool.name === 'subagent_send'
             ? `${tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex')} A specialist that is mid-turn accepts one queued follow-up, delivered when its current turn ends; a second is rejected.`
             : tool.name === 'subagent_resume'
-              ? 'Resume a Pi task session from its session file. For a retained Rex task whose agent failed or crashed (process confirmed gone), this resumes the same session, generation and identity in its retained tab and worktree; it refuses while the original process is alive or unverifiable and never runs automatically. Other sessions resume in a new tab. Results arrive automatically; do not poll.'
+              ? 'Resume a Pi task session from its session file. For a retained Rex task whose agent failed or crashed (process confirmed gone), this resumes the same session, generation and identity in its retained tab and worktree, reopening the tab in the repository session when it was closed; it refuses while the original process is alive or unverifiable and never runs automatically. Other sessions resume in a new tab. Results arrive automatically; do not poll.'
               : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
       const wrapped = {
         ...tool,
@@ -204,7 +205,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
           }
           if (tool.name === 'subagent_resume' && recovery) {
             const resumed = await recovery.resume(params);
-            if (resumed) return { content: [{ type: 'text', text: `Task "${resumed.name}" resumed in its retained tab ${resumed.surface}. ${resumed.reason}. Results arrive automatically.` }], details: resumed };
+            if (resumed) return { content: [{ type: 'text', text: `Task "${resumed.name}" resumed in tab ${resumed.surface}. ${resumed.reason}. Results arrive automatically.` }], details: resumed };
           }
           if (['subagent_send', 'subagent_stop', 'subagent_interrupt', 'subagent_cancel'].includes(tool.name)) {
             const recovered = recovery?.control(tool.name, params);
@@ -244,8 +245,21 @@ export default async function rexAgents(pi: ExtensionAPI) {
       },
     },
   });
+  let inbox: RequestInbox | undefined;
   pi.on('session_start', (_event, ctx) => {
     latestContext = ctx;
+    void inbox?.close();
+    inbox = new RequestInbox({
+      origin: ctx.cwd,
+      run: async (name, params) => {
+        const result = await wrappedTools.get(name).execute(randomUUID(), params, new AbortController().signal, () => {}, ctx);
+        const text = result.content.map((part) => part.text ?? '').join(' ').trim();
+        const summary = { subagent: `launched ${params.name} on ${params.worktree?.branch}`, subagent_send: `sent a follow-up to ${params.id}`, subagent_stop: `asked to stop ${params.id}`, subagent_resume: `asked to resume ${params.name}` }[name];
+        pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear ${summary}: ${text}` }, { deliverAs: 'nextTurn' });
+        return { ok: !result.details?.error, outcome: result.details?.outcome, text };
+      },
+    });
+    inbox.start();
     const flags = readModules();
     if (!flags.recovery && !flags.overview) return;
     recovery = new RexRecovery({
@@ -279,13 +293,6 @@ export default async function rexAgents(pi: ExtensionAPI) {
       }
     } catch (error) { reportModuleError(error); }
   });
-  registerLinearView(pi, {
-    tools: wrappedTools,
-    records: () => worktrees.records(),
-    windowOf: (surface) => provider.windowOf(surface),
-    running: () => [...hostState.runningSubagents.values()],
-    maxAgents: () => persistentConfig.loadPersistentConfig(configPaths.getSubagentsConfigDir(), configPaths.getSubagentsConfigExamplePath()).maxAgents,
-  });
   pi.registerCommand('rex-tasks', {
     description: 'Show saved Rex tasks, their states, branches and blockers without polling agents',
     handler: async (_args, ctx) => {
@@ -300,6 +307,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
       }
     } catch (error) { reportModuleError(error); }
     recovery?.close();
+    void inbox?.close();
     releaseInfrastructure(process.env.REX_SESSION, event.reason);
   });
 }
