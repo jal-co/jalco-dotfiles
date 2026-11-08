@@ -9,6 +9,11 @@ import { processBirth } from './tasks.ts';
 
 const execute = promisify(execFile);
 const fields = 'url,state,mergedAt,headRefName,headRefOid,headRepository';
+const CONNECTIVITY_ERROR = /error connecting to api\.github\.com|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network/i;
+
+function isConnectivityError(error) {
+  return CONNECTIVITY_ERROR.test(String(error?.stderr ?? '') + String(error?.message ?? error));
+}
 
 export async function github(args, cwd, signal) {
   const { stdout } = await execute('gh', args, { cwd, signal, timeout: 20000, maxBuffer: 1024 * 1024, env: { ...process.env, GH_PROMPT_DISABLED: '1' } });
@@ -137,7 +142,7 @@ export class PullRequestWatcher {
           }
           this.errors.delete(candidate.task.id);
         } catch (error) {
-          if (!this.closed && !this.errors.has(candidate.task.id)) {
+          if (!this.closed && !this.errors.has(candidate.task.id) && !isConnectivityError(error)) {
             this.errors.add(candidate.task.id);
             this.notify(`PR tracking for ${candidate.task.name} failed: ${String(error)}`);
           }
