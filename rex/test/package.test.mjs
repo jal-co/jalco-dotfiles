@@ -41,6 +41,7 @@ test('the native package loads lifecycle and PR tools without modifying the inst
     assert.ok(extension.tools.has(name), name);
   }
   assert.ok(extension.commands.has('rex-prs'));
+  assert.ok(extension.commands.has('rex-linear'));
   const ctx = { sessionManager: { getBranch: () => [] }, ui: { setWidget() {}, notify() {}, setStatus() {} } };
   for (const handler of extension.handlers.get('session_shutdown') ?? []) await handler({ reason: 'quit' }, ctx);
   assert.equal(existsSync(installed) ? readFileSync(installed, 'utf8') : null, before);

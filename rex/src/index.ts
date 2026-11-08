@@ -13,6 +13,7 @@ import { processBirth, TaskStore } from './tasks.ts';
 import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.mjs';
 import { RexRecovery } from './recovery.ts';
+import { registerLinearView } from './linear-view.ts';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
@@ -59,6 +60,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
   let recovery: RexRecovery | undefined;
   let latestContext;
   const reportModuleError = (error) => latestContext?.ui.notify(`Rex task module: ${String(error)}. Existing agents were not restarted.`, 'error');
+  const wrappedTools = new Map();
   const { provider, worktrees, cleanupOperations, worktreeOperations, supervision } = infrastructureFor(process.env.REX_SESSION, () => {
     const provider = new RexSurfaceProvider();
     const worktrees = new RexWorktrees(provider);
@@ -163,7 +165,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
             : tool.name === 'subagent_resume'
               ? 'Resume a Pi task session from its session file. For a retained Rex task whose agent failed or crashed (process confirmed gone), this resumes the same session, generation and identity in its retained tab and worktree; it refuses while the original process is alive or unverifiable and never runs automatically. Other sessions resume in a new tab. Results arrive automatically; do not poll.'
               : tool.description.replaceAll('Herdr', 'Rex').replaceAll('herdr', 'Rex');
-      pi.registerTool({
+      const wrapped = {
         ...tool,
         description,
         promptSnippet: description,
@@ -214,7 +216,9 @@ export default async function rexAgents(pi: ExtensionAPI) {
           }
           return result;
         },
-      });
+      };
+      wrappedTools.set(tool.name, wrapped);
+      pi.registerTool(wrapped);
     },
     registerCommand(name, command) {
       if (['worktree', 'subagents-init'].includes(name)) return;
@@ -274,6 +278,13 @@ export default async function rexAgents(pi: ExtensionAPI) {
         if (entry.type === 'message' && entry.message.role === 'custom') recovery?.receipt(entry.message);
       }
     } catch (error) { reportModuleError(error); }
+  });
+  registerLinearView(pi, {
+    tools: wrappedTools,
+    records: () => worktrees.records(),
+    windowOf: (surface) => provider.windowOf(surface),
+    running: () => [...hostState.runningSubagents.values()],
+    maxAgents: () => persistentConfig.loadPersistentConfig(configPaths.getSubagentsConfigDir(), configPaths.getSubagentsConfigExamplePath()).maxAgents,
   });
   pi.registerCommand('rex-tasks', {
     description: 'Show saved Rex tasks, their states, branches and blockers without polling agents',

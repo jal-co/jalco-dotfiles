@@ -43,6 +43,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/runtime.mjs` | Preserves the provider and supervision together across Pi reloads |
 | `src/tasks.ts`, `src/recovery.ts`, `src/recovery-events.lua` | Saved task facts, verified reattachment and event-driven results |
 | `src/overview*.mjs`, `config/task-overview.lua` | Native Task Overview action and read-only live view |
+| `src/linear.mjs`, `src/linear-view.ts` | `/rex-linear` command center for Linear issues and task sessions |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.mjs` | Durable checkout ownership, leases, reuse and explicit cleanup |
@@ -88,6 +89,38 @@ Notification receipts prevent routine replay after restart. If the coordinator c
 Before approved checkout removal, the extension copies the task's Pi JSONL logs and the coordinator's current transcript into `~/.rex/history`, with private permissions, SHA-256 verification and an index linking the task, branch, checkout and tracked PRs. Original Pi logs stay untouched. Failed or missing archives block cleanup for launched tasks. Snapshots capture the transcript before removal; the original coordinator log continues recording afterward.
 
 Use `rex_task_history` to find archived logs by task name, branch, checkout or PR URL. The tool returns metadata and paths, not customer data or transcript contents. History is retained independently of terminal sessions, checkouts and PR state; no automatic pruning is installed.
+
+## Linear command center
+
+Run `/rex-linear` in the coordinator. It opens a keyboard-only view in the coordinator's terminal with four tabs:
+
+| Tab | Shows |
+| --- | --- |
+| Issues | Linear issues assigned to you that are in progress or todo, sorted by priority |
+| Backlog | Assigned backlog and triage issues, grouped by Linear project |
+| Sessions | The command center: this coordinator's tasks from `~/.rex/tasks`, grouped by repository, with state, branch and tracked PR state |
+| Today | A brief of work in progress, up-next todo issues and work finished since midnight |
+
+| Key | Action |
+| --- | --- |
+| `↑` `↓` or `j` `k` | Move |
+| `tab`, `shift+tab`, `1` to `4` | Switch tabs |
+| `enter` | Focus the task's Rex tab. On an issue without a running agent, launch one |
+| `o` | Open the task's tracked PR, or the Linear issue when it has none |
+| `s` | Send a message to the running task through `subagent_send`. A mid-turn agent queues one message |
+| `r` | Reload Linear issues |
+| `x` | Show or hide stopped tasks |
+| `esc` or `q` | Close |
+
+Issues link to tasks by Linear's branch name, or by the issue identifier in the task branch. Launching opens the standard brief (goal, files, verification, commit policy and report) in an editor, then calls the coordinator's `subagent` tool with a persistent, interactive worktree on the issue's branch from the repository's default remote branch. The agent cap is checked first; a full cap shows a message and launches nothing. The first launch for a Linear team asks for its repository checkout and remembers it.
+
+Linear access uses a personal API key stored in the `Agents / Dev` vault. Add its reference, not the key, to `~/.rex/linear.json`:
+
+```json
+{ "tokenRef": "op://VAULT_ID/ITEM_ID/credential", "repositories": { "PLTFRM": "/Users/justin/mastra/platform" } }
+```
+
+The key is read with `op read` when the view opens and kept in memory only for that view. Without a reference, or when 1Password or Linear is unavailable, the issue tabs show why and Sessions still works.
 
 ## Appearance
 
