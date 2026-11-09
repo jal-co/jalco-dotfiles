@@ -9,7 +9,7 @@ import {
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
-import { actionsFor, batchSummary, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
+import { actionsFor, batchSummary, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -423,4 +423,10 @@ test('an old coordinator is explained instead of reported as an invalid action',
 test('the cleanup summary never counts skipped duplicates or failures as cleaned', () => {
   assert.equal(batchSummary({ total: 26, failed: [], skipped: 0 }), 'Cleaned up 26 of 26.');
   assert.equal(batchSummary({ total: 26, failed: ['a (dirty)'], skipped: 5 }), 'Cleaned up 20 of 26. 5 already in progress elsewhere, not counted. Not cleaned: a (dirty)');
+});
+
+test('repeated missed results collapse into one line with a count', () => {
+  const reloaded = { ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' };
+  assert.equal(summarizeMissed([reloaded, reloaded, reloaded, { ok: true, text: 'Removed /w/a. Branch kept.' }]),
+    'The coordinator reloaded before running this request; nothing was done (×3) · Removed /w/a');
 });

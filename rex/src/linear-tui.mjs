@@ -381,7 +381,7 @@ export class LinearApp {
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
     const missed = orphanResults();
-    if (missed.length) this.state.status = { tone: missed.every((result) => result.ok) ? 'green' : 'yellow', text: `While the command center was closed: ${missed.map((result) => cleanText(result.text).split('. ')[0]).join(' · ')}` };
+    if (missed.length) this.state.status = { tone: missed.every((result) => result.ok) ? 'green' : 'yellow', text: `While the command center was closed: ${summarizeMissed(missed)}` };
     this.draw();
     void this.refreshLinear();
   }
@@ -681,6 +681,15 @@ export function tabsToName(tasks, issues, named) {
     const issue = issues.find((entry) => linkedTask(entry, [task]));
     return issue ? [{ task, label: tabLabel(issue) }] : [];
   });
+}
+
+export function summarizeMissed(results) {
+  const counts = new Map();
+  for (const result of results) {
+    const text = cleanText(result.text).split('. ')[0];
+    counts.set(text, (counts.get(text) ?? 0) + 1);
+  }
+  return [...counts].map(([text, count]) => (count > 1 ? `${text} (×${count})` : text)).join(' · ');
 }
 
 export function batchSummary({ total, failed, skipped = 0 }) {
