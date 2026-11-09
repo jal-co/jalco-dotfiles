@@ -11,7 +11,7 @@ description: Upload a file, folder, or pasted text to Justin's own host at drop.
 
 - MUST upload only when Justin asked for a link in this conversation, or approved this specific upload. A link is public to anyone who gets it, and a deleted drop may already be cached or copied.
 - MUST read what you are about to upload and refuse to upload secrets: `.env` files, tokens, keys, cookies, credentials, private customer data. Stop and tell Justin what you found instead.
-- MUST NOT print, echo, or paste `JALCO_DROP_TOKEN`. It is the admin token, and it also signs Justin's admin session.
+- MUST NOT print, echo, or paste `JALCO_DROP_TOKEN`. It may be the admin token, which also signs Justin's admin session.
 - MUST NOT delete a drop unless Justin names it or asks for it. Deleting breaks every link already shared.
 
 </constraints>
@@ -21,6 +21,8 @@ description: Upload a file, folder, or pasted text to Justin's own host at drop.
 The CLI lives in the repository at `~/dev/jalco-drop/bin/jalco-drop`. Call that path when `command -v jalco-drop` finds nothing.
 
 The token comes from `JALCO_DROP_TOKEN`, kept in `~/.zshrc.local`. If it is unset, stop and ask Justin to add it. Do not search for it or guess it.
+
+It is either the admin token or a named token Justin created under Tokens in `/admin`. A named token carries its own permissions (upload, list, delete) and sender name, so its uploads read "<sender> sent you" instead of Justin. `-l` and `-d` fail with 401 when the token lacks list or delete; tell Justin rather than looking for another token.
 
 ## Upload
 
