@@ -23,7 +23,7 @@ test("actual Pi loads one pooled provider without touching credentials", async (
   const { home, env } = fixture(t);
   const result = await run("pi", [...flags, "-e", fileURLToPath(new URL("../index.ts", import.meta.url)), "--list-models"], { env, cwd: home, timeout: 30_000 });
   assert.match(result.stdout, /claude-bridge\s+claude-/);
-  assert.match(result.stdout, /claude-bridge\s+claude-fable-5-2\s+200K/);
+  assert.match(result.stdout, /claude-bridge\s+claude-fable-5-2\s+1M/);
   assert.doesNotMatch(result.stderr, /error|failed/i);
 });
 

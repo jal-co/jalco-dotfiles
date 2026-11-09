@@ -6,7 +6,7 @@ import { createOpReader, readSources, resolveAccounts } from "./config.ts";
 import { AccountPool } from "./pool.ts";
 import { SubscriptionRouter } from "./router.ts";
 import { createThinkingText } from "./thinking-text.ts";
-import { withAddedModels } from "./added-models.ts";
+import { withAddedModels, withLongContextIds } from "./added-models.ts";
 import { createTurnRecorder } from "./turn-log.ts";
 
 export default function claudePool(pi: ExtensionAPI): void {
@@ -25,7 +25,7 @@ export default function claudePool(pi: ExtensionAPI): void {
     if (provider !== "claude-bridge" || !config?.streamSimple) {
       throw new Error("Unexpected Claude bridge registration. Review the pinned bridge version before updating.");
     }
-    const source = config.streamSimple;
+    const source = withLongContextIds(config.streamSimple, config.models ?? []);
     pi.registerProvider(provider, {
       ...config,
       name: "Claude subscriptions",
