@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -380,7 +380,7 @@ export function taskBrief({ goal, context = [], branch, linear = false }) {
 }
 
 export function slugFor(goal, taken = []) {
-  const filler = new Set(['a', 'an', 'the', 'to', 'of', 'for', 'and', 'in', 'on', 'with', 'from', 'into', 'so', 'it', 'is', 'that', 'this']);
+  const filler = new Set(['a', 'an', 'the', 'to', 'of', 'for', 'and', 'in', 'on', 'with', 'from', 'into', 'so', 'it', 'is', 'that', 'this', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'want', 'wanna', 'need', 'have', 'has', 'be', 'able', 'can', 'could', 'would', 'should', 'please', 'make', 'get', 'let', 'like', 'just', 'some', 'something', 'thing', 'as', 'well', 'or', 'if', 'at', 'by', 'up', 'out', 'also', 'more']);
   const words = cleanText(goal).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((word) => word && !filler.has(word)).slice(0, 5);
   while (words.length > 1 && words.join('-').length > 32) words.pop();
   const base = words.join('-').slice(0, 32) || 'task';
@@ -389,7 +389,22 @@ export function slugFor(goal, taken = []) {
   return slug;
 }
 
-export const directCheckout = (repo) => repo === join(homedir(), 'dotfiles');
+export function directCheckout(repo) {
+  if (repo === join(homedir(), 'dotfiles')) return true;
+  const succeeds = (args) => {
+    try { execFileSync('git', ['-C', repo, ...args], { stdio: 'ignore', timeout: 5_000 }); return true; } catch { return false; }
+  };
+  return !succeeds(['remote', 'get-url', 'origin']) && succeeds(['rev-parse', '--git-dir']);
+}
+
+export function createProject(name, root = join(homedir(), 'dev')) {
+  const path = join(root, name);
+  if (existsSync(path)) throw new Error(`${path} already exists. Pick it with tab, or choose another name.`);
+  mkdirSync(path, { recursive: true });
+  execFileSync('git', ['init', '-q', '-b', 'main', path], { stdio: 'ignore' });
+  execFileSync('git', ['-C', path, 'commit', '-q', '--allow-empty', '-m', 'chore: initialize repository'], { stdio: 'ignore' });
+  return path;
+}
 
 export function launchParams(subject, { repo, base, brief }) {
   const name = subject.name ?? subject.identifier.toLowerCase();
@@ -402,10 +417,18 @@ export function launchParams(subject, { repo, base, brief }) {
 }
 
 export async function defaultBase(repo, exec = run) {
-  const { stdout } = await exec('git', ['-C', repo, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], { encoding: 'utf8', timeout: 10_000 });
-  const base = stdout.trim();
+  const git = async (args, timeout = 10_000) => (await exec('git', ['-C', repo, ...args], { encoding: 'utf8', timeout, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })).stdout.trim();
+  const attempt = async (args) => { try { return await git(args); } catch { return undefined; } };
+  let base = await attempt(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+  for (const candidate of ['origin/main', 'origin/master']) {
+    if (!base && await attempt(['rev-parse', '--verify', '-q', `refs/remotes/${candidate}`])) base = candidate;
+  }
+  if (!base) {
+    const local = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+    return { base: local, warning: `No remote default branch; branching from local ${local}.` };
+  }
   try {
-    await exec('git', ['-C', repo, 'fetch', '--quiet', 'origin', base.replace(/^origin\//, '')], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+    await git(['fetch', '--quiet', 'origin', base.replace(/^origin\//, '')], 30_000);
     return { base };
   } catch {
     return { base, warning: `Could not fetch ${base}; using the local copy.` };

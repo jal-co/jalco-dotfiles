@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
-  readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
+  createProject, defaultBase, directCheckout, readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
-import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
+import { confident, githubRepository, knownRepositories, rankRepositories, terms, workspaceRepositories } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
 import { SPINNER, actionsFor, archiveGoal, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
@@ -299,13 +300,15 @@ test('repository ranking prefers linked PRs, then team history, then distinctive
   const exec = async (_cmd, args) => {
     const repo = args[1];
     if (args[2] === 'remote') { if (!remotes[repo]) throw new Error('no remote'); return { stdout: remotes[repo] }; }
-    if ((code[repo] ?? []).includes(args.at(-1).toLowerCase())) return { stdout: '' };
-    throw new Error('no match');
+    const wanted = args.flatMap((arg, index) => (args[index - 1] === '-e' ? [arg] : []));
+    const found = wanted.filter((term) => (code[repo] ?? []).includes(term.toLowerCase()));
+    if (!found.length) throw new Error('no match');
+    return { stdout: `${found.map((term) => term.toUpperCase()).join('\n')}\n` };
   };
   const candidates = ['/r/platform', '/r/mastra', '/r/norem'];
   const subject = { identifier: 'ENG-10', title: 'Storage usage bar on the Starter plan', description: 'The Billing page is wrong', team: { key: 'ENG' } };
   const text = await rankRepositories(subject, { candidates, exec });
-  assert.deepEqual(text.map((row) => row.name), ['platform', 'mastra']);
+  assert.deepEqual(text.map((row) => row.name), ['platform', 'mastra', 'norem']);
   assert.match(text[0].reasons.join(), /mentions “billing page”/);
   const linked = await rankRepositories({ ...subject, attachments: { nodes: [{ url: 'https://github.com/mastra-ai/mastra/pull/9' }] } }, { candidates, exec });
   assert.equal(linked[0].name, 'mastra');
@@ -502,4 +505,38 @@ test('working agents show Pi\'s spinner in their row and the header; other state
   assert.match(renderScreen({ ...state, working: 0, spinner: undefined }, 140, 24).map(plain)[0], /● 0 working/);
   assert.equal(applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working', msg: 'bash' }]).state, 'working');
   assert.equal(items(buildView(3, { tasks: [applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working' }])], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } }))[0].agent.spin, true);
+});
+
+test('every repository directly under the workspace root is a candidate; linked worktrees are not', () => {
+  const root = mkdtempSync(join(tmpdir(), 'rex-dev-'));
+  for (const name of ['site', 'drop', 'notes']) mkdirSync(join(root, name, name === 'notes' ? '' : '.git'), { recursive: true });
+  mkdirSync(join(root, 'linked'));
+  writeFileSync(join(root, 'linked', '.git'), 'gitdir: /elsewhere');
+  assert.deepEqual(workspaceRepositories([root]).map((path) => path.slice(root.length + 1)).sort(), ['drop', 'site']);
+  assert.deepEqual(workspaceRepositories([join(root, 'missing')]), []);
+  assert.deepEqual(knownRepositories({ root: join(root, 'no-rex'), workspaces: [join(root, 'site')] }), [join(root, 'site')]);
+});
+
+test('a new project is a fresh local repository, and repositories without a remote run directly in their checkout', () => {
+  const root = mkdtempSync(join(tmpdir(), 'rex-projects-'));
+  const path = createProject('jalco-dev-file-drops', root);
+  assert.equal(execFileSync('git', ['-C', path, 'log', '--format=%s'], { encoding: 'utf8' }).trim(), 'chore: initialize repository');
+  assert.equal(directCheckout(path), true);
+  assert.throws(() => createProject('jalco-dev-file-drops', root), /already exists/);
+  execFileSync('git', ['-C', path, 'remote', 'add', 'origin', 'https://github.com/a/b.git']);
+  assert.equal(directCheckout(path), false);
+  assert.equal(directCheckout(join(root, 'not-a-repository')), false);
+  assert.equal(slugFor('I want to have my jalco.dev domain be able to host files or pastes'), 'jalco-dev-domain-host-files');
+});
+
+test('the base falls back from origin/HEAD to origin/main, then to the local branch', async () => {
+  const fake = (answers) => async (_cmd, args) => {
+    const key = args.slice(2).join(' ');
+    if (key in answers) return { stdout: `${answers[key]}\n` };
+    throw new Error(`no ${key}`);
+  };
+  assert.deepEqual(await defaultBase('/r', fake({ 'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/trunk', 'fetch --quiet origin trunk': '' })), { base: 'origin/trunk' });
+  assert.deepEqual(await defaultBase('/r', fake({ 'rev-parse --verify -q refs/remotes/origin/main': 'abc', 'fetch --quiet origin main': '' })), { base: 'origin/main' });
+  assert.deepEqual(await defaultBase('/r', fake({ 'rev-parse --abbrev-ref HEAD': 'main' })), { base: 'main', warning: 'No remote default branch; branching from local main.' });
+  assert.deepEqual(await defaultBase('/r', fake({ 'rev-parse --verify -q refs/remotes/origin/main': 'abc' })), { base: 'origin/main', warning: 'Could not fetch origin/main; using the local copy.' });
 });

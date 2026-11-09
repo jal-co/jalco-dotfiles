@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -10,8 +10,19 @@ const STOP = new Set(['the', 'and', 'for', 'with', 'from', 'into', 'onto', 'that
 
 export const githubRepository = (url) => /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?(?:[/#?]|$)/i.exec(url ?? '')?.[1].toLowerCase();
 
-export function knownRepositories({ root = join(homedir(), '.rex'), records = [], config = {} } = {}) {
-  const paths = new Set(Object.values(config.repositories ?? {}));
+export function workspaceRepositories(roots = [join(homedir(), 'dev')]) {
+  return roots.flatMap((root) => {
+    try {
+      return readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map((entry) => join(root, entry.name)).filter((path) => statSync(join(path, '.git'), { throwIfNoEntry: false })?.isDirectory());
+    } catch {
+      return [];
+    }
+  });
+}
+
+export function knownRepositories({ root = join(homedir(), '.rex'), records = [], config = {}, workspaces = workspaceRepositories() } = {}) {
+  const paths = new Set([...Object.values(config.repositories ?? {}), ...workspaces]);
   const bindings = join(root, 'repositories');
   if (existsSync(bindings)) {
     for (const name of readdirSync(bindings).filter((entry) => entry.endsWith('.json'))) {
@@ -55,26 +66,37 @@ export function terms({ title = '', description = '' }) {
 }
 
 export async function phraseHits(path, list, exec = run) {
-  const hits = await Promise.all(list.map(async (term) => {
-    try {
-      await exec('git', ['-C', path, 'grep', '-q', '-I', '-i', '-F', '-e', term.text], { timeout: 8_000 });
-      return term;
-    } catch {
-      return undefined;
+  if (!list.length) return [];
+  try {
+    const { stdout } = await exec('git', ['-C', path, 'grep', '-I', '-i', '-F', '-h', '-o', ...list.flatMap((term) => ['-e', term.text])], { encoding: 'utf8', timeout: 10_000, maxBuffer: 32 * 1024 * 1024 });
+    const found = new Set(String(stdout).split('\n').map((match) => match.toLowerCase()));
+    return list.filter((term) => found.has(term.text.toLowerCase()));
+  } catch {
+    return [];
+  }
+}
+
+async function limited(items, size, task) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await task(items[index]);
     }
   }));
-  return hits.filter(Boolean);
+  return results;
 }
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 export async function rankRepositories(subject, { candidates, tasks = [], records = [], issues = [], config = {}, exec = run }) {
   const team = subject.team?.key;
-  const remotes = await Promise.all(candidates.map((path) => remoteOf(path, exec)));
-  const usable = candidates.filter((_path, index) => remotes[index]);
+  const remotes = await limited(candidates, 8, (path) => remoteOf(path, exec));
+  const usable = candidates;
   const repos = new Map(candidates.map((path, index) => [path, remotes[index]]));
   const list = terms(subject);
-  const grep = await Promise.all(usable.map((path) => phraseHits(path, list, exec)));
+  const grep = await limited(usable, 8, (path) => phraseHits(path, list, exec));
   const prefix = team && new RegExp(`(^|[/_-])${team.toLowerCase()}-\\d+`);
   const repoOf = (task) => records.find((record) => record.path === task.worktree)?.repo;
   const ranked = usable.map((path, index) => {

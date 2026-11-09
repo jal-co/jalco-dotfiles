@@ -15,7 +15,7 @@ import { loadPersistentConfig } from '../host/maestro/core/config/persistent-con
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
   SEARCH_TAB, TABS, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
-  directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
+  createProject, directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
@@ -75,6 +75,7 @@ const HELP = [
   ['a', 'clean up all merged'],
   ['h', 'hide, or unhide in Hidden'],
   ['H', 'open or close Hidden'],
+  ['N', 'launch: start a new project in ~/dev'],
   ['enter', 'Archive: reopen the conversation'],
   ['v', 'Archive: read the transcript'],
   ['y', 'answer the coordinator yes'],
@@ -94,7 +95,7 @@ export function legend(state) {
   if (state.prompt) return [['enter', state.prompt.verb ?? 'submit'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'cleanup') return [['enter', 'clean up'], ['p', 'keep uncommitted work as a commit'], ['esc', 'cancel']];
-  if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
+  if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['N', 'new project'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
   const selected = state.rows?.[state.cursor];
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
@@ -164,7 +165,7 @@ function detail(state, item) {
     return [
       [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
       [[`why: ${choice.reasons.join('; ')}${confirm.choices.length > 1 && next !== choice ? ` · next: ${next.name}` : ''}`, 'dim']],
-      [[`${directCheckout(choice.path) ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`} · ${confirm.brief.split('\n')[0]}`, 'dim']],
+      [[`${confirm.direct ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`} · ${confirm.brief.split('\n')[0]}`, 'dim']],
       state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
@@ -524,6 +525,7 @@ export class LinearApp {
       return this.request('stop', { id: confirm.task.logicalId ?? confirm.task.id }, `Asked the coordinator to stop ${confirm.task.name}…`);
     }
     if (name === 'tab' && confirm.choices.length > 1) { confirm.index = (confirm.index + 1) % confirm.choices.length; return this.prepare(); }
+    if (name === 'N') return this.ask('new project name, created under ~/dev', (project) => this.newProject(confirm, project), confirm.subject.name ?? slugFor(confirm.subject.title ?? confirm.label), { verb: 'create' });
     if (name === 't') return this.ask('repository path', (path) => this.typedRepository(confirm, path), join(homedir(), 'dev', ''));
     if (name === 'e') return this.ask(`Brief for ${confirm.label}`, (text) => { if (text) confirm.brief = text; this.draw(); }, confirm.brief, { multiline: true, verb: 'save' });
     if (name !== 'enter') return;
@@ -735,6 +737,18 @@ export class LinearApp {
     return this.prepare();
   }
 
+  newProject(confirm, project) {
+    const name = slugFor(project ?? '');
+    if (!project) return this.status('dim', 'No project created.');
+    let path;
+    try { path = createProject(name); } catch (error) { return this.status('red', cleanText(error.message)); }
+    confirm.choices.unshift({ path, name, reasons: ['new project you just created'] });
+    confirm.index = 0;
+    confirm.sure = true;
+    this.state.confirm = confirm;
+    return this.prepare();
+  }
+
   typedRepository(confirm, path) {
     if (!path || !isAbsolute(path) || !existsSync(join(path, '.git'))) return this.status('red', `${path || 'That path'} is not a Git checkout.`);
     const existing = confirm.choices.findIndex((choice) => choice.path === path);
@@ -750,6 +764,11 @@ export class LinearApp {
     const choice = confirm.choices[confirm.index];
     confirm.base = undefined;
     confirm.warning = undefined;
+    confirm.direct = directCheckout(choice.path);
+    if (confirm.direct) {
+      confirm.base = 'HEAD';
+      return this.status('dim', '');
+    }
     this.status('dim', `Fetching ${choice.name}'s default branch…`);
     if (!this.bases.has(choice.path)) this.bases.set(choice.path, defaultBase(choice.path));
     let result;

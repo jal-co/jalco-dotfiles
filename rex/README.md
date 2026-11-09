@@ -138,7 +138,7 @@ The coordinator's questions come to the Inbox too. When its last finished turn e
 
 Agents ask you their questions in their own tab. Briefs from the command center and the coordinator tell them to use `ask_user_question` there and wait, and to use `caller_ping` only when the coordinator must act. A waiting agent shows as blocked in the Rex sidebar and under "Agents asking" in the Inbox; `enter answer` opens its tab. When a help request still reaches the coordinator and is really a question for you, the coordinator tells you which tab needs you instead of answering for you.
 
-Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
+Launching works out the repository instead of asking for a path. It ranks every repository directly under `~/dev` plus the checkouts Rex already knows from repository sessions, managed worktrees and earlier picks, searching each one in a single `git grep` pass, eight at a time. A repository without a remote runs directly in its checkout, like dotfiles. When nothing fits, `N` on the launch screen creates a new project under `~/dev` (a fresh local repository) and launches there. The evidence, strongest first:
 
 1. GitHub PRs linked to the issue.
 2. The repository you picked for that Linear team before.
