@@ -19,6 +19,7 @@ import {
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
+export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36', selected: '48;5;236', tab: '48;5;237' };
 export const columns = visibleWidth;
 
@@ -45,7 +46,7 @@ const line = (cells, width, selected = false) => {
   return out + paint(' '.repeat(Math.max(0, width - used)), [], selected);
 };
 
-function itemLine(item, width, selected, idWidth) {
+function itemLine(item, width, selected, idWidth, spinner = '●') {
   const agentWidth = 10;
   const projectWidth = width >= 90 ? 18 : 0;
   const titleWidth = Math.max(8, width - 2 - idWidth - 2 - projectWidth - 2 - agentWidth);
@@ -54,7 +55,7 @@ function itemLine(item, width, selected, idWidth) {
     [`${fit(item.id, idWidth)}  `, 'dim'],
     [fit(item.title, titleWidth), selected ? 'bold' : ''],
     [projectWidth ? `  ${fit(item.project, projectWidth)}` : '', 'dim'],
-    [`  ${fit(item.agent.text, agentWidth)}`, item.agent.tone],
+    [`  ${fit(item.agent.spin ? `${spinner} working` : item.agent.text, agentWidth)}`, item.agent.tone],
   ], width, selected);
 }
 
@@ -215,7 +216,7 @@ export function renderScreen(state, width, height) {
   const tabWidth = tabs.reduce((sum, [text]) => sum + columns(text), 0);
   const gap = width - tabWidth - columns(right);
   const header = gap >= 1
-    ? line([...tabs, [' '.repeat(gap)], ['● ', 'yellow'], [`${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`, 'dim'], [dead ? ` · ${dead} dead` : '', 'yellow']], width)
+    ? line([...tabs, [' '.repeat(gap)], [`${state.working ? state.spinner ?? '●' : '●'} `, 'yellow'], [`${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`, 'dim'], [dead ? ` · ${dead} dead` : '', 'yellow']], width)
     : line(tabs, width);
   const title = state.hiddenView
     ? line([['Hidden', 'bold'], ['  rows you hid with h · h unhides · H goes back', 'dim']], width)
@@ -250,7 +251,7 @@ export function renderScreen(state, width, height) {
     return [header, line([], width), title, hint, line([], width), ...help, ...Array.from({ length: height - 6 - help.length }, () => line([], width)), keysLine];
   }
   const rows = state.rows.slice(start, start + body).map((row, offset) => {
-    if (row.kind === 'item') return itemLine(row, width, start + offset === state.cursor, idWidth);
+    if (row.kind === 'item') return itemLine(row, width, start + offset === state.cursor, idWidth, state.spinner);
     if (row.kind === 'section') return line([['  '], [row.title, 'bold'], [` ${row.count}`, 'dim']], width);
     if (row.kind === 'note') return line([['  '], [row.text, row.tone]], width);
     return line([], width);
@@ -286,6 +287,7 @@ export class LinearApp {
     this.pending = new Map();
     this.bases = new Map();
     this.programStatus = new Map();
+    this.dirty = true;
     this.data = this.snapshot();
     this.hidden = new Set(readPreferences().hidden);
     if (this.inboxCount()) this.state.tab = 0;
@@ -412,6 +414,7 @@ export class LinearApp {
   }
 
   draw() {
+    this.dirty = true;
     this.tui?.requestRender();
   }
 
@@ -422,7 +425,10 @@ export class LinearApp {
     this.tui = new TuiAltScreen(this.terminal, false);
     this.root = {
       capturesViewportInput: true,
-      render: (width) => { this.layout(); return renderScreen(this.state, width, this.terminal.rows); },
+      render: (width) => {
+        if (this.dirty) { this.layout(); this.dirty = false; }
+        return renderScreen(this.state, width, this.terminal.rows);
+      },
       handleInput: (data) => this.key(keyName(data)),
       invalidate() {},
     };
@@ -443,6 +449,13 @@ export class LinearApp {
     });
     this.poll = setInterval(() => this.checkRequests(), 500);
     this.statusTimer = setInterval(() => { void this.pollStatus(); }, 3_000);
+    this.frame = 0;
+    this.spinTimer = setInterval(() => {
+      if (!this.state.working) return;
+      this.frame = (this.frame + 1) % SPINNER.length;
+      this.state.spinner = SPINNER[this.frame];
+      this.tui?.requestRender();
+    }, 80);
     void this.pollStatus();
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
@@ -456,6 +469,7 @@ export class LinearApp {
     for (const watcher of this.watchers ?? []) watcher.close();
     clearInterval(this.poll);
     clearInterval(this.statusTimer);
+    clearInterval(this.spinTimer);
     clearInterval(this.reload);
     clearTimeout(this.timer);
     this.tui?.stop({ preserveScreen: true });

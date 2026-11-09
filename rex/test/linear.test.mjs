@@ -9,7 +9,7 @@ import {
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
-import { actionsFor, archiveGoal, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
+import { SPINNER, actionsFor, archiveGoal, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -489,4 +489,17 @@ test('the inbox leads with coordinator questions and dialogs, then merged PRs as
   assert.deepEqual(actionsFor(ask, []).map(([key, label]) => `${key} ${label}`), ['enter answer', 'y yes', 'h hide']);
   assert.deepEqual(actionsFor(approval, []).map(([key, label]) => `${key} ${label}`), ['enter approve cleanup', 'K keep, no cleanup', 'o PR', 'h hide']);
   assert.equal(inbox({ ...data, coordinator: undefined }).count, 1);
+});
+
+test('working agents show Pi\'s spinner in their row and the header; other states keep their label', () => {
+  const working = { kind: 'item', key: 't:a', id: 'a', title: 'A', project: 'p', agent: { text: '● working', tone: 'yellow', spin: true } };
+  const done = { kind: 'item', key: 't:b', id: 'b', title: 'B', project: 'p', agent: { text: '✓ done', tone: 'green' } };
+  const state = { tab: 3, rows: [working, done], cursor: 0, working: 1, capacity: { used: 2, max: 8 }, doneCount: 0, now: Date.now(), spinner: SPINNER[3] };
+  const screen = renderScreen(state, 140, 24).map(plain);
+  assert.match(screen[0], /⠸ 1 working/);
+  assert.match(screen[5], /⠸ working\s*$/);
+  assert.match(screen[6], /✓ done\s*$/);
+  assert.match(renderScreen({ ...state, working: 0, spinner: undefined }, 140, 24).map(plain)[0], /● 0 working/);
+  assert.equal(applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working', msg: 'bash' }]).state, 'working');
+  assert.equal(items(buildView(3, { tasks: [applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working' }])], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } }))[0].agent.spin, true);
 });

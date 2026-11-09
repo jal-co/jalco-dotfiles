@@ -159,7 +159,7 @@ export function agentLabel({ task, pr, issue }) {
   const settled = !live(task) || ['done', 'idle'].includes(task.state);
   if (!settled) {
     const [text, tone] = AGENT[task.state] ?? AGENT.unknown;
-    return { text, tone };
+    return { text, tone, spin: task.state === 'working' };
   }
   if (issue?.state.type === 'completed') return { text: '✓ done', tone: 'green' };
   if (issue?.state.type === 'canceled') return { text: '– canceled', tone: 'dim' };

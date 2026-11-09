@@ -130,7 +130,7 @@ The bottom bar lists only the keys that apply to the selected row, with what eac
 | `?` | Show every key. Any key closes it |
 | `q` or `ctrl+c` | Quit. `esc` only cancels prompts and confirmations, or leaves the Hidden menu |
 
-Agent state comes from Rex's live program status, the same `rex-task` indicator the sidebar shows, read every 3 seconds for every task that is not stopped. The task registry is the fallback when a tab is gone. Once a Linear issue is done or canceled, its row says so whatever its PR shows; `merged` and `in review` appear only while the issue is still open. The detail line shows both the Linear state and the PR state.
+A working agent's row and the header show Pi's own spinner (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`, every 80 ms); the animation runs only while something is working and redraws without recomputing the views. Agent state comes from Rex's live program status, the same `rex-task` indicator the sidebar shows, read every 3 seconds for every task that is not stopped. The task registry is the fallback when a tab is gone. Once a Linear issue is done or canceled, its row says so whatever its PR shows; `merged` and `in review` appear only while the issue is still open. The detail line shows both the Linear state and the PR state.
 
 The tab bar shows a count on each tab and highlights the active one. When a Linear-linked agent is running, the command center names its Rex tab once after the issue, such as `PLTFRM-3240 Billing page shows "Upgrade…`; a name you or the agent set afterwards is kept. Named tabs are recorded in `~/.rex/command-center.json`.
 
