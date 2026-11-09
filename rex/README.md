@@ -98,7 +98,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 
 | Tab | Shows |
 | --- | --- |
-| Inbox | What needs you: agents asking a question, failed or crashed agents, finished work ready for review, and merged PRs waiting on a cleanup decision. It opens first when it has anything |
+| Inbox | What needs you, in order: the coordinator's unanswered question or open confirmation dialog, agents asking a question, merged PRs to approve for cleanup, failed or crashed agents, and finished work ready for review. It opens first when it has anything |
 | Issues | Linear issues assigned to you, in progress and todo, sorted by priority |
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
 | Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state |
@@ -134,7 +134,9 @@ Agent state comes from Rex's live program status, the same `rex-task` indicator 
 
 The tab bar shows a count on each tab and highlights the active one. When a Linear-linked agent is running, the command center names its Rex tab once after the issue, such as `PLTFRM-3240 Billing page shows "Upgrade…`; a name you or the agent set afterwards is kept. Named tabs are recorded in `~/.rex/command-center.json`.
 
-Agents ask you their questions in their own tab. Briefs from the command center and the coordinator tell them to use `ask_user_question` there and wait, and to use `caller_ping` only when the coordinator must act. A waiting agent shows as blocked in the Rex sidebar and under "Needs an answer" in the Inbox; `enter answer` opens its tab. When a help request still reaches the coordinator and is really a question for you, the coordinator tells you which tab needs you instead of answering for you.
+The coordinator's questions come to the Inbox too. When its last finished turn ends on a question you have not answered, "Coordinator asks" shows it: `enter` writes an answer in a multi-line editor and `y` replies "Yes."; either arrives as if you typed it in the coordinator. A confirmation dialog waiting in the coordinator shows there as well, and `enter` opens its tab. Merged PRs appear under "Approve cleanup": `enter` approves the cleanup and `K` keeps the task without further cleanup prompts. The coordinator no longer asks about cleanup in chat; it says in one line that a PR merged and leaves the approval to the Inbox.
+
+Agents ask you their questions in their own tab. Briefs from the command center and the coordinator tell them to use `ask_user_question` there and wait, and to use `caller_ping` only when the coordinator must act. A waiting agent shows as blocked in the Rex sidebar and under "Agents asking" in the Inbox; `enter answer` opens its tab. When a help request still reaches the coordinator and is really a question for you, the coordinator tells you which tab needs you instead of answering for you.
 
 Launching works out the repository instead of asking for a path. It ranks the checkouts Rex already knows, from repository sessions, managed worktrees and earlier picks, that have an `origin` remote. The evidence, strongest first:
 

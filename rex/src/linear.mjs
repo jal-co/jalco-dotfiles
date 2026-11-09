@@ -226,6 +226,23 @@ export function brief(data, now = Date.now()) {
   return { inProgress: [...active, ...started], next, done: [...finished, ...tasks, ...merged] };
 }
 
+export function coordinatorAsk(entries) {
+  const turns = entries.filter((entry) => entry.type === 'message' && ['user', 'assistant', 'toolResult'].includes(entry.message?.role));
+  const last = turns.at(-1);
+  if (last?.message.role !== 'assistant' || last.message.stopReason !== 'stop') return undefined;
+  const content = last.message.content;
+  const text = typeof content === 'string' ? content : (content ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n');
+  const paragraphs = text.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  const question = paragraphs.slice(-2).reverse().find((paragraph) => paragraph.includes('?'));
+  if (!question) return undefined;
+  return { question: cleanText(question.replace(/[*_`#>]/g, '')).slice(0, 400), at: last.timestamp };
+}
+
+const coordinatorItems = (coordinator) => [
+  ...(coordinator?.dialog ? [{ kind: 'item', key: 'c:dialog', id: 'coordinator', title: `Waiting on a dialog: ${cleanText(coordinator.dialog)}`, project: '', agent: { text: '! dialog', tone: 'red' }, coordinator: { dialog: coordinator.dialog } }] : []),
+  ...(coordinator?.ask ? [{ kind: 'item', key: `c:${coordinator.ask.at}`, id: 'coordinator', title: coordinator.ask.question, project: '', agent: { text: '? asks', tone: 'yellow' }, coordinator: { ask: coordinator.ask } }] : []),
+];
+
 export function inbox(data) {
   const shown = new Set();
   const pick = (filter, hint) => data.tasks.filter((task) => live(task) && !shown.has(task.id) && filter(task)).map((task) => {
@@ -240,9 +257,10 @@ export function inbox(data) {
     .sort((a, b) => String(b.mergedAt).localeCompare(String(a.mergedAt))).map((pr) => {
       const task = data.tasks.find((row) => row.id === pr.taskId);
       if (task) shown.add(task.id);
-      return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, hint: 'D clean up · a clean up all merged · o open PR · h hide' };
+      return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, approval: true };
     });
-  return { asked, broken, review, merged, count: asked.length + broken.length + review.length + merged.length };
+  const coordinator = coordinatorItems(data.coordinator);
+  return { coordinator, asked, broken, review, merged, count: coordinator.length + asked.length + broken.length + review.length + merged.length };
 }
 
 function archiveItem(row, data) {
@@ -273,9 +291,9 @@ export function archiveView(data, { filter = '', now = Date.now() } = {}) {
 export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search, filter } = {}) {
   if (tab === TABS.length - 1) return archiveView(data, { filter, now });
   if (tab === 0) {
-    const { asked, broken, review, merged, count } = inbox(data);
+    const { coordinator, asked, broken, review, merged, count } = inbox(data);
     if (!count) return [note('Nothing needs you right now.')];
-    return [...section('Needs an answer', asked), ...section('Failed or crashed', broken), ...section('Ready for review', review), ...section('Merged, cleanup pending', merged)];
+    return [...section('Coordinator asks', coordinator), ...section('Agents asking', asked), ...section('Approve cleanup', merged), ...section('Failed or crashed', broken), ...section('Ready for review', review)];
   }
   if (tab === SEARCH_TAB) {
     if (!search) return [note('Press / to search Linear or paste an issue link.')];

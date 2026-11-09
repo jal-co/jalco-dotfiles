@@ -48,5 +48,12 @@ export function registerPullRequests(pi: ExtensionAPI, records: () => unknown[])
       ctx.ui.notify(`Keeping ${row.checkout}. No processes or files were removed.`, 'info');
     },
   });
-  return { entries: (origin: string) => store.list(origin), reconcileCleanup: (entries) => watcher?.reconcileCleanup(entries) };
+  return {
+    entries: (origin: string) => store.list(origin),
+    reconcileCleanup: (entries) => watcher?.reconcileCleanup(entries),
+    retain: (url: string) => {
+      if (!watcher) throw new Error('PR watcher has not started');
+      return watcher.retain(url);
+    },
+  };
 }

@@ -66,6 +66,10 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
     if (!isAbsolute(String(params.checkout))) throw new Error('Cleanup needs the task checkout path');
     return { tool: 'cleanup', params: { id: params.id, checkout: params.checkout, preserve: params.preserve === true } };
   }
+  if (request.action === 'retain') {
+    if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/[1-9]\d*$/.test(params.url ?? '')) throw new Error('Invalid pull request URL');
+    return { tool: 'retain', params: { url: params.url } };
+  }
   if (request.action === 'stop') {
     if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
     return { tool: 'subagent_stop', params: { id: params.id } };

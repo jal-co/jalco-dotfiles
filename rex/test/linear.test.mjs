@@ -4,7 +4,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  applyProgramStatus, archiveView, buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
@@ -249,9 +249,9 @@ test('the inbox collects questions, failures, finished work and merged PRs waiti
   const result = inbox(data);
   assert.equal(result.count, 5);
   assert.deepEqual(sections(buildView(0, data)), {
-    'Needs an answer': ['asks'], 'Failed or crashed': ['crashed'], 'Ready for review': ['finished'], 'Merged, cleanup pending': ['merged', 'gone'],
+    'Agents asking': ['asks'], 'Approve cleanup': ['merged', 'gone'], 'Failed or crashed': ['crashed'], 'Ready for review': ['finished'],
   });
-  assert.match(result.merged[0].hint, /^D clean up · a clean up all merged/);
+  assert.equal(result.merged[0].approval, true);
   assert.deepEqual(buildView(0, { ...data, tasks: [], prs: [] }).map((row) => row.text), ['Nothing needs you right now.']);
 });
 
@@ -330,7 +330,7 @@ test('hidden rows leave every tab, empty sections collapse, and the Hidden menu 
   const data = { tasks, prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
   const hidden = new Set(['t:noise-id', 't:crashed-id']);
   const rows = withoutHidden(buildView(0, data), hidden);
-  assert.deepEqual(sections(rows), { 'Needs an answer': ['keep'] });
+  assert.deepEqual(sections(rows), { 'Agents asking': ['keep'] });
   assert.equal(rows.find((row) => row.kind === 'section').count, 1);
   assert.notEqual(rows[0].kind, 'blank');
   assert.ok(rows.every((row, index) => row.kind !== 'blank' || rows[index - 1]?.kind !== 'blank'));
@@ -465,4 +465,28 @@ test('agent slots break down into working, idle, not running and hidden', () => 
   const screen = renderScreen({ tab: 3, rows: [], cursor: -1, working: 1, capacity: { used: 4, max: 8 }, slots, doneCount: 0, now: Date.now() }, 160, 24).map(plain);
   assert.match(screen[0], /agents 4\/8 · 2 dead\s*$/);
   assert.match(screen[2], /^Sessions {2}agent slots 4\/8: 1 working · 1 idle · 2 not running, d retires · 1 hidden, H shows/);
+});
+
+test('the coordinator\'s unanswered question is found at the end of its last finished turn', () => {
+  const message = (role, text, extra = {}) => ({ type: 'message', timestamp: `t-${role}-${text.length}`, message: { role, content: [{ type: 'text', text }], ...extra } });
+  const asked = message('assistant', 'Cleanup finished.\n\nThe 3240 question is still open: clean up the pltfrm-3240 task — stop its idle agent, keep its branch?', { stopReason: 'stop' });
+  assert.deepEqual(coordinatorAsk([message('user', 'go'), asked, { type: 'custom_message' }]), { question: 'The 3240 question is still open: clean up the pltfrm-3240 task — stop its idle agent, keep its branch?', at: asked.timestamp });
+  assert.equal(coordinatorAsk([asked, message('user', 'yes')]), undefined);
+  assert.equal(coordinatorAsk([message('assistant', 'Is it done? Yes.\n\nAll three PRs are open.\n\nNothing else needs you.', { stopReason: 'stop' })]), undefined);
+  assert.equal(coordinatorAsk([message('assistant', 'Should I?', { stopReason: 'toolUse' })]), undefined);
+  assert.equal(coordinatorAsk([asked, { type: 'message', message: { role: 'toolResult', content: [] } }]), undefined);
+});
+
+test('the inbox leads with coordinator questions and dialogs, then merged PRs as approvals', () => {
+  const merged = { taskId: 'shipped-id', url: 'https://github.com/a/b/pull/4', state: 'MERGED', cleanup: 'pending', mergedAt: '2026-11-08', checkout: '/w/shipped', name: 'shipped', repositoryPath: '/r/platform', checkedAt: '1' };
+  const data = { tasks: [task('shipped', 'stopped', { stopConfirmed: true, worktree: '/w/shipped' })], prs: [merged], records: [{ path: '/w/shipped' }], linear: { status: 'ok', open: [], done: [] },
+    coordinator: { ask: { question: 'Open the PR now, or check on an iPhone first?', at: 't1' }, dialog: 'Remove Rex worktree?' } };
+  const rows = buildView(0, data);
+  assert.deepEqual(sections(rows), { 'Coordinator asks': ['coordinator', 'coordinator'], 'Approve cleanup': ['shipped'] });
+  const [dialog, ask, approval] = items(rows);
+  assert.equal(dialog.title, 'Waiting on a dialog: Remove Rex worktree?');
+  assert.deepEqual(actionsFor(dialog, []).map(([key, label]) => `${key} ${label}`), ['enter open coordinator', 'h hide']);
+  assert.deepEqual(actionsFor(ask, []).map(([key, label]) => `${key} ${label}`), ['enter answer', 'y yes', 'h hide']);
+  assert.deepEqual(actionsFor(approval, []).map(([key, label]) => `${key} ${label}`), ['enter approve cleanup', 'K keep, no cleanup', 'o PR', 'h hide']);
+  assert.equal(inbox({ ...data, coordinator: undefined }).count, 1);
 });

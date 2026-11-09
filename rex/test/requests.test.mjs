@@ -42,6 +42,8 @@ test('send, stop, resume and coordinator messages map to the coordinator; resume
   assert.deepEqual(parseRequest(request('cleanup', { id: 'task-1', checkout: '/w/plt-4', preserve: 'yes' })), { tool: 'cleanup', params: { id: 'task-1', checkout: '/w/plt-4', preserve: false } });
   assert.equal(parseRequest(request('cleanup', { id: 'task-1', checkout: '/w/plt-4', preserve: true })).params.preserve, true);
   assert.throws(() => parseRequest(request('cleanup', { id: 'task-1', checkout: 'relative' })), /checkout path/);
+  assert.deepEqual(parseRequest(request('retain', { url: 'https://github.com/mastra-ai/platform/pull/4495' })), { tool: 'retain', params: { url: 'https://github.com/mastra-ai/platform/pull/4495' } });
+  assert.throws(() => parseRequest(request('retain', { url: 'https://evil.example/pull/1' })), /Invalid pull request URL/);
   assert.throws(() => parseRequest(request('shell', {})), /Unsupported/);
 });
 

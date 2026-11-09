@@ -294,6 +294,11 @@ export default async function rexAgents(pi: ExtensionAPI) {
           pi.sendUserMessage(params.message, { deliverAs: 'followUp' });
           return { ok: true, text: 'Sent to the coordinator.' };
         }
+        if (name === 'retain') {
+          const row = pullRequests.retain(params.url);
+          pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear: Justin chose to keep ${row.name} (${params.url}) without cleanup.` }, { deliverAs: 'nextTurn' });
+          return { ok: true, text: `Keeping ${row.name}. No more cleanup prompts for ${params.url}.` };
+        }
         if (name === 'cleanup') {
           const done = await cleanup(params, ctx);
           pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear cleaned up ${params.checkout}: ${done.text}` }, { deliverAs: 'nextTurn' });

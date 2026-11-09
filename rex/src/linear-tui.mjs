@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, watch, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, statSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { decodeKittyPrintable, Editor, Input, matchesKey, ProcessTerminal, truncateToWidth, TuiAltScreen, visibleWidth } from '@earendil-works/pi-tui';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -14,7 +14,7 @@ import { RexWorktrees } from './worktrees.ts';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  SEARCH_TAB, TABS, applyProgramStatus, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  SEARCH_TAB, TABS, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
@@ -76,6 +76,8 @@ const HELP = [
   ['H', 'open or close Hidden'],
   ['enter', 'Archive: reopen the conversation'],
   ['v', 'Archive: read the transcript'],
+  ['y', 'answer the coordinator yes'],
+  ['K', 'keep a merged task, no cleanup'],
   ['o', 'open PR or Linear issue'],
   ['l', 'open the Linear issue'],
   ['r', 'refresh Linear and tasks'],
@@ -102,6 +104,8 @@ export function legend(state) {
 
 export function enterAction(item) {
   if (item.archive) return 'recall';
+  if (item.coordinator) return item.coordinator.dialog ? 'open coordinator' : 'answer';
+  if (item.approval) return 'approve cleanup';
   if (live(item.task)) return item.task.state === 'blocked' ? 'answer' : 'focus';
   if (item.pr) return 'open PR';
   if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return 'launch';
@@ -110,6 +114,8 @@ export function enterAction(item) {
 }
 
 export function actionsFor(item, records) {
+  if (item.coordinator) return [['enter', enterAction(item)], ...(item.coordinator.ask ? [['y', 'yes']] : []), ['h', 'hide']];
+  if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   if (item.archive) return [['enter', 'recall'], ['v', 'view transcript'], ...(item.archive.pullRequests?.length ? [['o', 'PR']] : []), ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   const task = item.task;
   const running = live(task) && !['unknown', 'error'].includes(task.state);
@@ -163,6 +169,14 @@ function detail(state, item) {
   }
   const last = state.status?.text ? [[state.status.text, state.status.tone]] : [];
   if (!item) return [[], [], [], last];
+  if (item.coordinator) {
+    return [
+      [[item.coordinator.dialog ? 'The coordinator is waiting on a confirmation in its tab' : 'The coordinator is waiting for your answer', 'bold']],
+      [[item.title, 'yellow']],
+      [[item.coordinator.dialog ? 'enter opens its tab so you can answer there' : 'enter writes an answer · y replies yes · it arrives as if you typed it in the coordinator', 'dim']],
+      last,
+    ];
+  }
   if (item.archive) {
     const { archive } = item;
     const pr = archive.pullRequests?.[0];
@@ -289,7 +303,27 @@ export class LinearApp {
   }
 
   view() {
-    return { ...this.data, tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear };
+    return { ...this.data, coordinator: this.coordinatorState(), tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear };
+  }
+
+  coordinatorState() {
+    const records = this.programStatus.get('coordinator') ?? [];
+    const own = records.find((record) => record.id === 'rex-task');
+    const root = records.find((record) => !record.id);
+    const dialog = own?.state === 'blocked' ? (root?.state === 'blocked' && root.msg ? root.msg : own.msg ?? 'Waiting for you') : undefined;
+    return { ask: own?.state === 'working' ? undefined : this.coordinatorAsk, dialog };
+  }
+
+  answerCoordinator() {
+    this.ask('Answer the coordinator', (message) => (message ? this.request('message', { message }, 'Sent your answer to the coordinator.') : this.status('dim', 'Nothing sent.')), '', { multiline: true });
+  }
+
+  focusSurface(surface, label) {
+    if (!surface) return this.status('yellow', `Could not find ${label}'s tab.`);
+    const window = new RexSurfaceProvider().windowOf(surface);
+    if (!window) return this.status('yellow', `${label}'s tab is closed.`);
+    callRex(['do', 'session.select', '--args', JSON.stringify({ session_id: surfaceTarget(surface).session, window_id: window })]);
+    this.status('green', `Opened ${label}; answer it there.`);
   }
 
   async pollStatus() {
@@ -297,9 +331,16 @@ export class LinearApp {
     this.polling = true;
     try {
       const watched = this.data.tasks.filter((task) => !task.stopConfirmed && task.state !== 'stopped');
-      const results = await Promise.all(watched.map((task) => readProgramStatus(task.surface)));
+      if (!this.coordinatorSurface || Date.now() - (this.coordinatorFound ?? 0) > 60_000) {
+        this.coordinatorSurface = findCoordinatorSurface(this.origin) ?? this.coordinatorSurface;
+        this.coordinatorFound = Date.now();
+      }
+      const [coordinator, ...results] = await Promise.all([readProgramStatus(this.coordinatorSurface), ...watched.map((task) => readProgramStatus(task.surface))]);
       const next = new Map(watched.flatMap((task, index) => (results[index] ? [[task.id, results[index]]] : [])));
-      const changed = JSON.stringify([...next]) !== JSON.stringify([...this.programStatus]);
+      if (coordinator) next.set('coordinator', coordinator);
+      const ask = readCoordinatorAsk(this.origin);
+      const changed = JSON.stringify([...next]) !== JSON.stringify([...this.programStatus]) || JSON.stringify(ask) !== JSON.stringify(this.coordinatorAsk);
+      this.coordinatorAsk = ask;
       this.programStatus = next;
       if (changed) this.draw();
     } finally {
@@ -516,6 +557,10 @@ export class LinearApp {
       return this.ask('Message the coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), cleanup, { multiline: true });
     }
     if (!item) return;
+    if (item.coordinator && name === 'enter') return item.coordinator.dialog ? this.focusSurface(this.coordinatorSurface, 'the coordinator') : this.answerCoordinator();
+    if (item.coordinator && name === 'y' && item.coordinator.ask) return this.request('message', { message: 'Yes.' }, 'Answered the coordinator: yes.');
+    if (item.approval && name === 'enter') return this.cleanup([item]);
+    if (item.approval && name === 'K') return this.request('retain', { url: item.pr.url }, `Keeping ${item.task?.name ?? item.id}…`);
     if (item.archive && name === 'enter') return this.recall(item);
     if (item.archive && name === 'v') return this.viewTranscript(item);
     if (item.archive && name === 'o') return this.open(item.archive.pullRequests?.[0], item.id);
@@ -816,6 +861,40 @@ export function archiveGoal(file) {
     }
   } catch {}
   return undefined;
+}
+
+export function findCoordinatorSurface(origin) {
+  try {
+    const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
+    const ordered = [...sessions.filter((session) => ['Command', 'pinned'].includes(session.label)), ...sessions.filter((session) => !['Command', 'pinned'].includes(session.label))];
+    for (const session of ordered) {
+      const view = JSON.parse(callRex(['session', 'inspect', session.session_id, '--json']));
+      for (const block of (view.windows ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks))) {
+        if (block.creator_name !== 'com.superlogical.terminal') continue;
+        const info = JSON.parse(callRex(['block', 'call', '-s', session.session_id, '-b', block.block_id, 'process']));
+        if ([info.foreground, ...(info.ancestors ?? [])].some((process) => process?.argv0 === 'pi' && process.cwd === origin)) return `${session.session_id}/${block.block_id}`;
+      }
+    }
+  } catch {}
+  return undefined;
+}
+
+export function readCoordinatorAsk(origin, root = join(homedir(), '.pi', 'agent', 'sessions')) {
+  try {
+    const directory = join(root, `--${origin.slice(1).replaceAll('/', '-')}--`);
+    const newest = readdirSync(directory).filter((name) => name.endsWith('.jsonl')).map((name) => join(directory, name))
+      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+    if (!newest) return undefined;
+    const size = statSync(newest).size;
+    const length = Math.min(size, 256 * 1024);
+    const bytes = Buffer.alloc(length);
+    const descriptor = openSync(newest, 'r');
+    try { readSync(descriptor, bytes, 0, length, size - length); } finally { closeSync(descriptor); }
+    const entries = bytes.toString('utf8').split('\n').slice(size > length ? 1 : 0).flatMap((row) => { try { return [JSON.parse(row)]; } catch { return []; } });
+    return coordinatorAsk(entries);
+  } catch {
+    return undefined;
+  }
 }
 
 export function readArchive(history = new TaskHistory()) {

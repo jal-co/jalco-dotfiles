@@ -154,7 +154,7 @@ export class PullRequestWatcher {
         row.notification = 'pending';
         this.store.write(row);
         this.send({ customType: 'rex_pr_merged', display: true,
-          content: `PR merged: ${row.url}\nTask: ${row.name}\nCheckout: ${row.checkout}\nAsk Justin whether to clean up this task. Merge is not cleanup approval. Do not stop processes or remove anything until he approves.`,
+          content: `PR merged: ${row.url}\nTask: ${row.name}\nCheckout: ${row.checkout}\nTell Justin in one line that it merged. The cleanup approval waits for him in the command center Inbox; do not ask about cleanup in chat. Merge is not cleanup approval. Do not stop processes or remove anything until he approves.`,
           details: { rexPullRequest: { origin: this.origin, url: row.url } } },
         { triggerTurn: true, deliverAs: 'steer' });
       }
