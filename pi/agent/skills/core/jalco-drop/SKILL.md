@@ -63,7 +63,7 @@ The largest single drop is 100 MB. Split larger material or ask Justin.
 
 ## Scrawl captures
 
-Pass the `.scrawl` folder straight to `jalco-drop`. The CLI detects `scrawl.json` and uploads only the video, `frames/`, the contact sheet and a trimmed `scrawl.json`. It drops `frames-full/`, the audio, the cursor track and the list of every window title on Justin's screen. Do not copy or trim the folder yourself.
+Pass the `.scrawl` folder straight to `jalco-drop`. The CLI detects `scrawl.json` and uploads only the video, `frames/`, the contact sheet and a trimmed `scrawl.json`. It merges `audio.wav` into the video with `ffmpeg`, since Scrawl records them separately, and drops `frames-full/`, the cursor track and the list of every window title on Justin's screen. Without `ffmpeg` it warns and uploads a silent video. Do not copy or trim the folder yourself.
 
 A capture expires after 30 days unless `-e` is set. Still watch the video before uploading: it shows whatever was on screen.
 
