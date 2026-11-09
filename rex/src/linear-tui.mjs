@@ -703,6 +703,7 @@ export function batchSummary({ total, failed, skipped = 0 }) {
 
 export function explain(result) {
   if (/^Unsupported request action/.test(result.text ?? '')) return 'The coordinator is running older code that cannot do this yet. Run /reload in its tab, then try again.';
+  if (/ctx is stale/.test(result.text ?? '')) return 'The coordinator was reloading when this arrived; nothing was done. Try again.';
   return result.text || (result.ok ? 'Done.' : 'Failed.');
 }
 

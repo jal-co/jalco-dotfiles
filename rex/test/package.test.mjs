@@ -95,10 +95,14 @@ test('reload picks up recovery methods added after the module was already loaded
     return extension;
   };
   const first = await load();
-  await first.handlers.get('session_shutdown').at(-1)({ reason: 'reload' }, ctx);
+  const slot = Symbol.for('justin.rex.request-inbox');
+  const firstInbox = globalThis[slot];
+  assert.equal(firstInbox.closed, undefined);
   writeFileSync(tasks, initialTasks + ' export const agentIdentityFile = () => "updated-module";');
   writeFileSync(module, 'import { agentIdentityFile } from "./tasks.ts"; export class RexRecovery { start() {} close() {} retire() { return { name: "upgrade-fixture", status: "stopped", reason: agentIdentityFile() }; } }');
   const second = await load();
+  assert.equal(firstInbox.closed, true);
+  assert.notEqual(globalThis[slot], firstInbox);
   const result = await second.tools.get('subagent_stop').definition.execute('upgrade-test', { name: 'upgrade-fixture' }, undefined, undefined, ctx);
   assert.equal(result.details.status, 'stopped');
   assert.equal(result.details.reason, 'updated-module');

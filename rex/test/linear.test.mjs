@@ -417,6 +417,7 @@ test('the key bar offers only what the selected row can do', () => {
 test('an old coordinator is explained instead of reported as an invalid action', () => {
   assert.match(explain({ ok: false, text: 'Unsupported request action: cleanup' }), /older code.*\/reload/);
   assert.equal(explain({ ok: false, text: 'Dirty worktree' }), 'Dirty worktree');
+  assert.match(explain({ ok: false, text: 'This extension ctx is stale after session replacement or reload.' }), /was reloading/);
   assert.equal(explain({ ok: true, text: '' }), 'Done.');
 });
 

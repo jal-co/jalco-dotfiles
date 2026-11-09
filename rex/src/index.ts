@@ -306,6 +306,9 @@ export default async function rexAgents(pi: ExtensionAPI) {
         return { ok: !result.details?.error, outcome: result.details?.outcome, text };
       },
     });
+    const slot = Symbol.for('justin.rex.request-inbox');
+    if (globalThis[slot] !== inbox) void globalThis[slot]?.close();
+    globalThis[slot] = inbox;
     inbox.start();
     const flags = readModules();
     if (!flags.recovery && !flags.overview) return;
