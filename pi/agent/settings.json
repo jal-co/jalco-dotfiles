@@ -9,12 +9,12 @@
   "enabledModels": [
     "openai/gpt-6.1-sol",
     "openai/gpt-6-astra",
-    "claude-bridge/claude-fable-5-1",
     "claude-bridge/claude-opus-5-5",
     "claude-bridge/claude-sonnet-5-5",
     "claude-bridge/claude-haiku-5-5",
     "deepseek/deepseek-flash",
-    "deepseek/deepseek-v4-pro"
+    "deepseek/deepseek-v4-pro",
+    "claude-bridge/claude-fable-5-2"
   ],
   "enableSkillCommands": true,
   "skills": [],

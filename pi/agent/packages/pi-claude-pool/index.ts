@@ -6,6 +6,7 @@ import { createOpReader, readSources, resolveAccounts } from "./config.ts";
 import { AccountPool } from "./pool.ts";
 import { SubscriptionRouter } from "./router.ts";
 import { createThinkingText } from "./thinking-text.ts";
+import { withAddedModels } from "./added-models.ts";
 import { createTurnRecorder } from "./turn-log.ts";
 
 export default function claudePool(pi: ExtensionAPI): void {
@@ -28,6 +29,7 @@ export default function claudePool(pi: ExtensionAPI): void {
     pi.registerProvider(provider, {
       ...config,
       name: "Claude subscriptions",
+      models: withAddedModels(config.models ?? []),
       streamSimple(model, context, options) {
         const stream = createAssistantMessageEventStream();
         const { messages, restored } = thinkingText.restore(context.messages);
