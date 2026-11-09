@@ -49,9 +49,9 @@ else throw new Error('Unexpected Rex call: ' + args.join(' '));
 console.log(JSON.stringify(result));
 `);
   chmodSync(binary, 0o700);
-  mkdirSync(join(directory, '.pi/agent/herdr-agents'), { recursive: true });
+  mkdirSync(join(directory, '.pi/agent/rex-agents'), { recursive: true });
   mkdirSync(join(directory, '.pi/agent/bin'), { recursive: true });
-  writeFileSync(join(directory, '.pi/agent/herdr-agents/config.json'), JSON.stringify({ models: { default: 'provider/model' } }));
+  writeFileSync(join(directory, '.pi/agent/rex-agents/config.json'), JSON.stringify({ models: { default: 'provider/model' } }));
   writeFileSync(join(directory, '.pi/agent/bin/pi'), '');
   try {
     const result = spawnSync(process.execPath, [new URL('../src/pinned.mjs', import.meta.url).pathname], {

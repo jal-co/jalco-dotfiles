@@ -31,7 +31,7 @@ const terminals = (id) => {
     .map((block) => ({ ...JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])), block_id: block.block_id, label: block.label }));
 };
 const piCommand = () => {
-  const config = JSON.parse(readFileSync(join(configDir, 'herdr-agents/config.json'), 'utf8'));
+  const config = JSON.parse(readFileSync(join(configDir, 'rex-agents/config.json'), 'utf8'));
   const model = config.models?.default;
   if (!model) throw new Error('No default agent model configured. Shared model preferences were not changed.');
   const pi = join(homedir(), '.pi/agent/bin/pi');

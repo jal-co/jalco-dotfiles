@@ -1,0 +1,57 @@
+{
+  "status": {
+    "enabled": true
+  },
+  "models": {
+    "default": "openai/gpt-6.1-sol",
+    "agents": {},
+    "tasks": {
+      "coding": [
+        "claude-bridge/claude-opus-5-5",
+        "claude-bridge/claude-fable-5-1",
+        "openai/gpt-6.1-sol"
+      ],
+      "recon": [
+        "claude-bridge/claude-sonnet-5-5",
+        "claude-bridge/claude-opus-5-5",
+        "openai/gpt-6.1-sol"
+      ],
+      "architecture": [
+        "claude-bridge/claude-opus-5-5",
+        "claude-bridge/claude-fable-5-1",
+        "openai/gpt-6.1-sol"
+      ],
+      "docs": [
+        "claude-bridge/claude-sonnet-5-5",
+        "claude-bridge/claude-opus-5-5",
+        "openai/gpt-6.1-sol"
+      ],
+      "review": [
+        "openai/gpt-6.1-sol",
+        "xai/grok-4.7",
+        "deepseek/deepseek-v4-pro"
+      ],
+      "qa": [
+        "claude-bridge/claude-opus-5-5",
+        "xai/grok-4.7",
+        "openai/gpt-6.1-sol"
+      ]
+    },
+    "tasksMeta": {
+      "generatedAt": "2026-11-09T01:30:00Z",
+      "method": "registry-only"
+    }
+  },
+  "persistent": {
+    "maxAgents": 8
+  },
+  "supervision": {
+    "forcePolling": false,
+    "hangWarningMinutes": 15
+  },
+  "panes": {
+    "mode": "tab",
+    "direction": "right",
+    "maxPerTab": 4
+  }
+}
