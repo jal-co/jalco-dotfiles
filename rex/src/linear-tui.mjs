@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { decodeKittyPrintable, Editor, Input, matchesKey, ProcessTerminal, truncateToWidth, TuiAltScreen, visibleWidth } from '@earendil-works/pi-tui';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -8,11 +9,12 @@ import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provide
 import { PullRequestStore } from './pull-request-watcher.ts';
 import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.ts';
 import { cleanText, TaskStore } from './tasks.ts';
+import { TaskHistory } from './history.ts';
 import { RexWorktrees } from './worktrees.ts';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  TABS, applyProgramStatus, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  SEARCH_TAB, TABS, applyProgramStatus, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
@@ -59,7 +61,7 @@ function itemLine(item, width, selected, idWidth) {
 const keyline = (pairs) => pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : ' · '}`, 'dim']]);
 const HELP = [
   ['↑ ↓  j k', 'move'],
-  ['tab  1-6', 'switch tabs'],
+  ['tab  1-7', 'switch tabs'],
   ['← →', 'brief or list on Today'],
   ['enter', 'focus, open PR or launch'],
   ['n', 'new task from a goal'],
@@ -72,6 +74,8 @@ const HELP = [
   ['a', 'clean up all merged'],
   ['h', 'hide, or unhide in Hidden'],
   ['H', 'open or close Hidden'],
+  ['enter', 'Archive: reopen the conversation'],
+  ['v', 'Archive: read the transcript'],
   ['o', 'open PR or Linear issue'],
   ['l', 'open the Linear issue'],
   ['r', 'refresh Linear and tasks'],
@@ -91,10 +95,13 @@ export function legend(state) {
   const selected = state.rows?.[state.cursor];
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
-  return [...(item ? actionsFor(item, state.records ?? []) : []), ['?', 'all keys'], ['n', 'new'], ['/', 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['q', 'quit']];
+  const actions = item ? actionsFor(item, state.records ?? []) : [];
+  const globals = [['?', 'all keys'], ['n', 'new'], ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['q', 'quit']];
+  return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
 
 export function enterAction(item) {
+  if (item.archive) return 'recall';
   if (live(item.task)) return item.task.state === 'blocked' ? 'answer' : 'focus';
   if (item.pr) return 'open PR';
   if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return 'launch';
@@ -103,6 +110,7 @@ export function enterAction(item) {
 }
 
 export function actionsFor(item, records) {
+  if (item.archive) return [['enter', 'recall'], ['v', 'view transcript'], ...(item.archive.pullRequests?.length ? [['o', 'PR']] : []), ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   const task = item.task;
   const running = live(task) && !['unknown', 'error'].includes(task.state);
   const checkout = checkoutOf(item);
@@ -155,6 +163,16 @@ function detail(state, item) {
   }
   const last = state.status?.text ? [[state.status.text, state.status.tone]] : [];
   if (!item) return [[], [], [], last];
+  if (item.archive) {
+    const { archive } = item;
+    const pr = archive.pullRequests?.[0];
+    return [
+      [[item.title, 'bold']],
+      [[[item.id, item.project, archive.branch].filter(Boolean).join(' · '), 'dim']],
+      [[`archived ${new Date(archive.archivedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${pr ? ` · ${pr}` : ''} · ${archive.name}`, 'dim']],
+      last,
+    ];
+  }
   const facts = [item.id, item.issue && `Linear: ${item.issue.state.name}`, item.pr && `PR ${item.pr.state.toLowerCase()}`, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
   const agent = item.task
     ? `agent: ${item.task.state ?? 'unknown'}${item.task.reason ? ` · ${cleanText(item.task.reason)}` : ''}${item.pr ? ` · PR ${item.pr.state.toLowerCase()}` : ''}`
@@ -178,16 +196,21 @@ export function tabCells(state) {
 export function renderScreen(state, width, height) {
   const names = [...TABS, ...(state.search ? ['Search'] : [])];
   const tabs = tabCells(state);
-  const right = `● ${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`;
+  const dead = state.slots?.dead ?? 0;
+  const right = `● ${state.working} working   agents ${state.capacity.used}/${state.capacity.max}${dead ? ` · ${dead} dead` : ''}`;
   const tabWidth = tabs.reduce((sum, [text]) => sum + columns(text), 0);
   const gap = width - tabWidth - columns(right);
   const header = gap >= 1
-    ? line([...tabs, [' '.repeat(gap)], ['● ', 'yellow'], [right.slice(2), 'dim']], width)
+    ? line([...tabs, [' '.repeat(gap)], ['● ', 'yellow'], [`${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`, 'dim'], [dead ? ` · ${dead} dead` : '', 'yellow']], width)
     : line(tabs, width);
   const title = state.hiddenView
     ? line([['Hidden', 'bold'], ['  rows you hid with h · h unhides · H goes back', 'dim']], width)
     : state.tab === 4
     ? line([['Brief', state.mode === 'brief' ? 'blue' : 'dim', 'bold'], ['  '], ['List', state.mode === 'list' ? 'blue' : 'dim', 'bold']], width)
+    : state.tab === 3
+    ? line([['Sessions', 'bold'], [`  agent slots ${state.capacity.used}/${state.capacity.max}: ${slotSummary(state.slots)}`, state.slots?.dead ? 'yellow' : 'dim']], width)
+    : state.tab === TABS.length - 1
+    ? line([['Archive', 'bold'], [state.archiveFilter ? `  filtered by “${state.archiveFilter}” · / changes it` : '  cleaned-up tasks and their conversations · / filters', 'dim']], width)
     : line([[names[state.tab], 'bold']], width);
   const date = new Date(state.now).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   const hint = line([[`${date} · ${state.doneCount} done since yesterday · enter launch/focus or open PR · o open${state.tab === 4 ? ' · ←→ brief' : ''}`, 'dim']], width);
@@ -290,10 +313,11 @@ export class LinearApp {
         tasks: new TaskStore().list().filter((task) => task.originCwd === this.origin),
         prs: new PullRequestStore().list(this.origin),
         records: new RexWorktrees(null).records(),
+        archive: readArchive(),
       };
     } catch (error) {
       this.state.status = { tone: 'red', text: `Task registry unreadable: ${cleanText(error.message)}` };
-      return { tasks: [], prs: [], records: [] };
+      return { tasks: [], prs: [], records: [], archive: [] };
     }
   }
 
@@ -324,16 +348,17 @@ export class LinearApp {
     const { state } = this;
     state.rows = state.hiddenView
       ? hiddenView(data, this.hidden, { search: state.search })
-      : withoutHidden(buildView(state.tab, data, { mode: state.tab === 4 ? state.mode : 'brief', showStopped: state.showStopped, search: state.search }), this.hidden);
+      : withoutHidden(buildView(state.tab, data, { mode: state.tab === 4 ? state.mode : 'brief', showStopped: state.showStopped, search: state.search, filter: state.archiveFilter }), this.hidden);
     const found = state.rows.findIndex((row) => row.kind === 'item' && row.key === state.selected[this.slot()]);
     state.cursor = found === -1 ? moveCursor(state.rows, -1, 0) : found;
     this.remember();
     state.doneCount = brief(data).done.length;
     state.inboxCount = this.inboxCount();
     const count = (tab) => withoutHidden(buildView(tab, data, { showStopped: false }), this.hidden).filter((row) => row.kind === 'item').length;
-    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, state.search?.issues?.length];
+    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, data.archive.length, state.search?.issues?.length];
     state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
+    state.slots = slotsOf(data.tasks, this.hidden);
     state.records = this.data.records;
     state.now = Date.now();
   }
@@ -468,8 +493,8 @@ export class LinearApp {
       this.remember();
       return this.draw();
     }
-    if ((/^[1-6]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
-      state.tab = /^[1-6]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
+    if ((/^[1-7]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
+      state.tab = /^[1-7]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
       state.hiddenView = false;
       state.status = undefined;
       return this.draw();
@@ -484,12 +509,16 @@ export class LinearApp {
     }
     const item = state.rows[state.cursor]?.kind === 'item' ? state.rows[state.cursor] : undefined;
     if (name === 'n') return this.ask('new task, what should it do?', (goal) => this.newTask(goal));
+    if (name === '/' && state.tab === TABS.length - 1) return this.ask('filter the archive', (text) => { state.archiveFilter = text; state.selected[state.tab] = undefined; this.draw(); }, state.archiveFilter ?? '', { verb: 'filter' });
     if (name === '/') return this.ask('search Linear or paste an issue link', (text) => this.search(text));
     if (name === 'c') {
       const cleanup = item?.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? `Clean up ${item.task?.name ?? 'the task'} now that ${item.pr.url} is merged.` : '';
       return this.ask('Message the coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), cleanup, { multiline: true });
     }
     if (!item) return;
+    if (item.archive && name === 'enter') return this.recall(item);
+    if (item.archive && name === 'v') return this.viewTranscript(item);
+    if (item.archive && name === 'o') return this.open(item.archive.pullRequests?.[0], item.id);
     if (name === 'enter') return this.enter(item);
     if (name === 'o') return this.open(item.pr?.url ?? item.issue?.url, item.id);
     if (name === 'l') return item.issue ? this.open(item.issue.url, item.id) : this.status('yellow', `${item.id} has no linked Linear issue.`);
@@ -510,6 +539,39 @@ export class LinearApp {
     if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return this.startLaunch(item.issue);
     if (item.issue) return this.open(item.issue.url, item.id);
     this.status('yellow', `${item.id} is stopped. Press u to resume it.`);
+  }
+
+  recall(item) {
+    const { archive } = item;
+    const file = archive.taskLog?.archived;
+    if (!file || !existsSync(file)) return this.status('red', `The archived conversation for ${item.id} is missing.`);
+    const repo = String(archive.repository ?? '');
+    const cwd = repo && existsSync(repo) ? repo : homedir();
+    const binding = join(homedir(), '.rex', 'repositories', `${createHash('sha256').update(repo).digest('hex')}.json`);
+    const saved = existsSync(binding) ? JSON.parse(readFileSync(binding, 'utf8')).session : undefined;
+    const session = JSON.parse(callRex(['ls', '--json'])).sessions.find((entry) => entry.session_id === saved)?.session_id;
+    const label = `recall ${item.id}`;
+    const command = [join(homedir(), '.pi/agent/bin/pi'), '--fork', file];
+    const created = session
+      ? JSON.parse(callRex(['window', 'new', '-s', session, label, '-c', cwd, '--json', '--shell=none', '--', ...command]))
+      : JSON.parse(callRex(['new', basename(repo) || 'recall', '-c', cwd, '--window', label, '--json', '--shell=none', '--', ...command]));
+    const target = session ?? created.session_id;
+    const window = created.window_id ?? created.initial_windows?.[0]?.window_id;
+    callRex(['do', 'session.select', '--args', JSON.stringify({ session_id: target, window_id: window })]);
+    this.status('green', `Reopened ${item.id}'s conversation as a new Pi session in ${basename(cwd)}. The archive is unchanged.`);
+  }
+
+  viewTranscript(item) {
+    const file = item.archive.taskLog?.archived;
+    if (!file || !existsSync(file)) return this.status('red', `The archived conversation for ${item.id} is missing.`);
+    const out = join(homedir(), '.rex', 'history-views', `${item.archive.id}.html`);
+    mkdirSync(dirname(out), { recursive: true, mode: 0o700 });
+    this.status('dim', `Exporting ${item.id}'s transcript…`);
+    execFile(join(homedir(), '.pi/agent/bin/pi'), ['--export', file, out], { timeout: 60_000 }, (error) => {
+      if (error) return this.status('red', `Could not export the transcript: ${cleanText(error.message).slice(0, 120)}`);
+      execFile('open', [out], () => {});
+      this.status('green', `Opened ${item.id}'s transcript in your browser.`);
+    });
   }
 
   focus(task) {
@@ -577,12 +639,12 @@ export class LinearApp {
     if (!text) return this.status('dim', 'Nothing searched.');
     if (!this.linear.token) return this.status('yellow', this.linear.message?.split('\n')[0] ?? 'Linear is still loading.');
     this.state.search = { query: text, status: 'Searching Linear…' };
-    this.state.tab = 5;
+    this.state.tab = SEARCH_TAB;
     this.draw();
     try {
       const issues = await findIssues(this.linear.token, text);
       this.state.search = { query: issueReference(text) ?? text, issues };
-      this.state.selected[5] = undefined;
+      this.state.selected[SEARCH_TAB] = undefined;
       const [only] = issues;
       if (issueReference(text) && issues.length === 1 && !live(linkedTask(only, this.data.tasks)) && !['completed', 'canceled'].includes(only.state.type)) return this.startLaunch(only);
       this.status('dim', issues.length ? `${issues.length} result${issues.length === 1 ? '' : 's'}. Enter takes one on.` : '');
@@ -692,6 +754,25 @@ export function summarizeMissed(results) {
   return [...counts].map(([text, count]) => (count > 1 ? `${text} (×${count})` : text)).join(' · ');
 }
 
+export function slotsOf(tasks, hidden = new Set()) {
+  const held = tasks.filter((task) => task.persistent && !task.stopConfirmed);
+  return {
+    working: held.filter((task) => ['working', 'blocked', 'stopping'].includes(task.state)).length,
+    idle: held.filter((task) => ['done', 'idle'].includes(task.state)).length,
+    dead: held.filter((task) => ['unknown', 'error'].includes(task.state)).length,
+    hidden: held.filter((task) => hidden.has(`t:${task.id}`)).length,
+  };
+}
+
+export function slotSummary(slots = {}) {
+  return [
+    `${slots.working ?? 0} working`,
+    `${slots.idle ?? 0} idle`,
+    slots.dead ? `${slots.dead} not running, d retires` : '',
+    slots.hidden ? `${slots.hidden} hidden, H shows` : '',
+  ].filter(Boolean).join(' · ');
+}
+
 export function batchSummary({ total, failed, skipped = 0 }) {
   const cleaned = total - failed.length - skipped;
   return [
@@ -716,6 +797,33 @@ export function readProgramStatus(surface, run = execFile) {
       try { resolve(JSON.parse(stdout).records ?? []); } catch { resolve(undefined); }
     });
   });
+}
+
+export function archiveGoal(file) {
+  try {
+    const bytes = Buffer.alloc(256 * 1024);
+    const descriptor = openSync(file, 'r');
+    let text;
+    try { text = bytes.subarray(0, readSync(descriptor, bytes, 0, bytes.length, 0)).toString('utf8'); } finally { closeSync(descriptor); }
+    for (const row of text.split('\n')) {
+      let entry;
+      try { entry = JSON.parse(row); } catch { continue; }
+      if (entry.message?.role !== 'user') continue;
+      const content = entry.message.content;
+      const body = typeof content === 'string' ? content : (content ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n');
+      const goal = body.split('\n').map((line) => line.trim()).find((line) => line && !line.startsWith('<') && !line.startsWith('#') && !/^complete your task\b/i.test(line));
+      if (goal) return cleanText(goal.replace(/^(goal|task):\s*/i, '').replace(/^resolve\s+[A-Za-z][A-Za-z0-9]*-\d+:\s*/i, ''));
+    }
+  } catch {}
+  return undefined;
+}
+
+export function readArchive(history = new TaskHistory()) {
+  try {
+    return history.list().map((row) => ({ ...row, goal: archiveGoal(row.taskLog?.archived) }));
+  } catch {
+    return [];
+  }
 }
 
 const preferencesFile = () => process.env.REX_COMMAND_CENTER_PREFS ?? join(homedir(), '.rex', 'command-center.json');

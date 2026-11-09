@@ -103,6 +103,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
 | Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state |
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
+| Archive | Every cleaned-up task, newest first, titled by its Linear issue or the goal in its brief. `enter` reopens its conversation as a new Pi session (`pi --fork`) in a tab of the repository's session; the archive itself is never changed. `v` opens the transcript in the browser via Pi's HTML export, `/` filters |
 | Search | Linear search results, after `/` |
 
 The bottom bar lists only the keys that apply to the selected row, with what each will do (for example `enter open PR` or `d stop`), followed by the global keys. `?` lists every key.
@@ -152,7 +153,7 @@ Removing a checkout moves it into `~/.rex/trash` (an instant rename on the same 
 
 `worktree_list` shares one Git worktree listing per repository and one process snapshot for the whole inventory, and skips counting ignored files, which can number in the hundreds of thousands per checkout. Removal still inspects freshly and counts ignored files. With 65 checkouts the inventory went from about 210 seconds to about 24. At startup, uncertain merge notifications are summarized in one line and skip PRs whose cleanup is already decided.
 
-Retiring an agent that predates process attestation requires evidence that it exited: the process table must be readable, and no process may still run with the task's `PI_SUBAGENT_ID`. Leftover descendants, such as a dev server the agent started, block retirement until they stop.
+Retiring an agent that predates process attestation requires evidence that it exited: its Rex tab must be gone, and no process may have its working directory inside the task's checkout. `lsof` reports working directories whatever a process calls itself; Pi renames its process to `pi`, which hides its environment from `ps`, so environment variables are not used as evidence. Leftover processes in the checkout, such as a dev server the agent started, block retirement until they stop. The Sessions tab breaks agent slots down into working, idle, not running and hidden, and the header shows dead agents holding slots.
 
 Linear access uses a personal API key in the `Agents / Dev` vault. `~/.rex/linear.json` holds its reference, never the key:
 

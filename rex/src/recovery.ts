@@ -4,13 +4,13 @@ import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync }
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.ts';
-import { agentIdentityFile, boundedSummary, environmentHolders, sessionCwd, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
+import { agentIdentityFile, boundedSummary, cwdHolders, sessionCwd, processBirth, processCommand, processParent, probeProcess, taskState } from './tasks.ts';
 import { leaseAlive } from './worktrees.ts';
 
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
 
 export class RexRecovery {
-  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, holders = environmentHolders, onChange, launch }) {
+  constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, holders = cwdHolders, onChange, launch }) {
     Object.assign(this, { store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth, command, parentOf, holders, onChange, launch });
     this.recovered = new Set();
     this.view = new Map();
@@ -290,10 +290,14 @@ export class RexRecovery {
     const probe = this.probe(record);
     if (probe.state !== 'unknown' || record.identity || probe.reason !== 'Recorded process identity is unavailable') return probe;
     try {
-      const pids = this.holders(record.id);
-      if (pids === null) return probe;
-      if (pids.length) return { state: 'unknown', reason: `process ${pids.join(', ')} still runs with this task's PI_SUBAGENT_ID` };
-      return { state: 'crashed', reason: "No process runs with this task's PI_SUBAGENT_ID; it predates process attestation" };
+      if (this.provider.windowOf(record.surface)) return { state: 'unknown', reason: 'Its Rex tab is still open; close or stop it there first' };
+      if (!record.worktree) return probe;
+      if (existsSync(record.worktree)) {
+        const pids = this.holders(record.worktree);
+        if (pids === null) return probe;
+        if (pids.length) return { state: 'unknown', reason: `process ${pids.join(', ')} is still running in its checkout` };
+      }
+      return { state: 'crashed', reason: 'Its Rex tab is gone and nothing runs in its checkout; it predates process attestation' };
     } catch (error) {
       return { state: 'unknown', reason: String(error) };
     }

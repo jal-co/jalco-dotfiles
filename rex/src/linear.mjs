@@ -8,7 +8,8 @@ import { cleanText, sessionCwd } from './tasks.ts';
 const run = promisify(execFile);
 const reference = /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/([^/\r\n]+\/)?[^/\r\n]+$/;
 
-export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today'];
+export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Archive'];
+export const SEARCH_TAB = TABS.length;
 const AGENT = {
   blocked: ['! blocked', 'red'],
   error: ['✕ error', 'red'],
@@ -244,13 +245,39 @@ export function inbox(data) {
   return { asked, broken, review, merged, count: asked.length + broken.length + review.length + merged.length };
 }
 
-export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search } = {}) {
+function archiveItem(row, data) {
+  const issue = [...data.linear.open, ...data.linear.done].find((entry) => linkedTask(entry, [{ branch: row.branch }]));
+  const reference = issue?.identifier ?? /(?:^|\/)([a-z][a-z0-9]{0,9}-\d{1,7})(?=-|$)/i.exec(String(row.branch))?.[1]?.toUpperCase();
+  return {
+    kind: 'item', key: `a:${row.id}`, id: reference ?? cleanText(row.name), title: cleanText(issue?.title ?? row.goal ?? row.name),
+    project: basename(String(row.repository ?? '')), issue, archive: row,
+    agent: { text: new Date(row.archivedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), tone: 'dim' },
+  };
+}
+
+export function archiveView(data, { filter = '', now = Date.now() } = {}) {
+  const needle = filter.toLowerCase();
+  const items = (data.archive ?? []).map((row) => archiveItem(row, data))
+    .filter((item) => !needle || [item.id, item.title, item.archive.name, item.archive.branch, item.archive.goal, ...(item.archive.pullRequests ?? [])].some((value) => String(value ?? '').toLowerCase().includes(needle)));
+  if (!items.length) return [note(needle ? `Nothing archived matches “${cleanText(filter)}”.` : 'Nothing archived yet. Cleaning up a task archives its conversation here.')];
+  const today = new Date(now).setHours(0, 0, 0, 0);
+  const week = today - 6 * 86_400_000;
+  const when = (item) => Date.parse(item.archive.archivedAt);
+  return [
+    ...section('Archived today', items.filter((item) => when(item) >= today)),
+    ...section('Earlier this week', items.filter((item) => when(item) < today && when(item) >= week)),
+    ...section('Older', items.filter((item) => when(item) < week)),
+  ];
+}
+
+export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search, filter } = {}) {
+  if (tab === TABS.length - 1) return archiveView(data, { filter, now });
   if (tab === 0) {
     const { asked, broken, review, merged, count } = inbox(data);
     if (!count) return [note('Nothing needs you right now.')];
     return [...section('Needs an answer', asked), ...section('Failed or crashed', broken), ...section('Ready for review', review), ...section('Merged, cleanup pending', merged)];
   }
-  if (tab === 5) {
+  if (tab === SEARCH_TAB) {
     if (!search) return [note('Press / to search Linear or paste an issue link.')];
     if (search.status) return [note(search.status, search.tone ?? 'dim')];
     return search.issues.length ? section(`Results for “${cleanText(search.query)}”`, search.issues.map((issue) => issueItem(issue, data))) : [note(`No issues match “${cleanText(search.query)}”.`)];
@@ -300,7 +327,7 @@ export function withoutHidden(rows, hidden) {
 
 export function hiddenView(data, hidden, { search } = {}) {
   const seen = new Map();
-  for (const tab of [0, 1, 2, 3, 4, 5]) {
+  for (const tab of [...TABS.keys(), SEARCH_TAB]) {
     for (const row of buildView(tab, data, { showStopped: true, search })) if (row.kind === 'item' && hidden.has(row.key) && !seen.has(row.key)) seen.set(row.key, row);
   }
   return section('Hidden', [...seen.values()], 'Nothing hidden. Press h on a row to hide it.');

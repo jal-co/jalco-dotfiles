@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { RexRecovery } from '../src/recovery.ts';
-import { agentIdentityFile, TaskStore, boundedSummary, cleanText, environmentHolders, probeProcess, processBirth, processCommand, taskState, writeAgentIdentity } from '../src/tasks.ts';
+import { agentIdentityFile, TaskStore, boundedSummary, cleanText, cwdHolders, probeProcess, processBirth, processCommand, taskState, writeAgentIdentity } from '../src/tasks.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'rex-recovery-'));
@@ -273,17 +273,30 @@ test('retire never touches live, unattested or unreadable process identities', (
   }
 });
 
-test('an unattested task is retired only when no process carries its task ID', () => {
-  for (const [holders, outcome] of [[() => [], 'retired'], [() => [4242], /process 4242 still runs/], [() => null, /identity is unavailable/], [() => { throw new Error('ps failed'); }, /ps failed/]]) {
+test('an unattested task is retired only when its tab is gone and nothing runs in its checkout', () => {
+  const checkout = mkdtempSync(join(tmpdir(), 'rex-unattested-'));
+  const cases = [
+    [{ window: 'window:a', holders: () => [] }, /tab is still open/],
+    [{ holders: () => [4242] }, /process 4242 is still running in its checkout/],
+    [{ holders: () => null }, /identity is unavailable/],
+    [{ holders: () => { throw new Error('lsof failed'); } }, /lsof failed/],
+    [{ worktree: null, holders: () => [] }, /identity is unavailable/],
+    [{ holders: () => [] }, 'retired'],
+    [{ worktree: join(checkout, 'gone'), holders: () => { throw new Error('should not inspect a missing checkout'); } }, 'retired'],
+  ];
+  for (const [{ window, holders, worktree = checkout }, outcome] of cases) {
     const f = fixture();
-    delete f.record.identity; f.store.write(f.record);
+    delete f.record.identity;
+    if (worktree) f.record.worktree = worktree; else delete f.record.worktree;
+    f.store.write(f.record);
+    f.recovery.provider.windowOf = () => window;
     f.recovery.holders = holders;
+    f.recovery.worktrees = { records: () => [], save: () => {} };
     if (outcome === 'retired') {
       const result = f.recovery.retire({ name: 'fixture' });
       assert.equal(result.status, 'retired');
-      assert.match(result.reason, /predates process attestation/);
+      assert.match(result.reason, /tab is gone and nothing runs in its checkout/);
       assert.equal(f.store.read('run-a').stopConfirmed, true);
-      assert.deepEqual(f.closed, ['session:a/block:a']);
     } else {
       assert.throws(() => f.recovery.retire({ name: 'fixture' }), outcome);
       assert.equal(f.store.read('run-a').stopConfirmed, undefined);
@@ -291,21 +304,21 @@ test('an unattested task is retired only when no process carries its task ID', (
   }
 });
 
-test('an attestation mismatch is never bypassed by the environment check', () => {
+test('an attestation mismatch is never bypassed by the tab and checkout check', () => {
   const f = fixture();
   delete f.record.identity; f.store.write(f.record);
   writeFileSync(agentIdentityFile(f.record.sessionFile, 'run-a'), JSON.stringify({ version: 1, id: 'run-a', sessionFile: f.record.sessionFile, surface: 'session:other/block:x', generationId: 'generation-a', policyHash: 'hash', pid: 222, birth: 'agent' }));
+  f.recovery.provider.windowOf = () => undefined;
   f.recovery.holders = () => [];
   assert.throws(() => f.recovery.retire({ name: 'fixture' }), /attestation does not match/);
 });
 
-test('environment holders read the process table only when environments are visible', () => {
-  const me = process.pid;
-  const table = `${me} node x HOME=/h\n  41 pi PI_SUBAGENT_ID=task-1 HOME=/h\n  42 vite PI_SUBAGENT_ID=task-10 HOME=/h\n  43 sh PI_SUBAGENT_ID=task-1\n`;
-  assert.deepEqual(environmentHolders('task-1', () => table), [41, 43]);
-  assert.deepEqual(environmentHolders('task-2', () => table), []);
-  assert.equal(environmentHolders('task-1', () => `${me} node x\n41 pi PI_SUBAGENT_ID=task-1\n`), null);
-  assert.throws(() => environmentHolders('../x', () => table), /Invalid task ID/);
+test('checkout holders come from process working directories, whatever a process calls itself', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'rex-cwd-')));
+  const table = `p41\nn${root}\np42\nn${root}/packages/app\np43\nn${root}-other\np44\nn/elsewhere\n`;
+  assert.deepEqual(cwdHolders(root, () => table), [41, 42]);
+  assert.equal(cwdHolders(root, () => ''), null);
+  assert.equal(cwdHolders(root, () => undefined), null);
 });
 
 test('retire preserves ownership, generation and binding safety checks', () => {

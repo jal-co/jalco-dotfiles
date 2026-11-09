@@ -4,12 +4,12 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
-  applyProgramStatus, buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  applyProgramStatus, archiveView, buildView, capacityOf, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, rankRepositories, terms } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
-import { actionsFor, batchSummary, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
+import { actionsFor, archiveGoal, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -154,11 +154,11 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[0], /^ 4 Sessions {3}5 Today|^ 1 Inbox {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today +● 1 working {3}agents 8\/8$/);
-  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[0]), /^ 1 Inbox 3 {3}2 Issues 12 {3}3 Backlog 22 {3}4 Sessions 5 {3}5 Today 7 +● 1 working/);
+  assert.match(screen[0], /^ 1 Inbox {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today {3}6 Archive +● 1 working {3}agents 8\/8$/);
+  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[0]), /^ 1 Inbox 3 {3}2 Issues 12 {3}3 Backlog 22 {3}4 Sessions 5 {3}5 Today 7 {3}6 Archive +● 1 working/);
   assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /\u001b\[34;1;48;5;237m 2 Issues 12 \u001b\[0m/);
   assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /Inbox\u001b\[33m 3/);
-  assert.match(plain(renderScreen({ ...state, tab: 5, search: { query: 'x' } }, 140, 24)[0]), /5 Today {3}6 Search /);
+  assert.match(plain(renderScreen({ ...state, tab: 6, search: { query: 'x' } }, 160, 24)[0]), /6 Archive {3}7 Search /);
   assert.match(screen[2], /^Brief {2}List/);
   assert.match(screen[5], /^ {2}In progress 1/);
   assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
@@ -257,9 +257,9 @@ test('the inbox collects questions, failures, finished work and merged PRs waiti
 
 test('search results render in their own tab', () => {
   const data = { tasks: [], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
-  assert.deepEqual(sections(buildView(5, data, { search: { query: 'storage', issues: [issue('ENG-10', 'backlog')] } })), { 'Results for “storage”': ['ENG-10'] });
-  assert.equal(buildView(5, data, { search: { query: 'x', status: 'Searching Linear…' } })[0].text, 'Searching Linear…');
-  assert.match(buildView(5, data, { search: { query: 'zzz', issues: [] } })[0].text, /No issues match/);
+  assert.deepEqual(sections(buildView(6, data, { search: { query: 'storage', issues: [issue('ENG-10', 'backlog')] } })), { 'Results for “storage”': ['ENG-10'] });
+  assert.equal(buildView(6, data, { search: { query: 'x', status: 'Searching Linear…' } })[0].text, 'Searching Linear…');
+  assert.match(buildView(6, data, { search: { query: 'zzz', issues: [] } })[0].text, /No issues match/);
 });
 
 test('pasted Linear links and identifiers resolve to one issue; other text searches', async () => {
@@ -430,4 +430,39 @@ test('repeated missed results collapse into one line with a count', () => {
   const reloaded = { ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' };
   assert.equal(summarizeMissed([reloaded, reloaded, reloaded, { ok: true, text: 'Removed /w/a. Branch kept.' }]),
     'The coordinator reloaded before running this request; nothing was done (×3) · Removed /w/a');
+});
+
+test('the archive groups cleaned-up tasks by date, titles them from Linear or their brief, and filters', () => {
+  const now = new Date('2026-11-08T15:00:00').getTime();
+  const row = (id, name, branch, at, extra = {}) => ({ id, name, branch, archivedAt: new Date(at).toISOString(), repository: '/r/platform', pullRequests: [`https://github.com/a/b/pull/${id}`], taskLog: { archived: `/h/${id}/task.jsonl` }, ...extra });
+  const data = { tasks: [], prs: [], records: [], linear: { status: 'ok', open: [], done: [issue('PLTFRM-3276', 'completed', { branchName: 'jal/pltfrm-3276-plans', title: 'Plans modal scrolls' })] },
+    archive: [
+      row('1', 'plans-modal-scroll', 'jal/pltfrm-3276-plans', now - 1000),
+      row('2', 'refund-list-build', 'jal/pltfrm-3055-label-refunds', now - 2 * 86_400_000, { goal: 'Label refunds in the invoice list' }),
+      row('3', 'old-thing', 'fix/old-thing', now - 30 * 86_400_000),
+    ] };
+  const rows = archiveView(data, { now });
+  assert.deepEqual(sections(rows), { 'Archived today': ['PLTFRM-3276'], 'Earlier this week': ['PLTFRM-3055'], Older: ['old-thing'] });
+  assert.deepEqual(items(rows).map((item) => item.title), ['Plans modal scrolls', 'Label refunds in the invoice list', 'old-thing']);
+  assert.deepEqual(items(archiveView(data, { now, filter: 'refunds' })).map((item) => item.id), ['PLTFRM-3055']);
+  assert.match(archiveView({ ...data, archive: [] }, { now })[0].text, /Nothing archived yet/);
+  assert.deepEqual(actionsFor(items(rows)[0], []).map(([key, label]) => `${key} ${label}`), ['enter recall', 'v view transcript', 'o PR', 'l Linear', 'h hide']);
+});
+
+test('an archived conversation is titled by its brief, skipping file tags and the host preamble', () => {
+  const file = join(mkdtempSync(join(tmpdir(), 'rex-goal-')), 'task.jsonl');
+  const user = (text) => JSON.stringify({ type: 'message', message: { role: 'user', content: [{ type: 'text', text }] } });
+  writeFileSync(file, [JSON.stringify({ type: 'session' }), user('<file name="x.md">\n\nComplete your task. When finished, call the subagent_done tool.\n\nGoal: Resolve PLTFRM-2998: Billing history misses refunds\nFiles: …'), user('continue')].join('\n'));
+  assert.equal(archiveGoal(file), 'Billing history misses refunds');
+  assert.equal(archiveGoal('/missing/file.jsonl'), undefined);
+});
+
+test('agent slots break down into working, idle, not running and hidden', () => {
+  const tasks = [task('a', 'working'), task('b', 'done'), task('c', 'unknown'), task('d', 'unknown'), task('e', 'stopped', { stopConfirmed: true }), task('f', 'idle', { persistent: false })];
+  const slots = slotsOf(tasks, new Set(['t:c-id']));
+  assert.deepEqual(slots, { working: 1, idle: 1, dead: 2, hidden: 1 });
+  assert.equal(slotSummary(slots), '1 working · 1 idle · 2 not running, d retires · 1 hidden, H shows');
+  const screen = renderScreen({ tab: 3, rows: [], cursor: -1, working: 1, capacity: { used: 4, max: 8 }, slots, doneCount: 0, now: Date.now() }, 160, 24).map(plain);
+  assert.match(screen[0], /agents 4\/8 · 2 dead\s*$/);
+  assert.match(screen[2], /^Sessions {2}agent slots 4\/8: 1 working · 1 idle · 2 not running, d retires · 1 hidden, H shows/);
 });

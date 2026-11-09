@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
@@ -50,13 +50,20 @@ export function probeProcess(identity, { birth = processBirth, command = process
   return { state: 'alive', reason: `Process ${identity.pid} start time and command line match` };
 }
 
-export function environmentHolders(id, list = () => execFileSync('ps', ['-E', '-ww', '-A', '-o', 'pid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })) {
-  assert.match(id, /^[a-zA-Z0-9-]+$/, 'Invalid task ID');
-  const rows = list().split('\n');
-  const self = rows.find((row) => row.trim().startsWith(`${process.pid} `));
-  if (!self || !/\sHOME=/.test(self)) return null;
-  const marker = new RegExp(`\\sPI_SUBAGENT_ID=${id}(\\s|$)`);
-  return rows.filter((row) => marker.test(row)).map((row) => Number(row.trim().split(/\s+/, 1)[0]));
+export function cwdHolders(path, list = () => {
+  const result = spawnSync('lsof', ['-n', '-P', '-a', '-u', String(process.getuid()), '-d', 'cwd', '-Fpn'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return result.error ? undefined : result.stdout;
+}) {
+  const output = list();
+  if (!output || !output.startsWith('p')) return null;
+  const target = realpathSync(path);
+  const pids = [];
+  for (const record of output.split(/^p/m).slice(1)) {
+    const [pid, ...fields] = record.split('\n');
+    const cwd = fields.find((field) => field.startsWith('n'))?.slice(1);
+    if (cwd && (cwd === target || cwd.startsWith(`${target}/`))) pids.push(Number(pid));
+  }
+  return pids;
 }
 
 export function agentIdentityFile(sessionFile, id) {
