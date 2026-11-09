@@ -47,7 +47,7 @@ test('retries are idempotent while newer logs create distinct snapshots', () => 
 
 test('missing or invalid logs block archival instead of silently losing memory', () => {
   const f = fixture(); unlinkSync(f.taskFile);
-  assert.throws(() => f.history.archive(f.input), /ENOENT/);
+  assert.throws(() => f.history.archive(f.input), /session log is missing/);
   assert.deepEqual(f.history.list(), []);
   writeFileSync(f.taskFile, '{"type":"not-a-session"}\n');
   assert.throws(() => f.history.archive(f.input), /Not a Pi session/);
@@ -70,4 +70,16 @@ test('unlaunched checkouts need no invented log but launched manifests cannot lo
   assert.deepEqual(f.history.archive(f.input), []);
   f.input.checkout.manifest = { value: {} };
   assert.throws(() => f.history.archive(f.input), /manifest has no session log/);
+});
+
+test('a task that never wrote a transcript needs no archive only when its launch sidecar proves it started', () => {
+  const f = fixture(); unlinkSync(f.taskFile);
+  assert.throws(() => f.history.archive(f.input), /session log is missing and the task left no launch sidecar/);
+  writeFileSync(`${f.taskFile}.pi-herdr-subagent-policy.json`, '{}');
+  assert.deepEqual(f.history.archive(f.input), []);
+  const both = fixture();
+  const second = join(both.root, 'second.jsonl');
+  writeFileSync(`${second}.pi-herdr-subagent-policy.json`, '{}');
+  const records = both.history.archive({ ...both.input, tasks: [...both.input.tasks, { id: 'never', name: 'never-started', worktree: '/checkout', sessionFile: second }] });
+  assert.deepEqual(records.map((record) => record.taskId), ['child']);
 });

@@ -42,7 +42,7 @@ test('native worktree cleanup requires confirmation and valid transcript archive
   assert.equal(holderChecks, 0); assert.equal(removals, 0);
   ctx.ui.confirm = async () => true;
   writeFileSync(ctx.sessionManager.getSessionFile(), '{"type":"session","id":"coordinator"}\n');
-  await assert.rejects(remove(), /ENOENT/);
+  await assert.rejects(remove(), /session log is missing/);
   assert.equal(holderChecks, 1); assert.equal(removals, 0);
   infrastructure.worktrees.assertUnused = async () => { throw new Error('Live task process'); };
   await assert.rejects(remove(), /Live task process/);

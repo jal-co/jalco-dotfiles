@@ -27,6 +27,12 @@ export class TaskHistory {
       assert.ok(!checkout.manifest, 'Task manifest has no session log; inspect it before cleanup');
       return [];
     }
+    for (const file of [...sources.keys()]) {
+      if (existsSync(file)) continue;
+      assert.ok(existsSync(`${file}.pi-herdr-subagent-policy.json`), `Task session log is missing and the task left no launch sidecar: ${file}. Inspect it before cleanup.`);
+      sources.delete(file);
+    }
+    if (!sources.size) return [];
     assert.ok(coordinatorSession, 'Coordinator session log is required before task cleanup');
     const coordinator = sessionSnapshot(coordinatorSession);
     const snapshots = [...sources].map(([file, task]) => ({ file, task, snapshot: sessionSnapshot(file) }));
