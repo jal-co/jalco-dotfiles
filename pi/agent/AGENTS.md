@@ -91,7 +91,7 @@ Lead with the answer or required action. Use short, direct sentences and enough 
 
 When review notes arrive from a pull request or diff view, begin the requested work without an acknowledgment-only response such as “Fixing,” “On it,” or “Got it.” Respond only when there is a substantive result, blocker, or required question.
 
-MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. Avoid preambles, generic offers, and recap endings. Do not end by asking permission for a safe next step you can execute. Safety and real ambiguity take precedence over brevity.
+MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. MUST NOT use the interpunct (`·`, U+00B7) anywhere: prose, messages, interface copy, separators, or markup. Separate inline items with spacing, line breaks, or layout instead. Avoid preambles, generic offers, and recap endings. Do not end by asking permission for a safe next step you can execute. Safety and real ambiguity take precedence over brevity.
 
 Justin has ADHD. This applies in every session, including pstack runs and every message addressed to him. Replies end with the one thing he must do, in one or two plain sentences, after the explanation. When you need a decision, ask open questions last, one or two at most, in everyday words. Never bury the ask mid-reply, and never end with a menu of options or a long list of questions. Long endings hide the action, and a hidden action does not get done.
 
