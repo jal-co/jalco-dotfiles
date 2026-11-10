@@ -100,8 +100,6 @@ function renderImageGrid(pairs, cwd, lines) {
   }
   lines.push("");
 }
-  lines.push("");
-}
 
 function renderVideoPair(pair, cwd, lines) {
   const suffix = heading(pair.label);
