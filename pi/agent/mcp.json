@@ -129,7 +129,7 @@
     },
     "railway": {
       "url": "https://mcp.railway.com",
-      "description": "Railway projects, services, deployments and variables"
+      "description": "Railway logs only; use the railway CLI or admin-cli for everything else"
     },
     "superlogical": {
       "url": "https://www.superlogical.com/rex/community-mcp",
