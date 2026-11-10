@@ -157,3 +157,15 @@ test('a request for work already queued or running is skipped as a duplicate, an
   assert.deepEqual(started, ['/w/a', '/w/b', '/w/a']);
   await inbox.close();
 });
+
+test('the inbox still picks up requests after its file watcher dies', async () => {
+  const { root } = fixture();
+  const inbox = new RequestInbox({ root, origin: '/coord', run: async () => ({ ok: true, text: 'ran' }) });
+  inbox.start();
+  inbox.watcher.emit('error', new Error('EMFILE: too many open files, watch'));
+  const id = submitRequest({ origin: '/coord', action: 'stop', params: { id: 'task-1' } }, root);
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  await inbox.busy;
+  assert.deepEqual(requestState(id, root), { state: 'done', ok: true, text: 'ran' });
+  await inbox.close();
+});

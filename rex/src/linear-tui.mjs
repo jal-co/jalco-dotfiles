@@ -806,6 +806,10 @@ export class LinearApp {
         this.pending.delete(id);
         this.data = this.snapshot();
         this.status(result.ok ? (result.outcome === 'queued' ? 'yellow' : 'green') : 'red', explain(result));
+      } else if (result.state === 'queued' && Date.now() - entry.at > REQUEST_TTL) {
+        this.pending.delete(id);
+        if (entry.batch && this.batch) this.batch = undefined;
+        this.status('red', 'The coordinator never picked that up, so nothing was done. Run pinned or /reload it, then try again.');
       } else if (result.state === 'queued' && !entry.warned && Date.now() - entry.at > 10_000) {
         entry.warned = true;
         this.status('yellow', `The coordinator hasn't picked this up. Run pinned, or /reload it. The request expires ${REQUEST_TTL / 1000}s after sending.`);

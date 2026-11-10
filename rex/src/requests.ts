@@ -97,6 +97,8 @@ export function duplicateKey({ tool, params }) {
   return undefined;
 }
 
+const POLL_MS = 2000;
+
 export class RequestInbox {
   constructor({ origin, run, root = requestRoot(), now = Date.now, tasks = () => new TaskStore().list() }) {
     Object.assign(this, { origin, run, root, now, tasks });
@@ -105,9 +107,18 @@ export class RequestInbox {
   }
   start() {
     mkdirSync(this.root, { recursive: true, mode: 0o700 });
-    this.watcher = watch(this.root, (_event, name) => { if (/^[a-f0-9-]{36}\.json$/.test(String(name))) this.scan(); });
-    this.watcher.on('error', () => this.close());
+    this.watch();
+    this.poll = setInterval(() => this.scan(), POLL_MS);
+    this.poll.unref();
     this.scan();
+  }
+  watch() {
+    try {
+      this.watcher = watch(this.root, (_event, name) => { if (/^[a-f0-9-]{36}\.json$/.test(String(name))) this.scan(); });
+      this.watcher.on('error', () => this.watcher?.close());
+    } catch {
+      this.watcher = undefined;
+    }
   }
   scan() {
     if (this.closed || !existsSync(this.root)) return this.busy;
@@ -157,6 +168,7 @@ export class RequestInbox {
   }
   close() {
     this.closed = true;
+    clearInterval(this.poll);
     this.watcher?.close();
     return this.busy;
   }
