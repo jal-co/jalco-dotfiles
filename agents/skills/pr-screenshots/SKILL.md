@@ -71,11 +71,13 @@ Start from a settled initial state and stop after the final state settles. Keep 
 <format>
 
 ```markdown
-| | Light | Dark |
+| | Before | After |
 | --- | --- | --- |
-| Before | ![Navigation clipped in light mode](./before-light.png) | ![Navigation clipped in dark mode](./before-dark.png) |
-| After | ![Navigation fixed in light mode](./after-light.png) | ![Navigation fixed in dark mode](./after-dark.png) |
+| Light | ![Navigation clipped in light mode](./before-light.png) | ![Navigation fixed in light mode](./after-light.png) |
+| Dark | ![Navigation clipped in dark mode](./before-dark.png) | ![Navigation fixed in dark mode](./after-dark.png) |
 ```
+
+Before and After MUST be the columns, with one row per theme, so each pair sits side by side and a reviewer compares it left to right. They MUST NOT be stacked as rows.
 
 Before-and-after pairs MUST use the same CSS viewport dimensions, device pixel ratio, browser zoom, `visualViewport.scale`, crop, content state, scroll position, and capture method. Browser zoom and `visualViewport.scale` MUST remain `1`. Matching output image dimensions alone is insufficient because a Retina screenshot can have twice as many pixels as its CSS viewport.
 
@@ -136,7 +138,7 @@ The authenticated GitHub account MUST have write access to upload media. GitHub 
 
 `scripts/format.mjs` (vendored from vercel-labs/before-and-after, PolyForm Shield, license beside it; we added `--grid` and the alt flags) formats existing local media and replaces one `<!-- before-and-after:start/end -->` block in the PR body, so redone screenshots never duplicate evidence. It errors on a missing file, whitespace in a path, a path outside the working directory, mismatched pair counts, an incomplete or repeated marker, and a before image paired with an after video.
 
-Run it from the directory that holds the media. `--grid` with a `--label` per theme emits the Light/Dark grid from the format section; `--before-alt` and `--after-alt` set specific alt text. Alt flags are matched to pairs by position, so pass one for every pair or none:
+Run it from the directory that holds the media. `--grid` with a `--label` per theme emits the Before/After grid from the format section, one row per theme; `--before-alt` and `--after-alt` set specific alt text. Alt flags are matched to pairs by position, so pass one for every pair or none:
 
 ```bash
 SCRIPT=~/.agents/skills/pr-screenshots/scripts/format.mjs
@@ -151,7 +153,7 @@ ARGS=(); while IFS= read -r f; do ARGS+=(--attach "$f"); done < <(node $SCRIPT -
 gh pr edit 123 --body-file next.md "${ARGS[@]}"
 ```
 
-For new UI, drop the `--before` flags and the grid gets a single Preview row. Without `--grid` each label becomes its own Before/After table, which suits one-theme surfaces. Without alt flags the alt text falls back to generic text such as `Before Light`; always pass specific alt text. With no existing block the script appends one; move it after the opening sentence or sketch and before implementation detail, never into the middle of other Markdown. Read the published body back and confirm no local `./` paths remain inside the block.
+For new UI, drop the `--before` flags and the grid gets a single Preview row with one column per theme. Without `--grid` each label becomes its own Before/After table, which suits one-theme surfaces. Without alt flags the alt text falls back to generic text such as `Before Light`; always pass specific alt text. With no existing block the script appends one; move it after the opening sentence or sketch and before implementation detail, never into the middle of other Markdown. Read the published body back and confirm no local `./` paths remain inside the block.
 
 ### Before and after videos side by side
 

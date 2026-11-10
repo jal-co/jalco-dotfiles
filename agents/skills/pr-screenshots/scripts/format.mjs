@@ -89,11 +89,18 @@ function renderImageGrid(pairs, cwd, lines) {
   if (hasBefore && pairs.some((pair) => !pair.before)) {
     throw new Error("--grid requires a --before file for every pair or for none");
   }
-  const row = (name, key, altKey, fallback) =>
-    `| ${name} | ${pairs.map((pair) => imageRef(pair[key], pair[altKey] ?? `${fallback} ${pair.label}`, cwd)).join(" | ")} |`;
-  lines.push(`| | ${pairs.map((pair) => pair.label).join(" | ")} |`, `| --- |${" --- |".repeat(pairs.length)}`);
-  if (hasBefore) lines.push(row("Before", "before", "beforeAlt", "Before"));
-  lines.push(row(hasBefore ? "After" : "Preview", "after", "afterAlt", hasBefore ? "After" : "Preview"), "");
+  if (!hasBefore) {
+    lines.push(`| | ${pairs.map((pair) => pair.label).join(" | ")} |`, `| --- |${" --- |".repeat(pairs.length)}`);
+    lines.push(`| Preview | ${pairs.map((pair) => imageRef(pair.after, pair.afterAlt ?? `Preview ${pair.label}`, cwd)).join(" | ")} |`, "");
+    return;
+  }
+  lines.push("| | Before | After |", "| --- | --- | --- |");
+  for (const pair of pairs) {
+    lines.push(`| ${pair.label} | ${imageRef(pair.before, pair.beforeAlt ?? `Before ${pair.label}`, cwd)} | ${imageRef(pair.after, pair.afterAlt ?? `After ${pair.label}`, cwd)} |`);
+  }
+  lines.push("");
+}
+  lines.push("");
 }
 
 function renderVideoPair(pair, cwd, lines) {
