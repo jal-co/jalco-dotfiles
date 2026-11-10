@@ -202,15 +202,15 @@ test('a prompt shows the live pi-tui input in the detail area and the key bar na
 });
 
 test('linked running agents get one tab name from their issue; named, stopped and unlinked ones are skipped', () => {
-  const issue = { identifier: 'PLTFRM-3240', title: 'Billing page shows "Upgrade to Teams" for Free users', branchName: 'jal/pltfrm-3240-billing' };
-  assert.equal(tabLabel(issue), 'PLTFRM-3240 Billing page shows "Upgrade…');
+  const issue = { identifier: 'PLTFRM-3240', title: 'Settings page shows "Change plan" twice for everyone', branchName: 'jal/pltfrm-3240-billing' };
+  assert.equal(tabLabel(issue), 'PLTFRM-3240 Settings page shows "Change…');
   const tasks = [
     task('pltfrm-3240', 'working', { branch: 'jal/pltfrm-3240-billing' }),
     task('named', 'working', { branch: 'jal/pltfrm-3240-billing', id: 'named-id' }),
     task('stopped', 'stopped', { stopConfirmed: true, branch: 'jal/pltfrm-3240-billing' }),
     task('plain', 'working', { branch: 'jal/no-issue' }),
   ];
-  assert.deepEqual(tabsToName(tasks, [issue], { 'named-id': false }).map(({ task: row, label }) => [row.name, label]), [['pltfrm-3240', 'PLTFRM-3240 Billing page shows "Upgrade…']]);
+  assert.deepEqual(tabsToName(tasks, [issue], { 'named-id': false }).map(({ task: row, label }) => [row.name, label]), [['pltfrm-3240', 'PLTFRM-3240 Settings page shows "Change…']]);
 });
 
 test('issue launches use the coordinator brief template and a persistent interactive worktree agent', () => {
