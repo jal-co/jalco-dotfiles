@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { orphanResults, parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.ts';
+import { duplicateKey, orphanResults, parseRequest, RequestInbox, requestState, REQUEST_TTL, submitRequest } from '../src/requests.ts';
 
 const fixture = () => {
   const root = mkdtempSync(join(tmpdir(), 'rex-requests-'));
@@ -35,6 +35,8 @@ test('send, stop, resume and coordinator messages map to the coordinator; resume
   assert.deepEqual(parseRequest(request('send', { id: 'task-1', message: 'rebase' })), { tool: 'subagent_send', params: { id: 'task-1', message: 'rebase' } });
   assert.throws(() => parseRequest(request('send', { id: 'task-1', message: ' ' })), /missing/);
   assert.deepEqual(parseRequest(request('stop', { id: 'task-1' })), { tool: 'subagent_stop', params: { id: 'task-1' } });
+  assert.deepEqual(parseRequest(request('stash', { id: 'task-1', checkout: '/w' })), { tool: 'stash', params: { id: 'task-1' } });
+  assert.throws(() => parseRequest(request('stash', { id: '../x' })), /Invalid task ID/);
   assert.deepEqual(parseRequest(request('resume', { id: 'task-1' }), { tasks }), { tool: 'subagent_resume', params: { sessionPath: '/s/plt-4.jsonl', name: 'plt-4' } });
   assert.throws(() => parseRequest(request('resume', { id: 'task-1' }, { origin: '/other' }), { tasks }), /No retained task/);
   assert.deepEqual(parseRequest(request('message', { message: 'clean up plt-4' })), { tool: 'message', params: { message: 'clean up plt-4' } });
@@ -167,5 +169,17 @@ test('the inbox still picks up requests after its file watcher dies', async () =
   await new Promise((resolve) => setTimeout(resolve, 2500));
   await inbox.busy;
   assert.deepEqual(requestState(id, root), { state: 'done', ok: true, text: 'ran' });
+  await inbox.close();
+});
+
+test('a stash request reaches the coordinator once as a stash of that task', async () => {
+  const { root } = fixture();
+  const ran = [];
+  const inbox = new RequestInbox({ root, origin: '/coord', tasks, run: async (tool, params) => { ran.push([tool, params]); return { ok: true, text: 'Stashing plt-4' }; } });
+  const id = submitRequest({ origin: '/coord', action: 'stash', params: { id: 'task-1' } }, root);
+  await inbox.scan();
+  assert.deepEqual(ran, [['stash', { id: 'task-1' }]]);
+  assert.deepEqual(requestState(id, root), { state: 'done', ok: true, text: 'Stashing plt-4' });
+  assert.equal(duplicateKey({ tool: 'stash', params: { id: 'task-1' } }), 'task:task-1');
   await inbox.close();
 });

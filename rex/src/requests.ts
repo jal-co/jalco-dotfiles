@@ -70,9 +70,9 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
     if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/[1-9]\d*$/.test(params.url ?? '')) throw new Error('Invalid pull request URL');
     return { tool: 'retain', params: { url: params.url } };
   }
-  if (request.action === 'stop') {
+  if (request.action === 'stop' || request.action === 'stash') {
     if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
-    return { tool: 'subagent_stop', params: { id: params.id } };
+    return { tool: request.action === 'stop' ? 'subagent_stop' : 'stash', params: { id: params.id } };
   }
   if (request.action === 'launch') {
     if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(params.name ?? '')) throw new Error('Invalid task name');
@@ -92,7 +92,7 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
 
 export function duplicateKey({ tool, params }) {
   if (tool === 'cleanup') return `cleanup:${params.checkout}`;
-  if (tool === 'subagent_stop' || tool === 'subagent_resume') return `task:${params.id ?? params.sessionPath}`;
+  if (['subagent_stop', 'subagent_resume', 'stash'].includes(tool)) return `task:${params.id ?? params.sessionPath}`;
   if (tool === 'subagent') return `launch:${params.name}`;
   return undefined;
 }

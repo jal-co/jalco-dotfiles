@@ -15,7 +15,7 @@ import { loadPersistentConfig } from '../host/maestro/core/config/persistent-con
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
   SEARCH_TAB, TABS, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
-  createProject, directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, taskBrief, withoutHidden,
+  createProject, directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
@@ -69,7 +69,8 @@ const HELP = [
   ['/', 'search or paste a link'],
   ['c', 'type to the coordinator'],
   ['s', 'message the selected agent'],
-  ['u', 'resume a crashed agent'],
+  ['u', 'resume a crashed or stashed agent'],
+  ['z', 'stash: stop the agent, keep everything to resume later'],
   ['d', 'stop or retire the agent'],
   ['D', 'stop, remove checkout'],
   ['a', 'clean up all merged'],
@@ -108,6 +109,7 @@ export function enterAction(item) {
   if (item.archive) return 'recall';
   if (item.coordinator) return item.coordinator.dialog ? 'open coordinator' : 'answer';
   if (item.approval) return 'approve cleanup';
+  if (stashed(item.task)) return 'resume';
   if (live(item.task)) return item.task.state === 'blocked' ? 'answer' : 'focus';
   if (item.pr) return 'open PR';
   if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return 'launch';
@@ -128,6 +130,7 @@ export function actionsFor(item, records) {
     ...(enter ? [['enter', enter]] : []),
     ...(running ? [['s', 'send']] : []),
     ...(task && !task.stopConfirmed && !running ? [['u', 'resume']] : []),
+    ...(running && !task.stashed ? [['z', 'stash']] : []),
     ...(cleanable ? [['D', 'clean up']] : []),
     ...(task && !task.stopConfirmed ? [['d', running ? 'stop' : 'retire']] : []),
     ...(item.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? [['a', 'clean up all merged']] : []),
@@ -592,9 +595,11 @@ export class LinearApp {
       return this.cleanup(inbox(this.view()).merged.filter((entry) => !this.hidden.has(entry.key) && checkoutOf(entry)));
     }
     if (name === 'u') return this.resume(item);
+    if (name === 'z') return this.stash(item);
   }
 
   enter(item) {
+    if (stashed(item.task)) return this.resume(item);
     if (live(item.task)) return this.focus(item.task);
     if (item.pr) return this.open(item.pr.url, item.id);
     if (item.issue && !['completed', 'canceled'].includes(item.issue.state.type)) return this.startLaunch(item.issue);
@@ -658,7 +663,8 @@ export class LinearApp {
 
   resume(item) {
     if (!item.task) return this.status('yellow', `${item.id} has no agent to resume.`);
-    if (item.task.stopConfirmed) return this.status('yellow', `${item.task.name} was retired and its tab closed. Launch a new task instead.`);
+    if (item.task.stashed && !item.task.stopConfirmed) return this.status('yellow', `${item.task.name} is still being stashed. Resume it once its agent has exited.`);
+    if (item.task.stopConfirmed && !item.task.stashed) return this.status('yellow', `${item.task.name} was retired and its tab closed. Launch a new task instead.`);
     if (live(item.task) && item.task.state !== 'unknown') return this.status('yellow', `${item.task.name} is ${item.task.state}. Use s to send it a message.`);
     this.request('resume', { id: item.task.logicalId ?? item.task.id }, `Asked the coordinator to resume ${item.task.name}…`);
   }
@@ -681,6 +687,13 @@ export class LinearApp {
     this.state.confirm = { kind: 'cleanup', items: usable };
     this.state.status = undefined;
     this.draw();
+  }
+
+  stash(item) {
+    if (!item.task) return this.status('yellow', `${item.id} has no agent to stash.`);
+    if (item.task.stashed) return this.status('dim', `${item.task.name} is already ${item.task.stopConfirmed ? 'stashed. Press u to resume it' : 'being stashed'}.`);
+    if (!live(item.task) || ['unknown', 'error'].includes(item.task.state)) return this.status('yellow', `${item.task.name} is not running. Only a running or idle agent can be stashed.`);
+    this.request('stash', { id: item.task.logicalId ?? item.task.id }, `Asked the coordinator to stash ${item.task.name}…`);
   }
 
   retire(item) {

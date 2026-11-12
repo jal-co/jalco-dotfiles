@@ -76,6 +76,8 @@ test('Linear issues load through GraphQL with the personal key and report API er
 });
 
 test('linked tasks match the issue branch exactly or by identifier boundary', () => {
+  const retired = { branch: 'jal/plt-9-fix', stopConfirmed: true, id: 'retired' };
+  assert.equal(linkedTask(issue('PLT-9', 'started'), [retired, { ...retired, id: 'shelved', stashed: { at: 1 } }]).id, 'shelved');
   const tasks = [task('pltfrm-305', 'working', { branch: 'jal/pltfrm-305-other' }), task('pltfrm-3055', 'done', { branch: 'jal/pltfrm-3055-label' })];
   assert.equal(linkedTask(issue('PLTFRM-3055', 'started', { branchName: 'unrelated' }), tasks).name, 'pltfrm-3055');
   assert.equal(linkedTask(issue('PLTFRM-30', 'started', { branchName: 'unrelated' }), tasks), undefined);
@@ -96,6 +98,23 @@ test('sessions group live tasks by repository with agent and PR labels, hiding s
   assert.match(rows.at(-1).text, /1 stopped task hidden/);
   assert.ok(items(buildView(3, data, { showStopped: true })).some((row) => row.id === 'old-run'));
   assert.equal(buildView(3, { ...data, tasks: [task('merged', 'stopped', { stopConfirmed: true, id: 'shipped-id' })] }, { showStopped: true })[1].agent.text, 'merged');
+});
+
+test('stashed tasks get their own section in Sessions, newest first, and stay out of the inbox and brief', () => {
+  const tasks = [
+    task('ui-fix', 'working'),
+    task('older', 'stopped', { stopConfirmed: true, stashed: { at: 1 } }),
+    task('newer', 'stopped', { stopConfirmed: true, stashed: { at: 2 } }),
+    task('going', 'stopping', { stashed: { at: 3 } }),
+    task('old-run', 'stopped', { stopConfirmed: true }),
+  ];
+  const data = { tasks, prs: [], records: [{ path: tasks[0].worktree, repo: '/Users/j/platform' }], linear: { status: 'missing', message: 'none', open: [], done: [] }, coordinator: {} };
+  const rows = buildView(3, data);
+  assert.deepEqual(sections(rows), { platform: ['ui-fix'], Stashed: ['going', 'newer', 'older'] });
+  assert.deepEqual(items(rows).slice(1).map((row) => row.agent.text), ['◌ stashing', '◇ stashed', '◇ stashed']);
+  assert.match(rows.at(-1).text, /1 stopped task hidden/);
+  assert.equal(inbox(data).count, 0);
+  assert.deepEqual(items(buildView(4, data)).map((row) => row.id), ['ui-fix', 'going']);
 });
 
 test('issue tabs show the empty state, split started from todo and label issues with their agent', () => {
@@ -411,9 +430,12 @@ test('the key bar offers only what the selected row can do', () => {
     ['enter open PR', 'D clean up', 'a clean up all merged', 'o PR', 'l Linear', 'h hide']);
   assert.deepEqual(keysOf({ task: task('plans', 'stopped', { stopConfirmed: true, worktree: checkout }), pr: { ...merged, cleanup: 'removed' } }, [{ path: checkout, removed: true }]),
     ['enter open PR', 'o PR', 'h hide']);
-  assert.deepEqual(keysOf({ task: task('busy', 'working', { worktree: checkout }) }, records), ['enter focus', 's send', 'D clean up', 'd stop', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('busy', 'working', { worktree: checkout }) }, records), ['enter focus', 's send', 'z stash', 'D clean up', 'd stop', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('shelved', 'stopped', { stopConfirmed: true, stashed: { at: 1 }, worktree: checkout }), issue: { state: { type: 'started' }, url: 'https://linear.app/z' } }, records),
+    ['enter resume', 'D clean up', 'o issue', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('stashing', 'stopping', { stashed: { at: 1 }, worktree: checkout }) }, records), ['enter focus', 's send', 'D clean up', 'd stop', 'h hide']);
   assert.deepEqual(keysOf({ task: task('crashed', 'unknown', { worktree: checkout }) }, records), ['enter focus', 'u resume', 'D clean up', 'd retire', 'h hide']);
-  assert.deepEqual(keysOf({ task: task('asks', 'blocked', { worktree: checkout }) }, records), ['enter answer', 's send', 'D clean up', 'd stop', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('asks', 'blocked', { worktree: checkout }) }, records), ['enter answer', 's send', 'z stash', 'D clean up', 'd stop', 'h hide']);
   assert.deepEqual(keysOf({ issue: { state: { type: 'unstarted' }, url: 'https://linear.app/y' } }), ['enter launch', 'o issue', 'h hide']);
 });
 

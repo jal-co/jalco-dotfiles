@@ -133,10 +133,11 @@ export function linkedTask(issue, tasks) {
   const id = issue.identifier.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`(^|[/_-])${id}([/_-]|$)`);
   const matches = tasks.filter((task) => task.branch && (task.branch === issue.branchName || pattern.test(task.branch.toLowerCase())));
-  return matches.find((task) => !task.stopConfirmed) ?? matches[0];
+  return matches.find((task) => !task.stopConfirmed) ?? matches.find(stashed) ?? matches[0];
 }
 
 export const live = (task) => Boolean(task) && !task.stopConfirmed && task.state !== 'stopped';
+export const stashed = (task) => Boolean(task?.stashed && task.stopConfirmed);
 
 const PROGRAM_STATES = new Set(['idle', 'working', 'blocked', 'done', 'error']);
 
@@ -156,6 +157,7 @@ export function startOfYesterday(now = Date.now()) {
 }
 
 export function agentLabel({ task, pr, issue }) {
+  if (task?.stashed) return stashed(task) ? { text: '◇ stashed', tone: 'cyan' } : { text: '◌ stashing', tone: 'dim' };
   const settled = !live(task) || ['done', 'idle'].includes(task.state);
   if (!settled) {
     const [text, tone] = AGENT[task.state] ?? AGENT.unknown;
@@ -313,9 +315,12 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
   }
   if (tab === 2) {
     if (!data.tasks.length) return [note('No tracked Rex tasks yet.')];
-    const shown = data.tasks.filter((task) => showStopped || live(task)).sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
-    const hidden = data.tasks.length - shown.length;
+    const shelf = data.tasks.filter((task) => task.stashed).sort((a, b) => b.stashed.at - a.stashed.at);
+    const rest = data.tasks.filter((task) => !task.stashed);
+    const shown = rest.filter((task) => showStopped || live(task)).sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
+    const hidden = rest.length - shown.length;
     return [...grouped(shown.map((task) => taskItem(task, data)), (item) => item.project),
+      ...section('Stashed', shelf.map((task) => taskItem(task, data))),
       ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden · x shows them`)] : [])];
   }
   const { inProgress, next, done } = brief(data, now);

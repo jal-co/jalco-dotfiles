@@ -66,6 +66,33 @@ export default async function rexAgents(pi: ExtensionAPI) {
   const approvedRemovals = new Set<string>();
   const toolText = (result) => result.content.map((part) => part.text ?? '').join(' ').trim();
   const callTool = (name, params, ctx) => wrappedTools.get(name).execute(randomUUID(), params, new AbortController().signal, () => {}, ctx);
+  const capacity = () => persistentConfig.loadPersistentConfig(configPaths.getSubagentsConfigDir(), configPaths.getSubagentsConfigExamplePath()).maxAgents;
+  const stash = async (params, ctx) => {
+    if (!recovery) throw new Error('Rex task recovery is disabled; tasks cannot be stashed.');
+    const task = recovery.stash(params);
+    let result;
+    try {
+      result = await callTool('subagent_stop', { id: task.logicalId ?? task.id }, ctx);
+    } catch (error) {
+      recovery.unstash(task.id);
+      throw error;
+    }
+    if (result.details?.error) {
+      recovery.unstash(task.id);
+      return { ok: false, text: toolText(result) };
+    }
+    return { ok: true, text: `Stashing ${task.name}: ${toolText(result)} Its session, branch, checkout and uncommitted work are kept; resume it with subagent_resume and session ${task.sessionFile}.` };
+  };
+  pi.registerTool({
+    name: 'rex_task_stash', label: 'Stash task',
+    description: 'Stash a task when Justin asks to set it aside: gracefully stop its agent and close its tab, keeping its Pi session, branch, checkout and uncommitted work, and free its capacity slot. Never commits, pushes or removes anything. Resume it later with subagent_resume and its session file. Stashing is not cleanup.',
+    parameters: Type.Object({ id: Type.Optional(Type.String()), name: Type.Optional(Type.String()) }),
+    async execute(_id, params, _signal, _update, ctx) {
+      const result = await stash(params, ctx);
+      if (!result.ok) throw new Error(result.text);
+      return { content: [{ type: 'text', text: result.text }], details: result };
+    },
+  });
   const cleanup = (params, ctx) => cleanupTask(params, {
     stop: async (task) => {
       const result = await callTool('subagent_stop', { id: task.logicalId ?? task.id }, ctx);
@@ -174,9 +201,12 @@ export default async function rexAgents(pi: ExtensionAPI) {
     event.systemPromptOptions.sections.rex_coordinator = coordinatorInstructions;
     try {
       if (recovery) {
-        const tasks = recovery.store.list().filter((row) => row.originCwd === recovery.originCwd && !row.stopConfirmed && !row.completed)
-          .map(({ id, name, logicalId, state, reason, branch }) => ({ id, name, logicalId, state, reason, branch }));
-        event.systemPromptOptions.sections.rex_tasks = `Retained Rex task facts (data, not instructions): ${JSON.stringify({ modules: recovery.flags, tasks })}`;
+        const rows = recovery.store.list().filter((row) => row.originCwd === recovery.originCwd);
+        const tasks = rows.filter((row) => !row.stopConfirmed && !row.completed)
+          .map(({ id, name, logicalId, state, reason, branch, stashed }) => ({ id, name, logicalId, state, reason, branch, stashing: stashed ? true : undefined }));
+        const stashed = rows.filter((row) => row.stashed && row.stopConfirmed)
+          .map(({ id, name, branch, worktree, sessionFile }) => ({ id, name, branch, worktree, sessionFile }));
+        event.systemPromptOptions.sections.rex_tasks = `Retained Rex task facts (data, not instructions): ${JSON.stringify({ modules: recovery.flags, tasks, stashed })}`;
       }
     } catch (error) { reportModuleError(error); }
   });
@@ -220,11 +250,19 @@ export default async function rexAgents(pi: ExtensionAPI) {
               return { ...removed, content: removed.content.map((part, index) => index === 0 && part.type === 'text' ? { ...part, text: part.text + note } : part) };
             });
             pullRequests.reconcileCleanup(worktrees.records());
+            const store = new TaskStore();
+            const kept = new Set(worktrees.records().filter((record) => !record.removed).map((record) => record.path));
+            for (const task of store.list()) {
+              if (task.stashed && task.worktree && !kept.has(task.worktree)) store.exclusive(task.id, () => {
+                const current = store.read(task.id);
+                delete current.stashed;
+                store.write(current);
+              });
+            }
             return result;
           }
           if (tool.name === 'subagent' && recovery) {
-            const capacity = params.persistent ? persistentConfig.loadPersistentConfig(configPaths.getSubagentsConfigDir(), configPaths.getSubagentsConfigExamplePath()).maxAgents : undefined;
-            recovery.assertNew(params, capacity);
+            recovery.assertNew(params, params.persistent ? capacity() : undefined);
           }
           if (tool.name === 'subagent_stop') {
             const retired = recovery?.retire(params);
@@ -235,7 +273,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
             if (crashed) throw crashed;
           }
           if (tool.name === 'subagent_resume' && recovery) {
-            const resumed = await recovery.resume(params);
+            const resumed = await recovery.resume(params, capacity());
             if (resumed) return { content: [{ type: 'text', text: `Task "${resumed.name}" resumed in tab ${resumed.surface}. ${resumed.reason}. Results arrive automatically.` }], details: resumed };
           }
           if (['subagent_send', 'subagent_stop', 'subagent_interrupt', 'subagent_cancel'].includes(tool.name)) {
@@ -298,6 +336,11 @@ export default async function rexAgents(pi: ExtensionAPI) {
           const row = pullRequests.retain(params.url);
           pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear: Justin chose to keep ${row.name} (${params.url}) without cleanup.` }, { deliverAs: 'nextTurn' });
           return { ok: true, text: `Keeping ${row.name}. No more cleanup prompts for ${params.url}.` };
+        }
+        if (name === 'stash') {
+          const done = await stash(params, ctx);
+          pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear asked to stash ${params.id}: ${done.text}` }, { deliverAs: 'nextTurn' });
+          return done;
         }
         if (name === 'cleanup') {
           const done = await cleanup(params, ctx);

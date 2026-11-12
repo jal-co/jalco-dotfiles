@@ -467,3 +467,87 @@ test('a confirmed host stop closes the task tab and clears its terminal binding'
   assert.equal(f.store.read('run-a').stopConfirmed, true);
   f.recovery.close();
 });
+
+test('stash marks a running task once and unstash clears a failed stash', () => {
+  const f = fixture();
+  assert.equal(f.recovery.stash({ id: 'logical-a' }).id, 'run-a');
+  assert.equal(typeof f.store.read('run-a').stashed.at, 'number');
+  assert.throws(() => f.recovery.stash({ id: 'run-a' }), /already being stashed/);
+  f.recovery.unstash('run-a');
+  assert.equal(f.store.read('run-a').stashed, undefined);
+  f.store.write({ ...f.store.read('run-a'), stopConfirmed: true });
+  assert.throws(() => f.recovery.stash({ id: 'run-a' }), /No running task/);
+  f.recovery.close();
+});
+
+const stashedFixture = () => {
+  const f = fixture();
+  Object.assign(f.record, { worktree: join(f.root, 'checkout'), stopConfirmed: true, stopRequested: true, state: 'stopped', stashed: { at: 1 } });
+  f.store.write(f.record);
+  mkdirSync(f.record.worktree);
+  writeFileSync(f.record.sessionFile, `${JSON.stringify({ type: 'session', cwd: f.record.worktree })}\n`);
+  f.checkout = { path: f.record.worktree, lease: null };
+  f.saved = [];
+  f.recovery.worktrees = { records: () => [f.checkout], save: (row) => f.saved.push(row) };
+  f.recovery.birth = (pid) => pid === 333 ? 'new' : null;
+  f.recovery.provider.inspectSurface = async () => ({ kind: 'missing' });
+  f.recovery.provider.createSurface = () => 'session:repo/block:new';
+  return f;
+};
+
+test('a stashed task resumes its saved session in a reopened tab and takes its checkout lease back', async () => {
+  const f = stashedFixture();
+  const result = await f.recovery.resume({ sessionPath: f.record.sessionFile }, 2);
+  assert.equal(result.status, 'resumed');
+  assert.match(result.reason, /Resumed from stash in a reopened tab/);
+  assert.equal(f.scripts.length, 1);
+  assert.ok(f.scripts[0].command.includes(`pi --session '${f.record.sessionFile}'`));
+  assert.match(readFileSync(/'@([^']+)'/.exec(f.scripts[0].command)[1], 'utf8'), /stashed this task/);
+  assert.deepEqual(f.checkout.lease, { pid: 333, birth: 'new', runId: 'run-a' });
+  const saved = f.store.read('run-a');
+  assert.equal(saved.stashed, undefined);
+  assert.equal(saved.stopConfirmed, false);
+  assert.equal(saved.surface, 'session:repo/block:new');
+  f.recovery.close();
+});
+
+test('a stashed task never resumes beside a live process, another writer, a removed checkout or a full cap', async () => {
+  const cases = {
+    alive: [(f) => { f.recovery.birth = (pid) => pid === 222 ? 'agent' : pid === 333 ? 'new' : null; }, /still running/],
+    unknown: [(f) => { f.recovery.birth = () => { throw new Error('ps failed'); }; }, /liveness cannot be established/],
+    removed: [(f) => { f.checkout.removed = true; }, /no longer has its checkout/],
+    leased: [(f) => { f.checkout.lease = { pid: 333, birth: 'new', runId: 'other-run' }; }, /Another task holds/],
+    writer: [(f) => { f.store.write({ ...f.record, id: 'run-b', name: 'other', stashed: undefined, stopConfirmed: false }); }, /"other" now uses/],
+    full: [(f) => { f.store.write({ ...f.record, id: 'run-b', name: 'other', worktree: undefined, stashed: undefined, stopConfirmed: false }); }, /cap \(1\)/],
+  };
+  for (const [name, [arrange, error]] of Object.entries(cases)) {
+    const f = stashedFixture();
+    arrange(f);
+    await assert.rejects(f.recovery.resume({ sessionPath: f.record.sessionFile }, name === 'full' ? 1 : 2), error, name);
+    assert.equal(f.scripts.length, 0, name);
+    assert.ok(f.store.read('run-a').stashed, name);
+    f.recovery.close();
+  }
+});
+
+test('a stashed task blocks a replacement launch under its name and frees its capacity', () => {
+  const f = stashedFixture();
+  assert.throws(() => f.recovery.assertNew({ name: 'fixture', persistent: true }, 3), /is stashed .*subagent_resume/);
+  f.recovery.assertNew({ name: 'another', persistent: true }, 1);
+  f.recovery.close();
+});
+
+test('recovery after a coordinator restart leaves stashed tasks alone', (context) => {
+  const old = process.env.REX_BIN;
+  process.env.REX_BIN = '/usr/bin/true';
+  context.after(() => { if (old === undefined) delete process.env.REX_BIN; else process.env.REX_BIN = old; });
+  const f = stashedFixture();
+  f.store.write({ ...f.record, id: 'run-b', name: 'other', stashed: undefined, stopConfirmed: false });
+  const claimed = [];
+  f.recovery.claim = (record) => claimed.push(record.id);
+  f.recovery.start();
+  assert.deepEqual(claimed, ['run-b']);
+  assert.deepEqual(f.scripts, []);
+  assert.equal(f.recovery.recovered.size, 0);
+  f.recovery.close();
+});

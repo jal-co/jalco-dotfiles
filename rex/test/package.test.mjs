@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { git } from '../src/worktrees.ts';
+import { TaskStore } from '../src/tasks.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const agent = join(homedir(), '.pi/agent');
@@ -52,7 +53,7 @@ test('the native package loads lifecycle and PR tools without modifying the inst
   const loaded = await loadExtensions([join(root, 'src/index.ts')], root);
   assert.deepEqual(loaded.errors, []);
   const extension = loaded.extensions[0];
-  for (const name of ['subagent', 'subagent_send', 'subagent_stop', 'worktree_list', 'worktree_remove', 'rex_pr_track', 'rex_task_history']) {
+  for (const name of ['subagent', 'subagent_send', 'subagent_stop', 'worktree_list', 'worktree_remove', 'rex_pr_track', 'rex_task_history', 'rex_task_stash']) {
     assert.ok(extension.tools.has(name), name);
   }
   assert.ok(extension.commands.has('rex-prs'));
@@ -265,7 +266,13 @@ test('cleanup isolates unrelated identity failures and refreshes retained adapte
     removalCalls++;
   };
   cleanupOperations.prune = (source) => assert.equal(source, repo);
+  const tasks = new TaskStore();
+  for (const [id, worktree] of [['stashed-good', good.path], ['stashed-kept', locked.path]]) {
+    tasks.write({ version: 1, id, name: id, surface: 'session:a/block:b', sessionFile: taskLog, activityFile: join(fixture, `${id}.activity`), originCwd: fixture, owner: { pid: process.pid }, worktree, stopConfirmed: true, stashed: { at: 1 } });
+  }
   const removed = await second.tools.get('worktree_remove').definition.execute('eligible-cleanup', { target: good.path }, undefined, undefined, removalContext);
+  assert.equal(tasks.read('stashed-good').stashed, undefined);
+  assert.deepEqual(tasks.read('stashed-kept').stashed, { at: 1 });
   assert.equal(removed.details.status, 'removed');
   assert.equal(removalCalls, 1);
   assert.equal(existsSync(`${good.path}-retained`), true);

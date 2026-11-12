@@ -278,13 +278,43 @@ export class RexRecovery {
   assertNew(params, capacity) {
     const live = [...this.running().values()].find((row) => row.name === params.name);
     if (live) throw new Error(`Task ${params.name} already has a live host agent (${live.id}). No replacement was launched.`);
-    const existing = this.store.list().find((row) => row.originCwd === this.originCwd && row.name === params.name && !row.stopConfirmed && !row.completed);
+    const existing = this.store.list().find((row) => row.originCwd === this.originCwd && row.name === params.name && (row.stashed || (!row.stopConfirmed && !row.completed)));
+    if (existing?.stashed) throw new Error(`Task ${params.name} is stashed (${existing.id}). Resume it with subagent_resume and session ${existing.sessionFile}; do not launch a replacement.`);
     if (existing) throw new Error(`Task ${params.name} already has a retained agent (${existing.id}). Reconnect or stop it; do not launch a replacement.`);
-    if (params.persistent) {
-      const ids = new Set(this.store.list().filter((row) => row.originCwd === this.originCwd && row.persistent && !row.stopConfirmed).map((row) => row.id));
-      for (const row of this.running().values()) if (row.persistent) ids.add(row.id);
-      if (ids.size >= capacity) throw new Error(`Persistent specialist cap (${capacity}) reached, including retained agents. Stop an existing specialist before dispatching another.`);
-    }
+    if (params.persistent) this.assertCapacity(capacity);
+  }
+  assertCapacity(capacity) {
+    const ids = new Set(this.store.list().filter((row) => row.originCwd === this.originCwd && row.persistent && !row.stopConfirmed).map((row) => row.id));
+    for (const row of this.running().values()) if (row.persistent) ids.add(row.id);
+    if (ids.size >= capacity) throw new Error(`Persistent specialist cap (${capacity}) reached, including retained agents. Stop an existing specialist before dispatching another.`);
+  }
+  stash(params) {
+    const record = this.resolve(params, true);
+    if (!record) throw new Error('No running task matches this stash request; it may already be stopped or stashed');
+    return this.store.exclusive(record.id, () => {
+      const current = this.store.read(record.id);
+      if (current.stopConfirmed) throw new Error(`Task "${current.name}" is already stopped`);
+      if (current.stashed) throw new Error(`Task "${current.name}" is already being stashed; wait for its agent to exit`);
+      current.stashed = { at: Date.now() };
+      this.store.write(current);
+      return current;
+    });
+  }
+  unstash(id) {
+    this.store.exclusive(id, () => {
+      const current = this.store.read(id);
+      delete current.stashed;
+      this.store.write(current);
+    });
+  }
+  stashedCheckout(record) {
+    if (!record.worktree) return undefined;
+    const checkout = this.worktrees.records().find((row) => !row.removed && row.path === record.worktree);
+    if (!checkout || !existsSync(record.worktree)) throw new Error(`Task "${record.name}" no longer has its checkout; nothing was resumed`);
+    if (checkout.lease && checkout.lease.runId !== record.id && leaseAlive(checkout.lease, { birth: this.birth })) throw new Error(`Another task holds the checkout of "${record.name}"; nothing was resumed`);
+    const other = this.store.list().find((row) => row.id !== record.id && row.worktree === record.worktree && !row.stopConfirmed && !row.completed);
+    if (other) throw new Error(`Task "${other.name}" now uses the checkout of "${record.name}"; nothing was resumed`);
+    return checkout;
   }
   exitEvidence(record) {
     const probe = this.probe(record);
@@ -370,7 +400,7 @@ export class RexRecovery {
       this.notify(`${record.name}: its tab could not be closed: ${String(error)}`);
     }
   }
-  async resume(params) {
+  async resume(params, capacity = Infinity) {
     const record = this.store.list().find((row) => row.originCwd === this.originCwd && row.sessionFile === params.sessionPath);
     if (!record) return undefined;
     if (!this.flags.recovery) throw new Error('Recovery is disabled; retained task sessions cannot be resumed');
@@ -378,7 +408,12 @@ export class RexRecovery {
     const probe = this.exitEvidence({ ...record });
     if (probe.state === 'alive') throw new Error(`Task "${record.name}" is still running (${probe.reason}); use subagent_send instead of resuming it`);
     if (probe.state === 'unknown') throw new Error(`Task "${record.name}" liveness cannot be established (${probe.reason}); nothing was resumed`);
-    if (record.stopConfirmed) throw new Error(`Task "${record.name}" was stopped and its tab closed; launch a new task instead`);
+    if (record.stopConfirmed && !record.stashed) throw new Error(`Task "${record.name}" was stopped and its tab closed; launch a new task instead`);
+    const stashed = Boolean(record.stopConfirmed && record.stashed);
+    if (stashed) {
+      if (record.persistent) this.assertCapacity(capacity);
+      this.stashedCheckout(record);
+    }
     const surface = await this.provider.inspectSurface(record.surface);
     if (surface.kind === 'unavailable') throw new Error(`Rex cannot confirm whether task "${record.name}" still has its tab (${surface.error}); nothing was resumed`);
     const cwd = sessionCwd(record.sessionFile) ?? record.worktree ?? record.originCwd;
@@ -393,6 +428,8 @@ export class RexRecovery {
       }
       const policy = this.checkPolicy(current);
       if (this.exitEvidence(current).state !== 'crashed') throw new Error('Agent process exit is no longer confirmed; nothing was resumed');
+      if (Boolean(current.stopConfirmed && current.stashed) !== stashed) throw new Error(`Task "${current.name}" changed while resuming; nothing was resumed`);
+      const checkout = stashed ? this.stashedCheckout(current) : undefined;
       current.surface = target;
       const stamp = Date.now();
       for (const file of [agentIdentityFile(current.sessionFile, current.id), `${current.sessionFile}.rex-process.json`, `${current.sessionFile}.exit`]) {
@@ -401,7 +438,7 @@ export class RexRecovery {
       const artifacts = dirname(dirname(current.activityFile));
       const messageFile = join(artifacts, 'subagent-resume', `${current.id}-${stamp}.md`);
       mkdirSync(dirname(messageFile), { recursive: true });
-      writeFileSync(messageFile, params.message || 'Your previous agent process exited before finishing. Continue from where it stopped.', { mode: 0o600 });
+      writeFileSync(messageFile, params.message || (stashed ? 'Justin stashed this task and has now resumed it. Continue from where you stopped.' : 'Your previous agent process exited before finishing. Continue from where it stopped.'), { mode: 0o600 });
       const autoExit = !current.persistent;
       const tools = this.launch.toolAllowlist(policy.tools?.join(','), autoExit);
       const env = [
@@ -423,6 +460,11 @@ export class RexRecovery {
       ].join(' ');
       this.provider.runScript(current.surface, `${command}; echo '__SUBAGENT_DONE_'$?'__'`, { scriptPath: join(artifacts, 'subagent-scripts', `${current.id}-resume-${stamp}.sh`) });
       this.releaseLease(current, { pid: this.owner.pid, birth: this.owner.birth });
+      if (checkout && !checkout.lease) {
+        checkout.lease = { pid: this.owner.pid, birth: this.owner.birth, runId: current.id };
+        this.worktrees.save(checkout);
+      }
+      delete current.stashed;
       delete current.identity;
       delete current.completed;
       delete current.failure;
@@ -432,7 +474,7 @@ export class RexRecovery {
       current.stopNotified = false;
       current.owner = this.owner;
       current.state = 'unknown';
-      current.reason = `Resumed${target === record.surface ? '' : ' in a reopened tab'} after ${probe.reason}`;
+      current.reason = stashed ? `Resumed from stash${target === record.surface ? '' : ' in a reopened tab'}` : `Resumed${target === record.surface ? '' : ' in a reopened tab'} after ${probe.reason}`;
       current.updatedAt = stamp;
       this.store.write(current);
       this.recovered.add(current.id);
