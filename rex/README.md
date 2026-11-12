@@ -101,7 +101,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | Inbox | What needs you, in order: the coordinator's unanswered question or open confirmation dialog, agents asking a question, merged PRs to approve for cleanup, failed or crashed agents, and finished work ready for review. It opens first when it has anything |
 | Issues | Linear issues assigned to you, in progress and todo, sorted by priority |
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
-| Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state |
+| Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state. Stashed tasks sit in their own Stashed section at the end, newest first |
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
 | Archive | Every cleaned-up task, newest first, titled by its Linear issue or the goal in its brief. `enter` reopens its conversation as a new Pi session (`pi --fork`) in a tab of the repository's session; the archive itself is never changed. `v` opens the transcript in the browser via Pi's HTML export, `/` filters |
 | Search | Linear search results, after `/` |
@@ -119,7 +119,8 @@ The bottom bar lists only the keys that apply to the selected row, with what eac
 | `o` | Open the PR, or the Linear issue when there is no PR |
 | `l` | Open the Linear issue |
 | `s` | Send a message to a running task. A mid-turn agent queues one message |
-| `u` | Resume a crashed task. A closed tab is reopened in its repository session |
+| `u` | Resume a crashed or stashed task. A closed tab is reopened in its repository session. `enter` on a stashed row does the same |
+| `z` | Stash a running or idle task: stop its agent and close its tab, keeping its session, branch, checkout and uncommitted work for `u` later |
 | `d` | Stop or retire a task after confirmation. Logs, branch and checkout are kept |
 | `D` | Clean up a task: stop its agent if running, archive its logs and remove its checkout. Branch and commits stay. `p` instead of `enter` first commits uncommitted work |
 | `a` | On a merged PR in the Inbox, clean up every merged task waiting on cleanup, with progress and a summary of any that need attention |
@@ -147,7 +148,7 @@ Launching works out the repository instead of asking for a path. It ranks every 
 
 The launch screen names the pick and why, and marks a close call as a best guess. `tab` cycles to the next candidate, `t` takes a typed path, `e` edits the brief in `$VISUAL` or `$EDITOR` and `enter` launches. Linear issues use their branch name. Free-form tasks get a short slug from the goal and a `jal/` branch. The base is the repository's `origin/HEAD`, fetched first. Dotfiles tasks run directly in the checkout without a worktree. Confirming a launch remembers the repository for that Linear team in `~/.rex/linear.json`. A full agent cap shows a message and launches nothing.
 
-Launch, send, stop, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
+Launch, send, stop, stash, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop`, `rex_task_stash` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
 
 Cleanup from the command center runs as one coordinator request per task. Your confirmation stands in for the coordinator's removal dialog through a one-shot internal approval the model cannot set; every other removal check still applies: ownership, leases, processes, Git state and the log archive. A running agent is stopped first and its exit confirmed within 30 seconds; otherwise nothing is removed. Requests are claimed when they arrive, so a long cleanup queue never expires the requests behind it. Hidden rows are stored as row keys in `~/.rex/command-center.json`; hiding changes nothing about the task.
 
@@ -194,6 +195,14 @@ Recovery saves task metadata under `~/.rex/tasks`. After a coordinator process r
 On first installation, reload the coordinator and any already-running task agents before relying on restart recovery. Old children without process attestation remain unverified. Reloading a task agent publishes its identity without starting a new process. This does not restore agents whose Rex terminals or processes have been destroyed.
 
 `rex_task_probe` reports whether a task's recorded PID still has the recorded start time and command line. Absence or a mismatch is a crash. `subagent_stop` retires a confirmed-crashed task, attached or not, clearing its lease and capacity and closing its tab. `subagent_resume` with the task's session file restarts the same session, generation and identity in its retained tab and worktree instead. A closed tab is reopened in the repository session. Neither runs automatically, and both refuse while the process is alive or unverifiable. Confirmed stops close the task tab, resolving its window from the terminal at close time. Managed tasks cannot rename the shared repository session.
+
+### Stashed tasks
+
+Stashing sets a task aside without losing anything. `z` in the command center, or asking the coordinator to "stash X", calls `rex_task_stash`: it marks the task record in `~/.rex/tasks` as stashed and runs the normal `subagent_stop`, so the agent exits gracefully and its tab closes once the exit is confirmed. The Pi session, branch, checkout and uncommitted work stay; nothing is committed, pushed or removed. The task no longer holds an agent slot or a checkout lease. If the stop request fails, the stash mark is cleared again.
+
+Resuming a stashed task (`u` or `enter` on its row, or "resume X") runs `subagent_resume` with its session file, the same path a crashed task uses. It reopens the saved session in a new tab of the repository session and takes the checkout lease back. It refuses while the old process is alive or unverifiable, while another task holds or uses the checkout, once the checkout is gone, or when the agent cap is full. Launching a new task under a stashed task's name is refused; resume it instead.
+
+Stashing is not cleanup. Recovery after a coordinator restart never reconnects or relaunches a stashed task. `D` and merged-PR cleanup treat it like any other task and still need approval; removing its checkout clears the stash. A stashed task without a managed checkout, such as a dotfiles task, leaves the Stashed section only by being resumed.
 
 Task Overview is disabled and its command-palette action is no longer loaded by `config/init.lua`. Task recovery, existing agents and session pinning remain enabled. `/rex-tasks` still shows the saved task list in Pi.
 

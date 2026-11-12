@@ -25,6 +25,14 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 9. Keep the task tab and worktree after completion. Only stop an agent when Justin requests it or approves cleanup of that task. Cleanup approval covers stopping confirmed task-owned processes, closing only the task tab and removing its checkout; do not ask again for those same steps. Follow `~/.pi/agent/workflows/worktrees.md` for the end-to-end cleanup procedure. Do not close the shared repository session, delete branches or force removal.
 </workflow>
 
+## Stashed tasks
+
+<rules>
+- "Stash X" means call `rex_task_stash`. It stops the agent with a confirmed exit and closes its tab, keeps the Pi session, branch, checkout and uncommitted work, and frees its slot. It MUST NOT commit, push, delete a branch or remove a checkout.
+- "Resume X" for a stashed task means `subagent_resume` with the `sessionFile` from the stashed task facts. It reopens the same session in its retained checkout and refuses while the old process is alive or unverifiable. MUST NOT launch a replacement for a stashed task.
+- Stashing is not cleanup. A stashed task stays tab-less until resumed. Removing its checkout follows the normal cleanup approval, and recovery after a restart never reconnects or relaunches it.
+</rules>
+
 ## Failure evidence
 
 <rules>
