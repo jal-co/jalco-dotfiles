@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { git } from '../src/worktrees.ts';
-import { TaskStore } from '../src/tasks.ts';
+import { TaskStore, processBirth } from '../src/tasks.ts';
+import { PullRequestStore } from '../src/pull-request-watcher.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const agent = join(homedir(), '.pi/agent');
@@ -280,4 +282,37 @@ test('cleanup isolates unrelated identity failures and refreshes retained adapte
   assert.equal(worktrees.records().find((row) => row.path === good.path).removed, true);
   assert.equal(JSON.parse(readFileSync(manifest, 'utf8')).state, 'removed');
   for (const handler of second.handlers.get('session_shutdown') ?? []) await handler({ reason: 'quit' }, ctx);
+});
+
+test('the PR watcher lock skips live holders, recovers exited ones and never removes an unowned lock', async () => {
+  const store = new PullRequestStore(mkdtempSync(join(tmpdir(), 'rex-pr-lock-')));
+  const lockFor = (origin) => join(store.root, `${store.key(origin, 'watch')}.lock`);
+  const locks = () => readdirSync(store.root).filter((name) => name.includes('.lock'));
+  const plant = (origin, owner) => { mkdirSync(lockFor(origin)); if (owner !== undefined) writeFileSync(join(lockFor(origin), 'owner.json'), owner); };
+  let runs = 0;
+  const operation = async () => ++runs;
+
+  assert.equal(await store.exclusive('/coordinator', operation), 1);
+  assert.deepEqual(locks(), []);
+
+  let release;
+  const holder = store.exclusive('/coordinator', () => new Promise((resolve) => { release = resolve; }));
+  assert.equal(await store.exclusive('/coordinator', operation), undefined);
+  assert.equal(runs, 1);
+  release(); await holder;
+  assert.deepEqual(locks(), []);
+
+  const exited = spawnSync('true').pid;
+  assert.equal(processBirth(exited), null);
+  plant('/coordinator', JSON.stringify({ pid: exited, birth: 'Mon Jan  1 00:00:00 2024', origin: '/coordinator' }));
+  assert.equal(await store.exclusive('/coordinator', operation), 2);
+  assert.deepEqual(locks(), []);
+
+  for (const [origin, owner] of [['/missing', undefined], ['/unreadable', '{']]) {
+    plant(origin, owner);
+    await assert.rejects(store.exclusive(origin, operation), /no readable owner/);
+    assert.equal(existsSync(lockFor(origin)), true);
+    assert.equal(existsSync(join(lockFor(origin), 'owner.json')), owner !== undefined);
+  }
+  assert.equal(runs, 2);
 });

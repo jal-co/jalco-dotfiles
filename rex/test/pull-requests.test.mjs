@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -131,11 +131,27 @@ test('origin boundaries exclude other coordinators and missing or removed checko
   assert.equal(f.queries.length, 0); await f.watcher.close();
 });
 
-test('competing coordinators cannot run the same origin watcher concurrently', async () => {
+test('a sweep held by a live coordinator is skipped quietly and the lock is released after it', async () => {
   const f = fixture(); let unblock;
   const lock = f.store.exclusive('/coordinator', () => new Promise((resolve) => { unblock = resolve; }));
-  await f.watcher.tick(); assert.match(f.notices[0], /busy or stale lock/);
-  unblock(); await lock; await f.watcher.close();
+  await f.watcher.tick();
+  assert.deepEqual(f.notices, []); assert.equal(f.queries.length, 0);
+  unblock(); await lock;
+  assert.deepEqual(readdirSync(f.root).filter((name) => name.includes('.lock')), []);
+  await f.watcher.tick(); assert.equal(f.store.list('/coordinator').length, 1);
+  await f.watcher.close();
+});
+
+test('registration waits for an in-flight sweep instead of failing on its lock', async () => {
+  const f = fixture(); let unblock;
+  f.watcher.query = (args) => new Promise((resolve) => { unblock = () => resolve(f.options.query(args)); });
+  const sweep = f.watcher.tick(); await new Promise((resolve) => setImmediate(resolve));
+  f.watcher.query = f.options.query;
+  const registration = f.watcher.track('task-a', f.pr.url);
+  unblock(); await sweep;
+  assert.equal((await registration).url, f.pr.url);
+  assert.deepEqual(f.notices, []);
+  await f.watcher.close();
 });
 
 test('URL validation rejects shell-like values and non-GitHub origins', () => {

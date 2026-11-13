@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { processBirth } from './tasks.ts';
+import { lockOwnerGone, reclaimLock } from './worktrees.ts';
 
 const execute = promisify(execFile);
 const fields = 'url,state,mergedAt,headRefName,headRefOid,headRepository';
@@ -50,13 +51,21 @@ export class PullRequestStore {
   async exclusive(origin, operation) {
     mkdirSync(this.root, { recursive: true, mode: 0o700 });
     const lock = join(this.root, `${this.key(origin, 'watch')}.lock`);
-    try { mkdirSync(lock, { mode: 0o700 }); } catch (error) {
-      if (error.code === 'EEXIST') throw new Error(`PR watcher busy or stale lock: ${lock}. Verify its owner before recovery.`);
-      throw error;
-    }
     const owner = join(lock, 'owner.json');
+    const identity = JSON.stringify({ pid: process.pid, birth: processBirth(process.pid), origin });
+    for (let attempt = 0; ; attempt++) {
+      try { mkdirSync(lock, { mode: 0o700 }); break; } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+      }
+      let holder;
+      try { holder = JSON.parse(readFileSync(owner, 'utf8')); } catch {}
+      if (!Number.isInteger(holder?.pid) || holder.pid <= 0) throw new Error(`PR watcher lock has no readable owner: ${lock}. Verify nothing holds it before removing it.`);
+      if (!lockOwnerGone(holder)) return undefined;
+      if (attempt) throw new Error(`PR watcher lock is still held by exited process ${holder.pid} after recovery: ${lock}.`);
+      reclaimLock(lock, holder);
+    }
     try {
-      writeFileSync(owner, JSON.stringify({ pid: process.pid, birth: processBirth(process.pid), origin }), { mode: 0o600, flag: 'wx' });
+      writeFileSync(owner, identity, { mode: 0o600, flag: 'wx' });
       return await operation();
     } finally {
       if (existsSync(owner)) unlinkSync(owner);
@@ -113,15 +122,21 @@ export class PullRequestWatcher {
   async track(taskId, url) {
     assert.ok(!this.closed, 'PR watcher has stopped');
     assert.ok(!this.tracking, 'PR registration is already in progress');
-    this.tracking = this.store.exclusive(this.origin, async () => {
-      const candidate = this.candidates().find(({ task }) => task.id === taskId || task.logicalId === taskId);
-      assert.ok(candidate, 'Task has no matching retained managed checkout');
-      const pr = await this.lookup(candidate, url);
-      assert.ok(pr, 'No matching PR found');
-      assert.ok(!this.closed, 'PR watcher stopped before registration completed');
-      return this.save(candidate, pr);
-    }).finally(() => { this.tracking = undefined; });
+    this.tracking = (async () => {
+      if (this.pending) await this.pending;
+      const row = await this.store.exclusive(this.origin, () => this.register(taskId, url));
+      assert.ok(row, 'Another coordinator is checking PRs for this origin; try again in a minute');
+      return row;
+    })().finally(() => { this.tracking = undefined; });
     return this.tracking;
+  }
+  async register(taskId, url) {
+    const candidate = this.candidates().find(({ task }) => task.id === taskId || task.logicalId === taskId);
+    assert.ok(candidate, 'Task has no matching retained managed checkout');
+    const pr = await this.lookup(candidate, url);
+    assert.ok(pr, 'No matching PR found');
+    assert.ok(!this.closed, 'PR watcher stopped before registration completed');
+    return this.save(candidate, pr);
   }
   async tick() {
     if (this.closed || this.pending || this.tracking) return this.pending;

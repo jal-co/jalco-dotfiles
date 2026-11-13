@@ -13,6 +13,25 @@ export function git(cwd, args) {
   });
 }
 
+export function lockOwnerGone(holder, birth = processBirth) {
+  if (!Number.isInteger(holder.pid) || holder.pid <= 0) return false;
+  const started = birth(holder.pid);
+  return started === null || (Boolean(holder.birth) && started !== holder.birth);
+}
+
+export function reclaimLock(lock, holder) {
+  const tomb = `${lock}.stale-${randomUUID()}`;
+  try { renameSync(lock, tomb); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
+  let moved;
+  try { moved = JSON.parse(readFileSync(join(tomb, 'owner.json'), 'utf8')); } catch {}
+  if (moved?.pid !== holder.pid || moved?.birth !== holder.birth || moved?.createdAt !== holder.createdAt) {
+    try { renameSync(tomb, lock); } catch {}
+    return;
+  }
+  unlinkSync(join(tomb, 'owner.json'));
+  rmdirSync(tomb);
+}
+
 export function contained(root, path) {
   const rel = relative(root, path);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -103,8 +122,8 @@ export class RexWorktrees {
       }
       let holder;
       try { holder = JSON.parse(readFileSync(owner, 'utf8')); } catch {}
-      if (holder && this.ownerGone(holder)) {
-        this.reclaim(lock, holder);
+      if (holder && lockOwnerGone(holder, this.birth)) {
+        reclaimLock(lock, holder);
         continue;
       }
       if (Date.now() > deadline) throw new Error(`Another Rex worktree operation owns ${lock}${holder ? ` (process ${holder.pid})` : ''} and is still running after ${Math.round(this.lockWait / 1000)}s. Try again when it finishes.`);
@@ -117,25 +136,6 @@ export class RexWorktrees {
       if (existsSync(owner)) unlinkSync(owner);
       rmdirSync(lock);
     }
-  }
-
-  ownerGone(holder) {
-    if (!Number.isInteger(holder.pid) || holder.pid <= 0) return false;
-    const started = this.birth(holder.pid);
-    return started === null || (Boolean(holder.birth) && started !== holder.birth);
-  }
-
-  reclaim(lock, holder) {
-    const tomb = `${lock}.stale-${randomUUID()}`;
-    try { renameSync(lock, tomb); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
-    let moved;
-    try { moved = JSON.parse(readFileSync(join(tomb, 'owner.json'), 'utf8')); } catch {}
-    if (moved?.pid !== holder.pid || moved?.createdAt !== holder.createdAt) {
-      try { renameSync(tomb, lock); } catch {}
-      return;
-    }
-    unlinkSync(join(tomb, 'owner.json'));
-    rmdirSync(tomb);
   }
 
   leaseHolders(path) {
