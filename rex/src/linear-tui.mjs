@@ -291,6 +291,7 @@ export class LinearApp {
     this.pending = new Map();
     this.bases = new Map();
     this.programStatus = new Map();
+    this.goals = new Map();
     this.dirty = true;
     this.data = this.snapshot();
     this.hidden = new Set(readPreferences().hidden);
@@ -357,7 +358,7 @@ export class LinearApp {
   snapshot() {
     try {
       return {
-        tasks: new TaskStore().list().filter((task) => task.originCwd === this.origin),
+        tasks: new TaskStore().list().filter((task) => task.originCwd === this.origin).map((task) => ({ ...task, goal: this.goalOf(task.sessionFile) })),
         prs: new PullRequestStore().list(this.origin),
         records: new RexWorktrees(null).records(),
         archive: readArchive(),
@@ -366,6 +367,16 @@ export class LinearApp {
       this.state.status = { tone: 'red', text: `Task registry unreadable: ${cleanText(error.message)}` };
       return { tasks: [], prs: [], records: [], archive: [] };
     }
+  }
+
+  goalOf(file) {
+    if (!file) return undefined;
+    if (!this.goals.has(file)) {
+      const goal = archiveGoal(file);
+      if (!goal) return undefined;
+      this.goals.set(file, goal);
+    }
+    return this.goals.get(file);
   }
 
   async refreshLinear() {
@@ -906,7 +917,7 @@ export function archiveGoal(file) {
       if (entry.message?.role !== 'user') continue;
       const content = entry.message.content;
       const body = typeof content === 'string' ? content : (content ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n');
-      const goal = body.split('\n').map((line) => line.trim()).find((line) => line && !line.startsWith('<') && !line.startsWith('#') && !/^complete your task\b/i.test(line));
+      const goal = body.split('\n').map((line) => line.trim()).find((line) => line && !line.startsWith('<') && !line.startsWith('#') && !/^(complete your task|you are an? )\b/i.test(line));
       if (goal) return cleanText(goal.replace(/^(goal|task):\s*/i, '').replace(/^resolve\s+[A-Za-z][A-Za-z0-9]*-\d+:\s*/i, ''));
     }
   } catch {}

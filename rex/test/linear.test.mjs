@@ -480,6 +480,15 @@ test('an archived conversation is titled by its brief, skipping file tags and th
   writeFileSync(file, [JSON.stringify({ type: 'session' }), user('<file name="x.md">\n\nComplete your task. When finished, call the subagent_done tool.\n\nGoal: Resolve PLTFRM-2998: Billing history misses refunds\nFiles: …'), user('continue')].join('\n'));
   assert.equal(archiveGoal(file), 'Billing history misses refunds');
   assert.equal(archiveGoal('/missing/file.jsonl'), undefined);
+  writeFileSync(file, user('<file name="x.md">\nYou are a read-only investigator. Answer with citations.\nComplete your task autonomously.\nFind where usage is computed\n</file>'));
+  assert.equal(archiveGoal(file), 'Find where usage is computed');
+});
+
+test('task rows are titled by their Linear issue, then their goal, then their branch', () => {
+  const linked = issue('PLAT-9', 'started', { branchName: 'jal/linked' });
+  const tasks = [task('linked', 'working', { goal: 'ignored' }), task('briefed', 'working', { goal: 'Add empty states' }), task('bare', 'working', { reason: 'bash' })];
+  const rows = items(buildView(3, { tasks, prs: [], records: [], linear: { status: 'ok', open: [linked], done: [] } }));
+  assert.deepEqual(rows.map((row) => row.title), ['jal/bare', 'Add empty states', 'Title PLAT-9']);
 });
 
 test('agent slots break down into working, idle, not running and hidden', () => {

@@ -186,7 +186,7 @@ function taskItem(task, data) {
   const pr = pullRequestFor(task, data.prs);
   return {
     kind: 'item', key: `t:${task.id}`, id: issue?.identifier ?? cleanText(task.name),
-    title: issue ? cleanText(issue.title) : cleanText(task.branch ?? task.reason ?? ''),
+    title: cleanText(issue?.title ?? task.goal ?? task.branch ?? task.reason ?? ''),
     project: projectOf(task, data.records), issue, task, pr, agent: agentLabel({ task, pr, issue }),
   };
 }
