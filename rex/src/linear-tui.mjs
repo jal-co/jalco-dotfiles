@@ -20,7 +20,7 @@ import {
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
 export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36', selected: '48;5;236', tab: '48;5;237' };
+const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36' };
 export const columns = visibleWidth;
 
 export function fit(text, width) {
@@ -28,38 +28,67 @@ export function fit(text, width) {
   return truncateToWidth(cleanText(text), width, '…', true).replaceAll('\u001b[0m', '');
 }
 
-const paint = (text, styles = [], selected = false) => {
-  const codes = [...styles, ...(selected ? ['selected'] : [])].filter(Boolean).map((style) => SGR[style]);
+const paint = (text, styles = []) => {
+  const codes = styles.filter(Boolean).map((style) => SGR[style]);
   return codes.length ? `\u001b[${codes.join(';')}m${text}\u001b[0m` : text;
 };
 
-const line = (cells, width, selected = false) => {
+const line = (cells, width) => {
   let used = 0;
   let out = '';
   for (const [text, ...styles] of cells) {
     const room = width - used;
     if (room <= 0) break;
     const part = columns(text) > room ? fit(text, room) : text;
-    out += paint(part, styles, selected);
+    out += paint(part, styles);
     used += columns(part);
   }
-  return out + paint(' '.repeat(Math.max(0, width - used)), [], selected);
+  return out + ' '.repeat(Math.max(0, width - used));
 };
 
-function itemLine(item, width, selected, idWidth, spinner = '●') {
-  const agentWidth = 10;
-  const projectWidth = width >= 90 ? 18 : 0;
-  const titleWidth = Math.max(8, width - 2 - idWidth - 2 - projectWidth - 2 - agentWidth);
-  return line([
-    [selected ? '› ' : '  ', 'blue'],
-    [`${fit(item.id, idWidth)}  `, 'dim'],
-    [fit(item.title, titleWidth), selected ? 'bold' : ''],
-    [projectWidth ? `  ${fit(item.project, projectWidth)}` : '', 'dim'],
-    [`  ${fit(item.agent.spin ? `${spinner} working` : item.agent.text, agentWidth)}`, item.agent.tone],
-  ], width, selected);
+const MARGIN = '  ';
+const GAP = '   ';
+
+export function ago(at, now) {
+  const time = new Date(at ?? Number.NaN).getTime();
+  if (!Number.isFinite(time)) return '';
+  const minutes = Math.max(0, Math.floor((now - time) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  if (minutes < 30 * 1440) return `${Math.floor(minutes / 1440)}d ago`;
+  return new Date(time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-const keyline = (pairs) => pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : ' · '}`, 'dim']]);
+const pullNumber = (url) => `PR #${String(url).split('/').at(-1)}`;
+
+export function meta(item, now) {
+  if (item.coordinator) return [item.coordinator.dialog ? 'waiting on a confirmation in its tab' : 'waiting for your answer'];
+  if (item.archive) return [`archived ${ago(item.archive.archivedAt, now)}`, cleanText(item.archive.branch ?? ''), item.archive.pullRequests?.[0] ? pullNumber(item.archive.pullRequests[0]) : ''].filter(Boolean);
+  const { task, pr, issue } = item;
+  const reason = live(task) && task.state !== 'done' && task.reason ? cleanText(task.reason) : '';
+  return [
+    item.agent.text.replace(/^[^\p{L}\p{N}\s]+\s+/u, '') || issue?.state.name || task?.state || '',
+    reason !== item.title ? reason : '',
+    pr && !item.id.startsWith('#') ? pullNumber(pr.url) : '',
+    ago(task?.updatedAt ?? pr?.mergedAt ?? issue?.completedAt, now),
+  ].filter(Boolean);
+}
+
+function itemLines(item, width, selected, spinner, now) {
+  const inner = width - MARGIN.length;
+  const right = [item.project, item.id].filter(Boolean).join('  ');
+  const rightWidth = Math.min(columns(right), Math.floor(inner * 0.4));
+  const title = fit(item.title, Math.max(8, inner - 6 - rightWidth));
+  const dot = item.agent.spin ? spinner ?? '●' : !item.agent.text || item.agent.tone === 'dim' ? '○' : '●';
+  return [
+    line([[selected ? '▌ ' : '  ', 'bold'], [`${dot} `, item.agent.text ? item.agent.tone : 'dim'], [title, selected ? 'bold' : ''],
+      [' '.repeat(Math.max(2, inner - 4 - columns(title) - rightWidth))], [fit(right, rightWidth), 'dim']], width),
+    line([['    '], [meta(item, now).join(GAP), 'dim']], width),
+  ];
+}
+
+const keyline = (pairs) => [[MARGIN], ...pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : '    '}`, 'dim']])];
 const HELP = [
   ['↑ ↓  j k', 'move'],
   ['tab  1-7', 'switch tabs'],
@@ -99,9 +128,9 @@ export function legend(state) {
   if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['N', 'new project'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
   const selected = state.rows?.[state.cursor];
   const item = selected?.kind === 'item' ? selected : undefined;
-  if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'all keys'], ['q', 'quit']];
-  const actions = item ? actionsFor(item, state.records ?? []) : [];
-  const globals = [['?', 'all keys'], ['n', 'new'], ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['q', 'quit']];
+  if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'keys'], ['q', 'quit']];
+  const actions = item ? actionsFor(item, state.records ?? []).slice(0, 2) : [['n', 'new'], ['c', 'coordinator']];
+  const globals = [['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['?', 'keys'], ['q', 'quit']];
   return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
 
@@ -140,133 +169,98 @@ export function actionsFor(item, records) {
   ];
 }
 
-function detail(state, item) {
-  const confirm = state.confirm;
-  if (confirm?.kind === 'retire') {
+function confirmLines(confirm) {
+  if (confirm.kind === 'retire') {
     const { task } = confirm;
     const running = live(task) && task.state !== 'unknown';
     return [
       [[`${running ? 'Stop' : 'Retire'} ${task.name}?`, 'bold']],
       [[running ? `The agent is ${task.state}. It stops gracefully after its current step.` : `${cleanText(task.reason ?? 'Its process is unverified')}. Only a confirmed exit is retired.`, 'dim']],
       [['Logs, branch and checkout are kept. The tab closes and its agent slot is freed.', 'dim']],
-      state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
-  if (confirm?.kind === 'cleanup') {
+  if (confirm.kind === 'cleanup') {
     const [first] = confirm.items;
     const label = first.task?.name ?? first.id;
     return [
       [[confirm.items.length > 1 ? `Clean up ${confirm.items.length} merged tasks?` : `Clean up ${label}?`, 'bold']],
       [[confirm.items.length > 1 ? 'Each one: stop its agent if running, archive its logs, remove its checkout.' : `Stops its agent if running, archives its logs, removes ${checkoutOf(first)}.`, 'dim']],
       [['Branches and commits stay. Uncommitted work blocks removal unless you press p.', 'dim']],
-      state.status?.text ? [[state.status.text, state.status.tone]] : [],
     ];
   }
-  if (confirm?.kind === 'launch') {
-    const choice = confirm.choices[confirm.index];
-    const next = confirm.choices[(confirm.index + 1) % confirm.choices.length];
-    return [
-      [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
-      [[`why: ${choice.reasons.join('; ')}${confirm.choices.length > 1 && next !== choice ? ` · next: ${next.name}` : ''}`, 'dim']],
-      [[`${confirm.direct ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`} · ${confirm.brief.split('\n')[0]}`, 'dim']],
-      state.status?.text ? [[state.status.text, state.status.tone]] : [],
-    ];
-  }
-  const last = state.status?.text ? [[state.status.text, state.status.tone]] : [];
-  if (!item) return [[], [], [], last];
-  if (item.coordinator) {
-    return [
-      [[item.coordinator.dialog ? 'The coordinator is waiting on a confirmation in its tab' : 'The coordinator is waiting for your answer', 'bold']],
-      [[item.title, 'yellow']],
-      [[item.coordinator.dialog ? 'enter opens its tab so you can answer there' : 'enter writes an answer · y replies yes · it arrives as if you typed it in the coordinator', 'dim']],
-      last,
-    ];
-  }
-  if (item.archive) {
-    const { archive } = item;
-    const pr = archive.pullRequests?.[0];
-    return [
-      [[item.title, 'bold']],
-      [[[item.id, item.project, archive.branch].filter(Boolean).join(' · '), 'dim']],
-      [[`archived ${new Date(archive.archivedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${pr ? ` · ${pr}` : ''} · ${archive.name}`, 'dim']],
-      last,
-    ];
-  }
-  const facts = [item.id, item.issue && `Linear: ${item.issue.state.name}`, item.pr && `PR ${item.pr.state.toLowerCase()}`, item.project, item.task?.branch ?? item.issue?.branchName].filter(Boolean).join(' · ');
-  const agent = item.task
-    ? `agent: ${item.task.state ?? 'unknown'}${item.task.reason ? ` · ${cleanText(item.task.reason)}` : ''}${item.pr ? ` · PR ${item.pr.state.toLowerCase()}` : ''}`
-    : item.pr ? `PR ${item.pr.state.toLowerCase()} · ${item.pr.url}` : 'agent: none · enter launches one';
-  return [[[item.title, 'bold']], [[facts, 'dim']], [[agent, 'dim']], last];
+  const choice = confirm.choices[confirm.index];
+  const next = confirm.choices[(confirm.index + 1) % confirm.choices.length];
+  return [
+    [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
+    [[`why: ${choice.reasons.join('; ')}${confirm.choices.length > 1 && next !== choice ? `${GAP}next: ${next.name}` : ''}`, 'dim']],
+    [[`${confirm.direct ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`}${GAP}${confirm.brief.split('\n')[0]}`, 'dim']],
+  ];
 }
 
 export function tabCells(state) {
   const names = [...TABS, ...(state.search ? ['Search'] : [])];
-  return names.flatMap((name, index) => {
+  return [[MARGIN], ...names.flatMap((name, index) => {
     const count = state.counts?.[index];
     const active = index === state.tab && !state.hiddenView;
-    const urgent = index === 0 && count > 0;
-    const cells = active
-      ? [[` ${index + 1} ${name}${count ? ` ${count}` : ''} `, 'blue', 'bold', 'tab']]
-      : [[` ${index + 1} `, 'dim'], [name, ''], [count ? ` ${count}` : '', urgent ? 'yellow' : 'dim'], [' ', '']];
-    return [...cells, [' ', '']];
-  });
+    return [[name, active ? 'bold' : 'dim'], [count ? ` ${count}` : '', index === 0 && count > 0 ? 'yellow' : 'dim'], [GAP]];
+  })];
 }
 
+function context(state) {
+  if (state.hiddenView) return [['Hidden', 'bold'], [`${GAP}h unhides${GAP}H goes back`, 'dim']];
+  if (state.tab === 4) return [['Brief', state.mode === 'brief' ? 'bold' : 'dim'], [GAP], ['List', state.mode === 'list' ? 'bold' : 'dim']];
+  if (state.tab === 3) return [[`agent slots ${state.capacity.used}/${state.capacity.max}${GAP}${slotSummary(state.slots)}`, state.slots?.dead ? 'yellow' : 'dim']];
+  if (state.tab === TABS.length - 1 && state.archiveFilter) return [[`filtered by “${state.archiveFilter}”${GAP}/ changes it`, 'dim']];
+  return undefined;
+}
+
+function rowLines(row, width, selected, state, group) {
+  if (row.kind === 'item') return itemLines(group === row.project ? { ...row, project: '' } : row, width, selected, state.spinner, state.now);
+  if (row.kind === 'section') return [line([[MARGIN], [row.title.toUpperCase(), 'bold', 'dim'], [`  ${row.count}`, 'dim']], width), line([], width)];
+  if (row.kind === 'note') return [line([[MARGIN], [row.text, row.tone]], width)];
+  return [line([], width)];
+}
+
+const indent = (rendered, width) => rendered.map((text) => `${MARGIN}${text}${' '.repeat(Math.max(0, width - MARGIN.length - columns(text)))}`);
+
 export function renderScreen(state, width, height) {
-  const names = [...TABS, ...(state.search ? ['Search'] : [])];
-  const tabs = tabCells(state);
   const dead = state.slots?.dead ?? 0;
-  const right = `● ${state.working} working   agents ${state.capacity.used}/${state.capacity.max}${dead ? ` · ${dead} dead` : ''}`;
-  const tabWidth = tabs.reduce((sum, [text]) => sum + columns(text), 0);
-  const gap = width - tabWidth - columns(right);
-  const header = gap >= 1
-    ? line([...tabs, [' '.repeat(gap)], [`${state.working ? state.spinner ?? '●' : '●'} `, 'yellow'], [`${state.working} working   agents ${state.capacity.used}/${state.capacity.max}`, 'dim'], [dead ? ` · ${dead} dead` : '', 'yellow']], width)
-    : line(tabs, width);
-  const title = state.hiddenView
-    ? line([['Hidden', 'bold'], ['  rows you hid with h · h unhides · H goes back', 'dim']], width)
-    : state.tab === 4
-    ? line([['Brief', state.mode === 'brief' ? 'blue' : 'dim', 'bold'], ['  '], ['List', state.mode === 'list' ? 'blue' : 'dim', 'bold']], width)
-    : state.tab === 3
-    ? line([['Sessions', 'bold'], [`  agent slots ${state.capacity.used}/${state.capacity.max}: ${slotSummary(state.slots)}`, state.slots?.dead ? 'yellow' : 'dim']], width)
-    : state.tab === TABS.length - 1
-    ? line([['Archive', 'bold'], [state.archiveFilter ? `  filtered by “${state.archiveFilter}” · / changes it` : '  cleaned-up tasks and their conversations · / filters', 'dim']], width)
-    : line([[names[state.tab], 'bold']], width);
-  const date = new Date(state.now).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-  const hint = line([[`${date} · ${state.doneCount} done since yesterday · enter launch/focus or open PR · o open${state.tab === 4 ? ' · ←→ brief' : ''}`, 'dim']], width);
-  const ids = state.rows.filter((row) => row.kind === 'item').map((row) => columns(row.id));
-  const idWidth = Math.min(22, Math.max(8, ...ids));
-  const selectedRow = state.rows[state.cursor];
-  const selectedItem = selectedRow?.kind === 'item' ? selectedRow : undefined;
-  const info = detail(state, selectedItem).map((cells) => line(cells, width));
-  const promptLines = state.prompt ? state.prompt.component.render(width) : [];
-  const detailLines = !state.prompt ? info
-    : state.prompt.kind === 'editor' ? [line([[state.prompt.label, 'blue', 'bold']], width), ...promptLines]
-    : [...info.slice(0, 3), ...promptLines];
-  const body = Math.max(1, height - 7 - detailLines.length);
-  const start = Math.max(0, Math.min(Math.max(0, state.cursor) - Math.floor(body / 2), state.rows.length - body));
-  const keysLine = line(keyline(legend(state).filter((_pair, index, pairs) => columns(pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join(' · ')) <= width)), width);
+  const tabs = tabCells(state);
+  const status = [[`${state.working ? state.spinner ?? '●' : '●'} `, 'yellow'], [`${state.working} working${GAP}${state.capacity.used}/${state.capacity.max} agents`, 'dim'], [dead ? `${GAP}${dead} dead` : '', 'yellow'], [MARGIN]];
+  const gap = width - [...tabs, ...status].reduce((sum, [text]) => sum + columns(text), 0);
+  const header = gap >= 1 ? line([...tabs, [' '.repeat(gap)], ...status], width) : line(tabs, width);
+  const about = context(state);
+  const top = [header, line([], width), ...(about ? [line([[MARGIN], ...about], width), line([], width)] : [])];
+  const fitted = legend(state).filter((_pair, index, pairs) => columns(MARGIN + pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join('    ')) <= width);
+  const keysLine = line(keyline(fitted), width);
   if (state.help) {
     const helpWidth = Math.max(...HELP.map(([keys]) => columns(keys)));
     const room = height - 7;
     const split = HELP.length > room ? Math.ceil(HELP.length / 2) : HELP.length;
     const half = split < HELP.length ? Math.floor((width - 4) / 2) : width - 2;
     const cell = ([keys, text] = ['', '']) => [[fit(keys, helpWidth + 2), 'bold'], [fit(text, Math.max(0, half - helpWidth - 2)), 'dim']];
-    const help = [line([['  '], ['Keys', 'bold']], width), ...HELP.slice(0, split).map((pair, index) => line([['  '], ...cell(pair), ...(split < HELP.length ? [['  '], ...cell(HELP[split + index])] : [])], width))].slice(0, height - 6);
-    return [header, line([], width), title, hint, line([], width), ...help, ...Array.from({ length: height - 6 - help.length }, () => line([], width)), keysLine];
+    const help = [line([[MARGIN], ['KEYS', 'bold', 'dim']], width), line([], width), ...HELP.slice(0, split).map((pair, index) => line([[MARGIN], ...cell(pair), ...(split < HELP.length ? [[MARGIN], ...cell(HELP[split + index])] : [])], width))].slice(0, height - 3);
+    return [header, line([], width), ...help, ...Array.from({ length: height - 3 - help.length }, () => line([], width)), keysLine];
   }
-  const rows = state.rows.slice(start, start + body).map((row, offset) => {
-    if (row.kind === 'item') return itemLine(row, width, start + offset === state.cursor, idWidth, state.spinner);
-    if (row.kind === 'section') return line([['  '], [row.title, 'bold'], [` ${row.count}`, 'dim']], width);
-    if (row.kind === 'note') return line([['  '], [row.text, row.tone]], width);
-    return line([], width);
+  const message = line(state.status?.text ? [[MARGIN], [state.status.text, state.status.tone]] : [], width);
+  const promptLines = state.prompt ? indent(state.prompt.component.render(width - 2 * MARGIN.length), width) : [];
+  const confirm = state.confirm ? confirmLines(state.confirm).map((cells) => line([[MARGIN], ...cells], width)) : [];
+  const footer = state.prompt?.kind === 'editor' ? [line([], width), line([[MARGIN], [state.prompt.label, 'blue', 'bold']], width), ...promptLines]
+    : state.prompt ? [line([], width), ...confirm, ...promptLines]
+    : state.confirm ? [line([], width), ...confirm, message]
+    : [message];
+  const body = Math.max(1, height - top.length - footer.length - 1);
+  let group;
+  const blocks = state.rows.map((row, index) => {
+    if (row.kind === 'section') group = row.title;
+    return rowLines(row, width, index === state.cursor, state, group);
   });
-  return [
-    header, line([], width), title, hint, line([], width),
-    ...rows, ...Array.from({ length: body - rows.length }, () => line([], width)),
-    line([['─'.repeat(width), 'dim']], width),
-    ...detailLines,
-    keysLine,
-  ].slice(0, Math.max(height, 1));
+  const lines = blocks.flat();
+  const above = blocks.slice(0, Math.max(0, state.cursor)).reduce((sum, block) => sum + block.length, 0);
+  const size = blocks[state.cursor]?.length ?? 0;
+  const start = Math.max(0, Math.min(above - Math.floor((body - size) / 2), lines.length - body));
+  const visible = lines.slice(start, start + body);
+  return [...top, ...visible, ...Array.from({ length: body - visible.length }, () => line([], width)), ...footer, keysLine].slice(0, Math.max(height, 1));
 }
 
 const NAMED_KEYS = [['up', 'up'], ['down', 'down'], ['left', 'left'], ['right', 'right'], ['enter', 'enter'], ['shift+tab', 'shift-tab'], ['tab', 'tab'],
@@ -857,7 +851,7 @@ export function summarizeMissed(results) {
     const text = cleanText(result.text).split('. ')[0];
     counts.set(text, (counts.get(text) ?? 0) + 1);
   }
-  return [...counts].map(([text, count]) => (count > 1 ? `${text} (×${count})` : text)).join(' · ');
+  return [...counts].map(([text, count]) => (count > 1 ? `${text} (×${count})` : text)).join('   ');
 }
 
 export function slotsOf(tasks, hidden = new Set()) {
@@ -876,7 +870,7 @@ export function slotSummary(slots = {}) {
     `${slots.idle ?? 0} idle`,
     slots.dead ? `${slots.dead} not running, d retires` : '',
     slots.hidden ? `${slots.hidden} hidden, H shows` : '',
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join('   ');
 }
 
 export function batchSummary({ total, failed, skipped = 0 }) {

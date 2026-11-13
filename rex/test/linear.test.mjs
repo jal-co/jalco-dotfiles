@@ -10,7 +10,7 @@ import {
 } from '../src/linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories, terms, workspaceRepositories } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
-import { SPINNER, actionsFor, archiveGoal, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
+import { SPINNER, actionsFor, ago, archiveGoal, meta, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -174,29 +174,31 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[0], /^ 1 Inbox {3}2 Issues {3}3 Backlog {3}4 Sessions {3}5 Today {3}6 Archive +● 1 working {3}agents 8\/8$/);
-  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[0]), /^ 1 Inbox 3 {3}2 Issues 12 {3}3 Backlog 22 {3}4 Sessions 5 {3}5 Today 7 {3}6 Archive +● 1 working/);
-  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /\u001b\[34;1;48;5;237m 2 Issues 12 \u001b\[0m/);
-  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /Inbox\u001b\[33m 3/);
-  assert.match(plain(renderScreen({ ...state, tab: 6, search: { query: 'x' } }, 160, 24)[0]), /6 Archive {3}7 Search /);
-  assert.match(screen[2], /^Brief {2}List/);
-  assert.match(screen[5], /^ {2}In progress 1/);
-  assert.match(screen[6], /^› A-1 +Title 🙂 y+…  Billing +● working/);
-  assert.match(screen.at(-5), /^Title/);
-  assert.match(screen.at(-1), /^h hide · \? all keys · n new · \/ search · c coordinator · H hidden · r refresh · q quit +$/);
-  assert.match(renderScreen(state, 40, 24).map(plain).at(-1), /^h hide · \? all keys · n new · \/ search +$/);
+  assert.match(screen[0], /^ {2}Inbox {3}Issues {3}Backlog {3}Sessions {3}Today {3}Archive +● 1 working {3}8\/8 agents {2}$/);
+  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[0]), /^ {2}Inbox 3 {3}Issues 12 {3}Backlog 22 {3}Sessions 5 {3}Today 7 {3}Archive +● 1 working/);
+  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /\u001b\[1mIssues\u001b\[0m\u001b\[2m 12/);
+  assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[0], /\u001b\[2mInbox\u001b\[0m\u001b\[33m 3/);
+  assert.match(plain(renderScreen({ ...state, tab: 6, search: { query: 'x' } }, 160, 24)[0]), /Archive {3}Search /);
+  assert.match(screen[2], /^ {2}Brief {3}List/);
+  assert.match(screen[4], /^ {2}IN PROGRESS {2}1/);
+  assert.match(screen[6], /^▌ ● Title 🙂 y+… {2}Billing {2}A-1 {2}$/);
+  assert.match(screen[7], /^ {4}working +$/);
+  assert.ok(!screen.some((row) => row.includes('·')));
+  assert.match(screen.at(-2), /^ +$/);
+  assert.match(screen.at(-1), /^ {2}h hide {4}\/ search {4}\? keys {4}q quit +$/);
+  assert.match(renderScreen(state, 34, 24).map(plain).at(-1), /^ {2}h hide {4}\/ search {4}\? keys +$/);
   const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
   assert.equal(help.length, 24);
   assert.ok(help.some((row) => /q  ctrl\+c +quit/.test(row)));
   assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
   assert.ok(renderScreen({ ...state, help: true }, 100, 40).map(plain).some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
   assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
-  assert.match(help.at(-1), /^any key close this list/);
-  assert.match(renderScreen({ ...state, prompt: { kind: 'input', label: 'search', component: { render: () => ['search › x'] } } }, 100, 24).map(plain).at(-1), /^enter submit · esc cancel/);
+  assert.match(help.at(-1), /^ {2}any key close this list/);
+  assert.match(renderScreen({ ...state, prompt: { kind: 'input', label: 'search', component: { render: () => ['search › x'] } } }, 100, 24).map(plain).at(-1), /^ {2}enter submit {4}esc cancel/);
   const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
-  assert.match(retire.at(-5), /^Retire ui-fix\?/);
+  assert.match(retire.at(-5), /^ {2}Retire ui-fix\?/);
   assert.match(retire.at(-3), /Logs, branch and checkout are kept/);
-  assert.match(retire.at(-1), /^enter confirm · esc cancel/);
+  assert.match(retire.at(-1), /^ {2}enter confirm {4}esc cancel/);
 });
 
 test('terminal input maps to key names, including Kitty-encoded letters', () => {
@@ -211,13 +213,13 @@ test('a prompt shows the live pi-tui input in the detail area and the key bar na
   const state = { tab: 0, rows: [], cursor: -1, working: 0, capacity: { used: 1, max: 8 }, doneCount: 0, now: Date.now(), prompt: { kind: 'input', label: 'search', component: input, verb: 'search' } };
   const screen = renderScreen(state, 100, 24);
   assert.equal(screen.length, 24);
-  assert.match(plain(screen.at(-2)), /^search › storage/);
-  assert.match(plain(screen.at(-1)), /^enter search · esc cancel/);
+  assert.match(plain(screen.at(-2)), /^ {2}search › storage/);
+  assert.match(plain(screen.at(-1)), /^ {2}enter search {4}esc cancel/);
   const editor = { render: () => ['╭──╮', '│hi│', '╰──╯'] };
   const composing = renderScreen({ ...state, prompt: { kind: 'editor', label: 'Message pltfrm-2879', component: editor } }, 100, 24).map(plain);
   assert.equal(composing.length, 24);
   assert.deepEqual(composing.slice(-5, -1).map((row) => row.trim()), ['Message pltfrm-2879', '╭──╮', '│hi│', '╰──╯']);
-  assert.match(composing.at(-1), /^enter send · shift\+enter new line · esc cancel/);
+  assert.match(composing.at(-1), /^ {2}enter send {4}shift\+enter new line {4}esc cancel/);
 });
 
 test('linked running agents get one tab name from their issue; named, stopped and unlinked ones are skipped', () => {
@@ -374,14 +376,14 @@ test('cleanup confirmation says what happens and the key bar offers preserving u
   assert.equal(checkoutOf({ pr: { checkout: '/w/x' } }), '/w/x');
   const state = { tab: 0, rows: [item], cursor: 0, working: 0, capacity: { used: 1, max: 8 }, doneCount: 0, now: Date.now() };
   const one = renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item] } }, 160, 24).map(plain);
-  assert.match(one.at(-5), /^Clean up ds-inputs\?/);
+  assert.match(one.at(-5), /^ {2}Clean up ds-inputs\?/);
   assert.ok(one.at(-4).includes(item.task.worktree));
-  assert.match(one.at(-1), /^enter clean up · p keep uncommitted work as a commit · esc cancel/);
-  assert.match(renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item, item] } }, 160, 24).map(plain).at(-5), /^Clean up 2 merged tasks\?/);
+  assert.match(one.at(-1), /^ {2}enter clean up {4}p keep uncommitted work as a commit {4}esc cancel/);
+  assert.match(renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item, item] } }, 160, 24).map(plain).at(-5), /^ {2}Clean up 2 merged tasks\?/);
   const hidden = renderScreen({ ...state, hiddenView: true, rows: [] }, 160, 24).map(plain);
-  assert.match(hidden[2], /^Hidden {2}rows you hid with h/);
-  assert.match(hidden.at(-1), /^H back · \? all keys/);
-  assert.match(renderScreen({ ...state, hiddenView: true }, 160, 24).map(plain).at(-1), /^h unhide · H back/);
+  assert.match(hidden[2], /^ {2}Hidden {3}h unhides {3}H goes back/);
+  assert.match(hidden.at(-1), /^ {2}H back {4}\? keys/);
+  assert.match(renderScreen({ ...state, hiddenView: true }, 160, 24).map(plain).at(-1), /^ {2}h unhide {4}H back/);
 });
 
 test('Linear decides the label once the issue is done or canceled; PR state shows while it is open', () => {
@@ -454,7 +456,7 @@ test('the cleanup summary never counts skipped duplicates or failures as cleaned
 test('repeated missed results collapse into one line with a count', () => {
   const reloaded = { ok: false, text: 'The coordinator reloaded before running this request; nothing was done. Try again.' };
   assert.equal(summarizeMissed([reloaded, reloaded, reloaded, { ok: true, text: 'Removed /w/a. Branch kept.' }]),
-    'The coordinator reloaded before running this request; nothing was done (×3) · Removed /w/a');
+    'The coordinator reloaded before running this request; nothing was done (×3)   Removed /w/a');
 });
 
 test('the archive groups cleaned-up tasks by date, titles them from Linear or their brief, and filters', () => {
@@ -491,14 +493,27 @@ test('task rows are titled by their Linear issue, then their goal, then their br
   assert.deepEqual(rows.map((row) => row.title), ['jal/bare', 'Add empty states', 'Title PLAT-9']);
 });
 
+test('each row\'s second line says its state, why, its PR and how long ago, without repeating itself', () => {
+  const now = Date.parse('2026-11-13T12:00:00Z');
+  assert.deepEqual([now - 20_000, now - 29 * 60_000, now - 3 * 3_600_000, '2026-11-11T12:00:00Z', undefined].map((at) => ago(at, now)), ['just now', '29m ago', '3h ago', '2d ago', '']);
+  const pr = { url: 'https://github.com/a/b/pull/4876', state: 'OPEN', taskId: 'asks-id', checkedAt: '1' };
+  const data = { tasks: [task('asks', 'blocked', { reason: 'Which plan?', updatedAt: now - 60_000 }), task('finished', 'done', { reason: 'Finished; available for follow-up', updatedAt: now - 60_000 })], prs: [pr], records: [], linear: { status: 'ok', open: [], done: [] } };
+  const [asks, finished] = items(buildView(3, data));
+  assert.deepEqual(meta(asks, now), ['blocked', 'Which plan?', 'PR #4876', '1m ago']);
+  assert.deepEqual(meta(finished, now), ['done', '1m ago']);
+  assert.deepEqual(meta({ agent: { text: '' }, id: 'A-1', title: 'T', issue: issue('A-1', 'unstarted') }, now), ['unstarted']);
+  assert.deepEqual(meta({ coordinator: { ask: {} } }, now), ['waiting for your answer']);
+  assert.deepEqual(meta({ archive: { archivedAt: '2026-11-13T09:00:00Z', branch: 'jal/x', pullRequests: ['https://github.com/a/b/pull/9'] } }, now), ['archived 3h ago', 'jal/x', 'PR #9']);
+});
+
 test('agent slots break down into working, idle, not running and hidden', () => {
   const tasks = [task('a', 'working'), task('b', 'done'), task('c', 'unknown'), task('d', 'unknown'), task('e', 'stopped', { stopConfirmed: true }), task('f', 'idle', { persistent: false })];
   const slots = slotsOf(tasks, new Set(['t:c-id']));
   assert.deepEqual(slots, { working: 1, idle: 1, dead: 2, hidden: 1 });
-  assert.equal(slotSummary(slots), '1 working · 1 idle · 2 not running, d retires · 1 hidden, H shows');
+  assert.equal(slotSummary(slots), '1 working   1 idle   2 not running, d retires   1 hidden, H shows');
   const screen = renderScreen({ tab: 3, rows: [], cursor: -1, working: 1, capacity: { used: 4, max: 8 }, slots, doneCount: 0, now: Date.now() }, 160, 24).map(plain);
-  assert.match(screen[0], /agents 4\/8 · 2 dead\s*$/);
-  assert.match(screen[2], /^Sessions {2}agent slots 4\/8: 1 working · 1 idle · 2 not running, d retires · 1 hidden, H shows/);
+  assert.match(screen[0], /4\/8 agents {3}2 dead {2}$/);
+  assert.match(screen[2], /^ {2}agent slots 4\/8 {3}1 working {3}1 idle {3}2 not running, d retires {3}1 hidden, H shows/);
 });
 
 test('the coordinator\'s unanswered question is found at the end of its last finished turn', () => {
@@ -531,8 +546,10 @@ test('working agents show Pi\'s spinner in their row and the header; other state
   const state = { tab: 3, rows: [working, done], cursor: 0, working: 1, capacity: { used: 2, max: 8 }, doneCount: 0, now: Date.now(), spinner: SPINNER[3] };
   const screen = renderScreen(state, 140, 24).map(plain);
   assert.match(screen[0], /⠸ 1 working/);
-  assert.match(screen[5], /⠸ working\s*$/);
-  assert.match(screen[6], /✓ done\s*$/);
+  assert.match(screen[4], /^▌ ⠸ A +p {2}a {2}$/);
+  assert.match(screen[5], /^ {4}working +$/);
+  assert.match(screen[6], /^ {2}● B +p {2}b {2}$/);
+  assert.match(screen[7], /^ {4}done +$/);
   assert.match(renderScreen({ ...state, working: 0, spinner: undefined }, 140, 24).map(plain)[0], /● 0 working/);
   assert.equal(applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working', msg: 'bash' }]).state, 'working');
   assert.equal(items(buildView(3, { tasks: [applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working' }])], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } }))[0].agent.spin, true);
