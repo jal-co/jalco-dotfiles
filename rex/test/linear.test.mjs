@@ -188,8 +188,9 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.match(screen[9], /^ {4}working +$/);
   assert.ok(!screen.some((row) => row.includes('·')));
   assert.match(screen.at(-4), /^ +$/);
-  assert.match(screen.at(-2), /^ {2}h hide {4}\/ search {4}\? keys {4}q quit +$/);
-  assert.match(renderScreen(state, 34, 24).map(plain).at(-2), /^ {2}h hide {4}\/ search {4}\? keys +$/);
+  assert.match(screen.at(-2), /^ {2}h hide {3}n new {3}\/ search {3}c coordinator {3}H hidden {3}r refresh {3}\? keys {3}q quit +$/);
+  assert.match(renderScreen(state, 40, 24).map(plain).at(-2), /^ {2}h hide {3}n new {3}\? keys {3}q quit +$/);
+  assert.match(renderScreen(state, 20, 24).map(plain).at(-2), /^ {2}\? keys {3}q quit +$/);
   const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
   assert.equal(help.length, 24);
   assert.ok(help.some((row) => /q  ctrl\+c +quit/.test(row)));
@@ -197,11 +198,11 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.ok(renderScreen({ ...state, help: true }, 100, 40).map(plain).some((row) => /^ {2}q  ctrl\+c +quit/.test(row)));
   assert.ok(help.some((row) => /esc +cancel; never quits/.test(row)));
   assert.match(help.at(-2), /^ {2}any key close this list/);
-  assert.match(renderScreen({ ...state, prompt: { kind: 'input', label: 'search', component: { render: () => ['search › x'] } } }, 100, 24).map(plain).at(-2), /^ {2}enter submit {4}esc cancel/);
+  assert.match(renderScreen({ ...state, prompt: { kind: 'input', label: 'search', component: { render: () => ['search › x'] } } }, 100, 24).map(plain).at(-2), /^ {2}enter submit {3}esc cancel/);
   const retire = renderScreen({ ...state, confirm: { kind: 'retire', task: task('ui-fix', 'unknown', { reason: 'Agent exited' }) } }, 100, 24).map(plain);
   assert.match(retire.at(-7), /^ {2}Retire ui-fix\?/);
   assert.match(retire.at(-5), /Logs, branch and checkout are kept/);
-  assert.match(retire.at(-2), /^ {2}enter confirm {4}esc cancel/);
+  assert.match(retire.at(-2), /^ {2}enter confirm {3}esc cancel/);
 });
 
 test('terminal input maps to key names, including Kitty-encoded letters', () => {
@@ -217,12 +218,12 @@ test('a prompt shows the live pi-tui input in the detail area and the key bar na
   const screen = renderScreen(state, 100, 24);
   assert.equal(screen.length, 24);
   assert.match(plain(screen.at(-4)), /^ {2}search › storage/);
-  assert.match(plain(screen.at(-2)), /^ {2}enter search {4}esc cancel/);
+  assert.match(plain(screen.at(-2)), /^ {2}enter search {3}esc cancel/);
   const editor = { render: () => ['╭──╮', '│hi│', '╰──╯'] };
   const composing = renderScreen({ ...state, prompt: { kind: 'editor', label: 'Message pltfrm-2879', component: editor } }, 100, 24).map(plain);
   assert.equal(composing.length, 24);
   assert.deepEqual(composing.slice(-7, -3).map((row) => row.trim()), ['Message pltfrm-2879', '╭──╮', '│hi│', '╰──╯']);
-  assert.match(composing.at(-2), /^ {2}enter send {4}shift\+enter new line {4}esc cancel/);
+  assert.match(composing.at(-2), /^ {2}enter send {3}shift\+enter new line {3}esc cancel/);
 });
 
 test('linked running agents get one tab name from their issue; named, stopped and unlinked ones are skipped', () => {
@@ -381,12 +382,12 @@ test('cleanup confirmation says what happens and the key bar offers preserving u
   const one = renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item] } }, 160, 24).map(plain);
   assert.match(one.at(-7), /^ {2}Clean up ds-inputs\?/);
   assert.ok(one.at(-6).includes(item.task.worktree));
-  assert.match(one.at(-2), /^ {2}enter clean up {4}p keep uncommitted work as a commit {4}esc cancel/);
+  assert.match(one.at(-2), /^ {2}enter clean up {3}p keep uncommitted work as a commit {3}esc cancel/);
   assert.match(renderScreen({ ...state, confirm: { kind: 'cleanup', items: [item, item] } }, 160, 24).map(plain).at(-7), /^ {2}Clean up 2 merged tasks\?/);
   const hidden = renderScreen({ ...state, hiddenView: true, rows: [] }, 160, 24).map(plain);
   assert.match(hidden[4], /^ {2}Hidden {3}h unhides {3}H goes back/);
-  assert.match(hidden.at(-2), /^ {2}H back {4}\? keys/);
-  assert.match(renderScreen({ ...state, hiddenView: true }, 160, 24).map(plain).at(-2), /^ {2}h unhide {4}H back/);
+  assert.match(hidden.at(-2), /^ {2}H back {3}\? keys/);
+  assert.match(renderScreen({ ...state, hiddenView: true }, 160, 24).map(plain).at(-2), /^ {2}h unhide {3}H back/);
 });
 
 test('Linear decides the label once the issue is done or canceled; PR state shows while it is open', () => {

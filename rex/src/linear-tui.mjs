@@ -89,7 +89,16 @@ function itemLines(item, width, selected, spinner, now) {
   ];
 }
 
-const keyline = (pairs) => [[MARGIN], ...pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : '    '}`, 'dim']])];
+const KEY_GAP = '   ';
+const keyline = (pairs) => [[MARGIN], ...pairs.flatMap(([key, label], index) => [[key, 'bold'], [` ${label}${index === pairs.length - 1 ? '' : KEY_GAP}`, 'dim']])];
+const keysWidth = (pairs) => columns(MARGIN + pairs.map(([key, label]) => `${key} ${label}`).join(KEY_GAP));
+
+export function fitKeys(pairs, width) {
+  const tail = pairs.filter(([key]) => key === '?' || key === 'q');
+  const head = pairs.filter((pair) => !tail.includes(pair));
+  const kept = head.filter((_pair, index) => keysWidth([...head.slice(0, index + 1), ...tail]) <= width);
+  return keysWidth([...kept, ...tail]) <= width ? [...kept, ...tail] : kept;
+}
 const HELP = [
   ['↑ ↓  j k', 'move'],
   ['tab  1-7', 'switch tabs'],
@@ -130,8 +139,8 @@ export function legend(state) {
   const selected = state.rows?.[state.cursor];
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'keys'], ['q', 'quit']];
-  const actions = item ? actionsFor(item, state.records ?? []).slice(0, 2) : [['n', 'new'], ['c', 'coordinator']];
-  const globals = [['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['?', 'keys'], ['q', 'quit']];
+  const actions = item ? actionsFor(item, state.records ?? []) : [];
+  const globals = [['n', 'new'], ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
   return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
 
@@ -239,8 +248,7 @@ export function renderScreen(state, width, height) {
   const header = [blank, gap >= 1 ? line([...tabs, [' '.repeat(gap)], ...status], width) : line(tabs, width), underline(tabs, state, width), blank];
   const about = context(state);
   const top = [...header, ...(about ? [line([[MARGIN], ...about], width), blank] : [])];
-  const fitted = legend(state).filter((_pair, index, pairs) => columns(MARGIN + pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join('    ')) <= width);
-  const keys = [blank, line(keyline(fitted), width), blank];
+  const keys = [blank, line(keyline(fitKeys(legend(state), width)), width), blank];
   if (state.help) {
     const helpWidth = Math.max(...HELP.map(([keys]) => columns(keys)));
     const room = height - header.length - keys.length - 2;
