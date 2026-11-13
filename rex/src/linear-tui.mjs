@@ -30,7 +30,7 @@ export function fit(text, width) {
 
 const paint = (text, styles = []) => {
   const codes = styles.filter(Boolean).map((style) => SGR[style]);
-  return codes.length ? `\u001b[${codes.join(';')}m${text}\u001b[0m` : text;
+  return codes.length && text ? `\u001b[${codes.join(';')}m${text}\u001b[0m` : text;
 };
 
 const line = (cells, width) => {
@@ -47,6 +47,7 @@ const line = (cells, width) => {
 };
 
 const MARGIN = '  ';
+export const STATUS_FADE = 4_000;
 const GAP = '   ';
 
 export function ago(at, now) {
@@ -200,10 +201,17 @@ function confirmLines(confirm) {
 export function tabCells(state) {
   const names = [...TABS, ...(state.search ? ['Search'] : [])];
   return [[MARGIN], ...names.flatMap((name, index) => {
-    const count = state.counts?.[index];
     const active = index === state.tab && !state.hiddenView;
-    return [[name, active ? 'bold' : 'dim'], [count ? ` ${count}` : '', index === 0 && count > 0 ? 'yellow' : 'dim'], [GAP]];
+    const count = index === 0 && state.counts?.[0] ? ` ${state.counts[0]}` : '';
+    return [[name, active ? 'bold' : 'dim'], [count, 'yellow'], [index === names.length - 1 ? '' : '    ']];
   })];
+}
+
+function underline(tabs, state, width) {
+  if (state.hiddenView) return line([], width);
+  const offset = tabs.slice(0, 1 + 3 * state.tab).reduce((sum, [text]) => sum + columns(text), 0);
+  const size = columns(tabs[1 + 3 * state.tab][0]) + columns(tabs[2 + 3 * state.tab][0]);
+  return line([[' '.repeat(offset)], ['▔'.repeat(size), 'bold']], width);
 }
 
 function context(state) {
@@ -224,32 +232,33 @@ function rowLines(row, width, selected, state, group) {
 const indent = (rendered, width) => rendered.map((text) => `${MARGIN}${text}${' '.repeat(Math.max(0, width - MARGIN.length - columns(text)))}`);
 
 export function renderScreen(state, width, height) {
-  const dead = state.slots?.dead ?? 0;
+  const blank = line([], width);
   const tabs = tabCells(state);
-  const status = [[`${state.working ? state.spinner ?? '●' : '●'} `, 'yellow'], [`${state.working} working${GAP}${state.capacity.used}/${state.capacity.max} agents`, 'dim'], [dead ? `${GAP}${dead} dead` : '', 'yellow'], [MARGIN]];
+  const status = [[state.working ? `${state.spinner ?? '●'} ` : '', 'yellow'], [state.working ? `${state.working} working${GAP}` : '', 'dim'], [`${state.capacity.used}/${state.capacity.max} agents`, 'dim'], [MARGIN]];
   const gap = width - [...tabs, ...status].reduce((sum, [text]) => sum + columns(text), 0);
-  const header = gap >= 1 ? line([...tabs, [' '.repeat(gap)], ...status], width) : line(tabs, width);
+  const header = [blank, gap >= 1 ? line([...tabs, [' '.repeat(gap)], ...status], width) : line(tabs, width), underline(tabs, state, width), blank];
   const about = context(state);
-  const top = [header, line([], width), ...(about ? [line([[MARGIN], ...about], width), line([], width)] : [])];
+  const top = [...header, ...(about ? [line([[MARGIN], ...about], width), blank] : [])];
   const fitted = legend(state).filter((_pair, index, pairs) => columns(MARGIN + pairs.slice(0, index + 1).map(([key, label]) => `${key} ${label}`).join('    ')) <= width);
-  const keysLine = line(keyline(fitted), width);
+  const keys = [blank, line(keyline(fitted), width), blank];
   if (state.help) {
     const helpWidth = Math.max(...HELP.map(([keys]) => columns(keys)));
-    const room = height - 7;
+    const room = height - header.length - keys.length - 2;
     const split = HELP.length > room ? Math.ceil(HELP.length / 2) : HELP.length;
     const half = split < HELP.length ? Math.floor((width - 4) / 2) : width - 2;
     const cell = ([keys, text] = ['', '']) => [[fit(keys, helpWidth + 2), 'bold'], [fit(text, Math.max(0, half - helpWidth - 2)), 'dim']];
-    const help = [line([[MARGIN], ['KEYS', 'bold', 'dim']], width), line([], width), ...HELP.slice(0, split).map((pair, index) => line([[MARGIN], ...cell(pair), ...(split < HELP.length ? [[MARGIN], ...cell(HELP[split + index])] : [])], width))].slice(0, height - 3);
-    return [header, line([], width), ...help, ...Array.from({ length: height - 3 - help.length }, () => line([], width)), keysLine];
+    const space = height - header.length - keys.length;
+    const help = [line([[MARGIN], ['KEYS', 'bold', 'dim']], width), blank, ...HELP.slice(0, split).map((pair, index) => line([[MARGIN], ...cell(pair), ...(split < HELP.length ? [[MARGIN], ...cell(HELP[split + index])] : [])], width))].slice(0, space);
+    return [...header, ...help, ...Array.from({ length: space - help.length }, () => blank), ...keys];
   }
   const message = line(state.status?.text ? [[MARGIN], [state.status.text, state.status.tone]] : [], width);
   const promptLines = state.prompt ? indent(state.prompt.component.render(width - 2 * MARGIN.length), width) : [];
   const confirm = state.confirm ? confirmLines(state.confirm).map((cells) => line([[MARGIN], ...cells], width)) : [];
-  const footer = state.prompt?.kind === 'editor' ? [line([], width), line([[MARGIN], [state.prompt.label, 'blue', 'bold']], width), ...promptLines]
-    : state.prompt ? [line([], width), ...confirm, ...promptLines]
-    : state.confirm ? [line([], width), ...confirm, message]
+  const footer = state.prompt?.kind === 'editor' ? [blank, line([[MARGIN], [state.prompt.label, 'blue', 'bold']], width), ...promptLines]
+    : state.prompt ? [blank, ...confirm, ...promptLines]
+    : state.confirm ? [blank, ...confirm, message]
     : [message];
-  const body = Math.max(1, height - top.length - footer.length - 1);
+  const body = Math.max(1, height - top.length - footer.length - keys.length);
   let group;
   const blocks = state.rows.map((row, index) => {
     if (row.kind === 'section') group = row.title;
@@ -260,7 +269,7 @@ export function renderScreen(state, width, height) {
   const size = blocks[state.cursor]?.length ?? 0;
   const start = Math.max(0, Math.min(above - Math.floor((body - size) / 2), lines.length - body));
   const visible = lines.slice(start, start + body);
-  return [...top, ...visible, ...Array.from({ length: body - visible.length }, () => line([], width)), ...footer, keysLine].slice(0, Math.max(height, 1));
+  return [...top, ...visible, ...Array.from({ length: body - visible.length }, () => blank), ...footer, ...keys].slice(0, Math.max(height, 1));
 }
 
 const NAMED_KEYS = [['up', 'up'], ['down', 'down'], ['left', 'left'], ['right', 'right'], ['enter', 'enter'], ['shift+tab', 'shift-tab'], ['tab', 'tab'],
@@ -427,7 +436,18 @@ export class LinearApp {
     this.tui?.requestRender();
   }
 
-  status(tone, text) { this.state.status = text ? { tone, text } : undefined; this.draw(); }
+  status(tone, text) {
+    clearTimeout(this.fade);
+    this.state.status = text ? { tone, text } : undefined;
+    if (text && ['dim', 'green'].includes(tone)) {
+      this.fade = setTimeout(() => {
+        if (this.pending.size || this.state.status?.text !== text) return;
+        this.state.status = undefined;
+        this.draw();
+      }, STATUS_FADE);
+    }
+    this.draw();
+  }
 
   start() {
     this.terminal = new ProcessTerminal();
@@ -480,6 +500,7 @@ export class LinearApp {
     clearInterval(this.statusTimer);
     clearInterval(this.spinTimer);
     clearInterval(this.reload);
+    clearTimeout(this.fade);
     clearTimeout(this.timer);
     this.tui?.stop({ preserveScreen: true });
   }
