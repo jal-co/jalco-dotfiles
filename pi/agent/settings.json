@@ -1,7 +1,14 @@
 {
   "collapseChangelog": true,
   "compaction": {
-    "keepRecentTokens": 48000
+    "keepRecentTokens": 48000,
+    "modelOverrides": {
+      "claude-bridge/claude-fable-5-2": { "reserveTokens": 100000 },
+      "claude-bridge/claude-fable-5-1": { "reserveTokens": 100000 },
+      "claude-bridge/claude-opus-5-5": { "reserveTokens": 100000 },
+      "claude-bridge/claude-sonnet-5-5": { "reserveTokens": 100000 },
+      "claude-bridge/claude-haiku-5-5": { "reserveTokens": 100000 }
+    }
   },
   "defaultModel": "gpt-6.1-sol",
   "defaultProvider": "openai",
@@ -9,6 +16,7 @@
   "enabledModels": [
     "openai/gpt-6.1-sol",
     "openai/gpt-6-astra",
+    "claude-bridge/claude-fable-5-1",
     "claude-bridge/claude-opus-5-5",
     "claude-bridge/claude-sonnet-5-5",
     "claude-bridge/claude-haiku-5-5",
