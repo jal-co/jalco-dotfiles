@@ -23,7 +23,7 @@ This skill sequences the skills that already own each slice of component work. I
 4. Accessibility and forms. Load `emil-touch-and-accessibility`. Load `emil-forms-and-inputs` for any input, button, or submit behavior.
 5. States. Read `~/.agents/skills/state-machine/SKILL.md` and render every state the code can reach on a throwaway page.
 6. Stress. Read `~/.agents/skills/break-it/SKILL.md` and feed the component worst-case content. Report what visibly broke and fix it.
-7. Polish. Load `emil-ui-polish`, plus `emil-surfaces`, `emil-animations`, `emil-typography`, `emil-color`, or `emil-design-foundations` when the component touches them. Read `~/.agents/skills/variant/SKILL.md` only when Justin wants to explore alternatives.
+7. Polish. Load `emil-ui-polish`, plus `emil-surfaces`, `emil-animations`, `emil-typography`, `emil-color`, or `emil-interaction-details` when the component touches them. Read `~/.agents/skills/variant/SKILL.md` only when Justin wants to explore alternatives.
 8. Clean up. Delete the throwaway pages and fixtures, and confirm the diff holds none of them.
 9. Ship. Load `git`. For UI intended for a PR, capture the before state before editing.
 
