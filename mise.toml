@@ -61,7 +61,7 @@ dotfiles.relative_symlinks = true
 "brew-cask:zed" = "latest"
 
 [tasks.bootstrap]
-run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.39.0 corepack superset vercel && mise run hooks && mise run scrawl"
+run = "npm install -g @earendil-works/pi-coding-agent agent-browser@0.43.0 corepack superset vercel && mise run hooks && mise run scrawl"
 
 [tasks.scrawl]
 description = "Put the Scrawl CLI from Scrawl.app on PATH"

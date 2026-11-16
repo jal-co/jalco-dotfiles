@@ -158,9 +158,10 @@ try {
   let input
   if (action === 'batch') {
     const batchArgs = args.slice(args.indexOf('batch') + 1)
-    const payloads = batchArgs.filter(arg => arg !== '--bail')
+    const batchFlags = ['--bail', '--omit-command']
+    const payloads = batchArgs.filter(arg => !batchFlags.includes(arg))
     input = validateBatch(payloads.length ? `[${payloads.join(',')}]` : readFileSync(0, 'utf8'))
-    args.splice(args.indexOf('batch') + 1, batchArgs.length, ...(batchArgs.includes('--bail') ? ['--bail'] : []))
+    args.splice(args.indexOf('batch') + 1, batchArgs.length, ...batchArgs.filter(arg => batchFlags.includes(arg)))
   }
   const result = spawnSync('agent-browser', args, {
     env,

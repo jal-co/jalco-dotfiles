@@ -2,7 +2,7 @@
 
 <instructions>
 
-Run browser commands through `~/.pi/agent/browser-testing/task-browser`, never the raw CLI. The launcher keeps Chromium headless and worktree-scoped. `mise run bootstrap` installs global `agent-browser@0.39.0` under mise's Node. Load its current command guide with `agent-browser skills get core --full`.
+Run browser commands through `~/.pi/agent/browser-testing/task-browser`, never the raw CLI. The launcher keeps Chromium headless and worktree-scoped. `mise run bootstrap` installs global `agent-browser@0.43.0` under mise's Node. Load its current command guide with `agent-browser skills get core --full`.
 
 </instructions>
 
@@ -13,11 +13,23 @@ Run browser commands through `~/.pi/agent/browser-testing/task-browser`, never t
 Prefer these over their plain forms. Always give `screenshot` an explicit absolute path outside the repository, as in `screenshot [selector] [path]`, because every argument is positional and a guessed flag becomes a stray file in the working directory.
 
 - `snapshot --delta -i` returns a baseline once, then only changes. Add `--full` to reset the baseline.
+- Snapshots add a `hint=` to controls with an empty or duplicate name, such as `hint="icon:icon-trash"`. Act on those by ref, because `find` ignores hints.
+- `--json batch --bail --omit-command` replaces each echoed command array with its `index`.
 - `screenshot --if-changed [--threshold 0.01] /tmp/name.png` skips unchanged captures.
 - `a11y [url]` runs an axe-core WCAG audit. Scope it with a selector.
 - `find role <role> text` resolves implicit ARIA roles. It accepts `click`, `fill`, `check`, `hover`, and `text`.
 - `react tree`, `react inspect <fiberId>`, `react renders start|stop`, and `vitals` inspect React apps and Core Web Vitals. Launch with `--enable react-devtools`. They fail on non-React pages.
 - `record start /tmp/name.webm --cursor --contact-sheet` records with a visible pointer and saves a timestamped PNG summary on `record stop`. Use it as PR evidence.
+
+</instructions>
+
+## Saved flows
+
+<instructions>
+
+Flows are experimental. Use them only for repeated data pulls on the same site. UI verification stays on snapshots and screenshots.
+
+Open with `--capture flow open <url>`, do the task once, then `flow save <name>`. Rerun with `flow run <name>`, and check `flow list` and `flow steps`. A save keeps only first-party JSON requests, so a plain page or JSON navigation saves nothing. Flows keep no cookies or tokens and cannot do login; a run that needs auth stops with `auth_expired`. The wrapper rejects `--allow-write`, so flow writes never run. Flows live in `~/.agent-browser/flows/<origin>/`. Delete test flows when done.
 
 </instructions>
 

@@ -25,7 +25,7 @@ export function browserEnvironment(source = process.env) {
 const forbidden = new Set([
   '--headed', '--cdp', '--auto-connect', '--profile', '--executable-path',
   '--extension', '--extensions', '--args', '--provider', '-p', '--engine',
-  '--config', '--namespace', '--session-name', '--all',
+  '--config', '--namespace', '--session-name', '--all', '--allow-write',
 ])
 const commands = new Set([
   'open', 'goto', 'navigate', 'back', 'forward', 'reload', 'pushstate',
@@ -35,9 +35,9 @@ const commands = new Set([
   'drag', 'upload', 'mouse', 'keyboard', 'touch', 'swipe', 'tap', 'find',
   'set', 'cookies', 'storage', 'network', 'tab', 'frame', 'dialog', 'eval',
   'state', 'session', 'auth', 'console', 'errors', 'trace', 'profiler', 'react', 'vitals', 'a11y',
-  'diff', 'addinitscript', 'removeinitscript', 'close', 'quit', 'exit', 'batch',
+  'diff', 'addinitscript', 'removeinitscript', 'close', 'quit', 'exit', 'batch', 'flow',
 ])
-const leadingValues = new Set(['--session', '--state', '--color-scheme', '--enable', '--init-script'])
+const leadingValues = new Set(['--session', '--state', '--color-scheme', '--enable', '--init-script', '--capture'])
 
 export function validateBrowserArgs(args) {
   if (!args.length) throw new Error('A browser command is required')
@@ -52,6 +52,7 @@ export function validateBrowserArgs(args) {
     if (leadingValues.has(flag)) {
       if (!args[index] || args[index].startsWith('-')) throw new Error(`Missing value for ${flag}`)
       if (flag === '--session') validateSession(args[index])
+      if (flag === '--capture' && args[index] !== 'flow') throw new Error('Only --capture flow is supported')
       index++
     } else if (!['--json', '--restore'].includes(flag)) {
       throw new Error(`Unsupported leading option: ${flag}`)

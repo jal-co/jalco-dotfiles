@@ -65,6 +65,19 @@ test('rejects attachment, visible launch, configuration escapes and nested batch
   assert.equal(validateBatch('[["click","@e1"],["screenshot","result.png"]]'), '[["click","@e1"],["screenshot","result.png"]]')
 })
 
+test('allows read-only saved flows and rejects flow writes', () => {
+  for (const args of [['flow', 'run', 'items', '--param', 'q=mug'], ['flow', 'save', 'items'], ['flow', 'list'], ['flow', 'steps', '--json']]) {
+    assert.equal(validateBrowserArgs(args), 'flow')
+  }
+  assert.equal(validateBrowserArgs(['--capture', 'flow', 'open', 'https://example.com']), 'open')
+  assert.throws(() => validateBrowserArgs(['--capture', 'har', 'open', 'https://example.com']))
+  assert.throws(() => validateBrowserArgs(['--capture']))
+  for (const args of [['flow', 'run', 'items', '--allow-write', 'all'], ['flow', 'run', 'items', '--allow-write=s1r1'], ['--allow-write', 'all', 'flow', 'run', 'items']]) {
+    assert.throws(() => validateBrowserArgs(args), /--allow-write/)
+    assert.throws(() => validateBatch(JSON.stringify([args])), /--allow-write/)
+  }
+})
+
 test('launcher and Mastra wrapper share isolation, batch validation and failure propagation', () => {
   const temp = mkdtempSync(join(tmpdir(), 'browser-policy-'))
   const bin = join(temp, 'bin')
@@ -98,6 +111,10 @@ else if (process.env.TEST_FAIL) process.exit(7);
     assert.equal(invoke('task-browser', ['batch', '--bail'], { input: '[["click","@e1"],["snapshot","-i"]]' }).status, 0)
     calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
     assert.equal(calls.at(-1).input, '[["click","@e1"],["snapshot","-i"]]')
+    assert.equal(invoke('task-browser', ['--json', 'batch', '--bail', '--omit-command', '["get","title"]']).status, 0)
+    calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
+    assert.deepEqual(calls.at(-1).args, ['--json', 'batch', '--bail', '--omit-command'])
+    assert.equal(calls.at(-1).input, '[["get","title"]]')
     assert.equal(invoke('task-browser', ['batch', '["connect","9222"]']).status, 1)
     assert.equal(invoke('task-browser', ['start', '--headed']).status, 1)
     assert.equal(invoke('task-browser', ['close', '--all']).status, 1)
