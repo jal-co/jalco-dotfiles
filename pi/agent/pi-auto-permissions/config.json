@@ -3,8 +3,8 @@
     "enabled": false
   },
   "reviewer": {
-    "provider": "deepseek",
-    "model": "deepseek-flash",
+    "provider": "claude-bridge",
+    "model": "claude-haiku-5-5",
     "reasoningEffort": "low",
     "timeoutMs": 30000
   },
