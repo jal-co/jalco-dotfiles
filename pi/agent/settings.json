@@ -39,7 +39,7 @@
     "npm:pi-tool-display",
     "git:github.com/jal-co/pi-agentation",
     "npm:@ogulcancelik/pi-session-recall",
-    "npm:@ogulcancelik/pi-auto-permissions",
+    "./packages/pi-auto-permissions",
     "npm:pi-web-access",
     {
       "source": "git:github.com/DietrichGebert/ponytail",
