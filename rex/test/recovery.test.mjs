@@ -551,3 +551,88 @@ test('recovery after a coordinator restart leaves stashed tasks alone', (context
   assert.equal(f.recovery.recovered.size, 0);
   f.recovery.close();
 });
+
+test('force evidence refuses another live coordinator and marks agents this coordinator supervises', () => {
+  const f = fixture();
+  f.recovery.birth = (pid) => ({ 111: 'old', 222: null, 333: 'new' })[pid] ?? null;
+  assert.deepEqual(f.recovery.forceEvidence({ id: 'run-a' }), { state: 'owned', reason: 'Another live coordinator (process 111) owns fixture' });
+  assert.throws(() => f.recovery.detach({ id: 'run-a' }), /Another live coordinator .* nothing was retired/);
+  assert.equal(f.store.read('run-a').stopConfirmed, undefined);
+  f.recovery.birth = (pid) => ({ 222: null, 333: 'new' })[pid] ?? null;
+  f.recovery.recovered.add('run-a');
+  assert.deepEqual(f.recovery.forceEvidence({ id: 'run-a' }), { state: 'crashed', reason: 'Process 222 is absent', attached: true });
+  f.recovery.birth = () => { throw new Error('ps failed'); };
+  assert.match(f.recovery.forceEvidence({ id: 'run-a' }).reason, /owner of fixture cannot be checked/);
+});
+
+test('detach retires unverifiable bookkeeping honestly, keeps the tab and never claims a confirmed exit', () => {
+  const f = fixture();
+  delete f.record.identity; f.record.worktree = f.root; f.store.write(f.record);
+  const checkout = { path: f.root, lease: { pid: 111, birth: 'old', runId: 'run-a' } };
+  f.recovery.worktrees = { records: () => [checkout], save: () => {} };
+  f.recovery.provider.windowOf = () => undefined;
+  f.recovery.holders = () => [4242];
+  const result = f.recovery.detach({ id: 'run-a' });
+  assert.deepEqual(result, { id: 'run-a', name: 'fixture', status: 'detached', reason: 'Retired without a confirmed exit: process 4242 is still running in its checkout', tab: undefined });
+  const saved = f.store.read('run-a');
+  assert.equal(saved.stopConfirmed, true);
+  assert.equal(saved.state, 'detached');
+  assert.equal(saved.owner.pid, 333);
+  assert.deepEqual(f.closed, []);
+  assert.equal(checkout.lease, null);
+  assert.deepEqual(taskState(saved, undefined, [], [], false), { state: 'detached', reason: saved.reason });
+  f.recovery.assertNew({ name: 'another', persistent: true }, 1);
+  assert.throws(() => f.recovery.assertNew({ name: 'fixture', persistent: true }, 2), /retired without a confirmed exit \(process 4242 is still running in its checkout\)/);
+  assert.equal(f.recovery.recheckDetached('run-a').state, 'unknown');
+  assert.equal(f.store.read('run-a').detached !== undefined, true);
+  f.recovery.holders = () => [];
+  assert.deepEqual(f.recovery.recheckDetached('run-a'), { state: 'crashed', reason: 'Its Rex tab is gone and nothing runs in its checkout; it predates process attestation', tab: undefined });
+  assert.equal(f.store.read('run-a').detached, undefined);
+  assert.match(f.store.read('run-a').reason, /exit confirmed later/);
+  f.recovery.assertNew({ name: 'fixture', persistent: true }, 2);
+});
+
+test('detach closes the tab only after a confirmed exit, and only when nothing but an idle shell runs there', () => {
+  const idle = { foreground: { pid: 500, name: 'zsh', argv0: '-zsh' } };
+  for (const [info, holders, tab] of [
+    [idle, () => [500], undefined],
+    [{ foreground: { pid: 501, name: 'node', argv0: 'node' } }, () => [], 'node (process 501) is running in it'],
+    [idle, () => [500, 4242], 'process 4242 is running in its checkout'],
+    [idle, () => null, 'the processes in its checkout cannot be listed'],
+  ]) {
+    const crashed = fixture();
+    crashed.record.worktree = crashed.root; crashed.store.write(crashed.record);
+    crashed.recovery.worktrees = { records: () => [], save: () => {} };
+    crashed.recovery.birth = (pid) => (pid === 333 ? 'new' : null);
+    crashed.recovery.provider.windowOf = () => 'window:a';
+    crashed.recovery.provider.process = () => info;
+    crashed.recovery.holders = holders;
+    const result = crashed.recovery.detach({ id: 'run-a' });
+    assert.equal(result.status, 'retired');
+    assert.equal(result.tab, tab);
+    assert.deepEqual(crashed.closed, tab ? [] : [crashed.record.surface]);
+  }
+  const alive = fixture();
+  assert.throws(() => alive.recovery.detach({ id: 'run-a' }), /still running .*nothing was retired/);
+  const supervised = fixture();
+  supervised.recovery.running = () => new Map([['run-a', {}]]);
+  assert.throws(() => supervised.recovery.detach({ id: 'run-a' }), /still supervised/);
+  assert.equal(alive.store.read('run-a').stopConfirmed, undefined);
+  assert.equal(supervised.store.read('run-a').stopConfirmed, undefined);
+});
+
+test('terminate signals only a recorded agent whose PID, start time and command line all still match', () => {
+  const f = fixture();
+  const signals = [];
+  const signal = (pid, name) => signals.push([pid, name]);
+  assert.equal(f.recovery.terminate({ id: 'run-a' }, signal), false, 'no command line recorded');
+  f.record.identity.command = 'pi'; f.store.write(f.record);
+  f.recovery.command = () => 'node something-else';
+  assert.equal(f.recovery.terminate({ id: 'run-a' }, signal), false, 'command changed');
+  f.recovery.birth = (pid) => (pid === 222 ? 'reused' : 'new');
+  f.recovery.command = () => 'pi';
+  assert.equal(f.recovery.terminate({ id: 'run-a' }, signal), false, 'PID reused');
+  f.recovery.birth = (pid) => (pid === 222 ? 'agent' : 'new');
+  assert.equal(f.recovery.terminate({ id: 'run-a' }, signal), true);
+  assert.deepEqual(signals, [[222, 'SIGTERM']]);
+});

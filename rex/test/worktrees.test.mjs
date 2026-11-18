@@ -342,3 +342,30 @@ test('a checkout is discarded instantly: moved to trash, unregistered, branch ke
   discardCheckout(repo, partial, trash);
   assert.equal(existsSync(partial), false);
 });
+
+test('a checkout deleted outside Rex is forgotten only after its logs archive, keeping its branch', async (t) => {
+  const { create, complete, manager, repo } = fixture(t);
+  const surface = await create();
+  complete(surface);
+  git(surface.path, ['commit', '--allow-empty', '-m', 'Task commit']);
+  const head = git(surface.path, ['rev-parse', 'HEAD']).trim();
+  await assert.rejects(manager.forgetMissing(surface.path, () => {}), /exists, so it is not missing/);
+  rmSync(surface.path, { recursive: true, force: true });
+  await assert.rejects(manager.forgetMissing(surface.path, () => { throw new Error('Task session log is missing'); }), /session log is missing/);
+  assert.equal(manager.records()[0].removed, undefined);
+  assert.equal(registeredWorktrees(repo).some((row) => row.path === surface.path), true);
+  git(repo, ['worktree', 'lock', surface.path]);
+  await assert.rejects(manager.forgetMissing(surface.path, () => {}), /locked worktree/);
+  git(repo, ['worktree', 'unlock', surface.path]);
+  const record = manager.records()[0];
+  manager.save({ ...record, lease: { pid: process.pid, birth: processBirth(process.pid), runId: 'other-run' } });
+  await assert.rejects(manager.forgetMissing(surface.path, () => {}), /live Rex coordinator holds the task lease/);
+  manager.save({ ...record, lease: null });
+  const archived = [];
+  assert.match(await manager.forgetMissing(surface.path, (record) => archived.push(record.path)), /already gone from disk; logs archived/);
+  assert.deepEqual(archived, [surface.path]);
+  assert.equal(manager.records()[0].removed, true);
+  assert.equal(registeredWorktrees(repo).some((row) => row.path === surface.path), false);
+  assert.equal(git(repo, ['rev-parse', 'feat/task']).trim(), head);
+  await assert.rejects(manager.forgetMissing(surface.path, () => {}), /one exact managed checkout/);
+});

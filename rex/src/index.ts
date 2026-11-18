@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
@@ -15,7 +15,7 @@ import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.ts';
 import { RexRecovery } from './recovery.ts';
 import { RequestInbox } from './requests.ts';
-import { cleanupTask } from './cleanup.ts';
+import { cleanupTask, forceCleanupTask } from './cleanup.ts';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
@@ -93,26 +93,48 @@ export default async function rexAgents(pi: ExtensionAPI) {
       return { content: [{ type: 'text', text: result.text }], details: result };
     },
   });
+  const removeApproved = async (target, preserve, ctx) => {
+    approvedRemovals.add(target);
+    try {
+      return toolText(await callTool('worktree_remove', { target, preserve }, ctx));
+    } finally {
+      approvedRemovals.delete(target);
+    }
+  };
+  const stopTask = async (task, ctx) => {
+    const result = await callTool('subagent_stop', { id: task.logicalId ?? task.id }, ctx);
+    return { ok: !result.details?.error, text: toolText(result) };
+  };
+  const taskExited = (task) => {
+    const current = new TaskStore().read(task.id);
+    return Boolean(current?.stopConfirmed) || recovery?.probe({ ...current }).state === 'crashed';
+  };
   const cleanup = (params, ctx) => cleanupTask(params, {
-    stop: async (task) => {
-      const result = await callTool('subagent_stop', { id: task.logicalId ?? task.id }, ctx);
-      return { ok: !result.details?.error, text: toolText(result) };
-    },
-    exited: (task) => {
-      const current = new TaskStore().read(task.id);
-      return Boolean(current?.stopConfirmed) || recovery?.probe({ ...current }).state === 'crashed';
-    },
+    stop: (task) => stopTask(task, ctx),
+    exited: taskExited,
     checkouts: () => worktrees.records(),
     reconcile: () => pullRequests.reconcileCleanup(worktrees.records()),
-    remove: async (target, preserve) => {
-      approvedRemovals.add(target);
-      try {
-        return toolText(await callTool('worktree_remove', { target, preserve }, ctx));
-      } finally {
-        approvedRemovals.delete(target);
-      }
-    },
+    remove: (target, preserve) => removeApproved(target, preserve, ctx),
   });
+  const forceCleanup = (params, ctx) => {
+    if (!recovery) throw new Error('Rex task recovery is disabled, so task processes cannot be checked; nothing was cleaned up.');
+    const active = recovery;
+    return forceCleanupTask(params, {
+      inspect: (task) => active.forceEvidence({ id: task.id }),
+      stop: (task) => stopTask(task, ctx),
+      terminate: (task) => active.terminate({ id: task.id }),
+      exited: taskExited,
+      detach: (task) => active.detach({ id: task.id }),
+      recheck: (task) => active.recheckDetached(task.id),
+      closeTab: (task) => active.closeIdleTab(new TaskStore().read(task.id)),
+      checkouts: () => worktrees.records(),
+      exists: existsSync,
+      remove: (target, preserve) => removeApproved(target, preserve, ctx),
+      forget: (target) => worktrees.forgetMissing(target, (checkout) => history.archive({ checkout, tasks: new TaskStore().list(), coordinatorSession: ctx.sessionManager.getSessionFile(), pullRequests: pullRequests.entries(ctx.cwd) })),
+      reconcile: () => pullRequests.reconcileCleanup(worktrees.records()),
+      residual: (checkout, text) => pullRequests.markResidual(checkout, text),
+    });
+  };
   const { provider, worktrees, cleanupOperations, worktreeOperations, supervision } = infrastructureFor(process.env.REX_SESSION, () => {
     const provider = new RexSurfaceProvider();
     const worktrees = new RexWorktrees(provider);
@@ -253,9 +275,10 @@ export default async function rexAgents(pi: ExtensionAPI) {
             const store = new TaskStore();
             const kept = new Set(worktrees.records().filter((record) => !record.removed).map((record) => record.path));
             for (const task of store.list()) {
-              if (task.stashed && task.worktree && !kept.has(task.worktree)) store.exclusive(task.id, () => {
+              if ((task.stashed || task.forced) && task.worktree && !kept.has(task.worktree)) store.exclusive(task.id, () => {
                 const current = store.read(task.id);
                 delete current.stashed;
+                delete current.forced;
                 store.write(current);
               });
             }
@@ -340,6 +363,11 @@ export default async function rexAgents(pi: ExtensionAPI) {
         if (name === 'stash') {
           const done = await stash(params, ctx);
           pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear asked to stash ${params.id}: ${done.text}` }, { deliverAs: 'nextTurn' });
+          return done;
+        }
+        if (name === 'force_cleanup') {
+          const done = await forceCleanup(params, ctx);
+          pi.sendMessage({ customType: 'rex_linear_request', display: true, content: `Rex Linear force cleanup (best effort) of ${params.checkout ?? params.id}: ${done.text}` }, { deliverAs: 'nextTurn' });
           return done;
         }
         if (name === 'cleanup') {

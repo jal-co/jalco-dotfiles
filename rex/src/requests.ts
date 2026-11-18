@@ -66,6 +66,11 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
     if (!isAbsolute(String(params.checkout))) throw new Error('Cleanup needs the task checkout path');
     return { tool: 'cleanup', params: { id: params.id, checkout: params.checkout, preserve: params.preserve === true } };
   }
+  if (request.action === 'force-cleanup') {
+    if (!/^[a-zA-Z0-9-]+$/.test(params.id ?? '')) throw new Error('Invalid task ID');
+    if (params.checkout !== undefined && !isAbsolute(String(params.checkout))) throw new Error('Invalid task checkout path');
+    return { tool: 'force_cleanup', params: { id: params.id, checkout: params.checkout, preserve: params.preserve === true } };
+  }
   if (request.action === 'retain') {
     if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/[1-9]\d*$/.test(params.url ?? '')) throw new Error('Invalid pull request URL');
     return { tool: 'retain', params: { url: params.url } };
@@ -91,7 +96,8 @@ export function parseRequest(request, { now = Date.now(), tasks = () => new Task
 }
 
 export function duplicateKey({ tool, params }) {
-  if (tool === 'cleanup') return `cleanup:${params.checkout}`;
+  if (tool === 'cleanup' || (tool === 'force_cleanup' && params.checkout)) return `cleanup:${params.checkout}`;
+  if (tool === 'force_cleanup') return `task:${params.id}`;
   if (['subagent_stop', 'subagent_resume', 'stash'].includes(tool)) return `task:${params.id ?? params.sessionPath}`;
   if (tool === 'subagent') return `launch:${params.name}`;
   return undefined;

@@ -440,9 +440,31 @@ test('the key bar offers only what the selected row can do', () => {
   assert.deepEqual(keysOf({ task: task('shelved', 'stopped', { stopConfirmed: true, stashed: { at: 1 }, worktree: checkout }), issue: { state: { type: 'started' }, url: 'https://linear.app/z' } }, records),
     ['enter resume', 'D clean up', 'o issue', 'h hide']);
   assert.deepEqual(keysOf({ task: task('stashing', 'stopping', { stashed: { at: 1 }, worktree: checkout }) }, records), ['enter focus', 's send', 'D clean up', 'd stop', 'h hide']);
-  assert.deepEqual(keysOf({ task: task('crashed', 'unknown', { worktree: checkout }) }, records), ['enter focus', 'u resume', 'D clean up', 'd retire', 'h hide']);
+  assert.deepEqual(keysOf({ task: task('crashed', 'unknown', { worktree: checkout }) }, records), ['enter focus', 'u resume', 'D clean up', 'F force clean up', 'd retire', 'h hide']);
   assert.deepEqual(keysOf({ task: task('asks', 'blocked', { worktree: checkout }) }, records), ['enter answer', 's send', 'z stash', 'D clean up', 'd stop', 'h hide']);
   assert.deepEqual(keysOf({ issue: { state: { type: 'unstarted' }, url: 'https://linear.app/y' } }), ['enter launch', 'o issue', 'h hide']);
+});
+
+test('force cleanup is offered on stuck rows only, not on healthy or stashed agents or ordinary stopped tasks', () => {
+  const force = (item, failed) => actionsFor({ key: 't:x', ...item }, [{ path: '/w/x' }], failed).some(([key]) => key === 'F');
+  assert.equal(force({ task: task('busy', 'working', { worktree: '/w/x' }) }), false);
+  assert.equal(force({ task: task('busy', 'working', { worktree: '/w/x' }) }, new Set(['t:x'])), true);
+  assert.equal(force({ task: task('lost', 'error') }), true);
+  assert.equal(force({ task: task('done', 'stopped', { stopConfirmed: true, worktree: '/w/x' }) }), false);
+  assert.equal(force({ task: task('kept', 'detached', { stopConfirmed: true, worktree: '/w/x', forced: { at: 1, kept: ['Kept /w/x: Live process 4242 holds the checkout'] } }) }), true);
+  assert.equal(force({ task: task('shelved', 'stopped', { stopConfirmed: true, stashed: { at: 1 }, worktree: '/w/x' }) }, new Set(['t:x'])), false);
+});
+
+test('a partly cleaned task leaves the Inbox for its own Sessions section and says what was kept', () => {
+  const kept = task('kept', 'detached', { stopConfirmed: true, detached: { at: 1 }, worktree: '/w/kept', forced: { at: 2, kept: ['Kept /w/kept: Live process 4242 holds the checkout'] } });
+  const data = { tasks: [kept, task('gone', 'detached', { stopConfirmed: true, detached: { at: 1 } })], prs: [], records: [{ path: '/w/kept' }], linear: { status: 'ok', open: [], done: [] } };
+  assert.equal(inbox(data).count, 0);
+  const rows = buildView(3, data);
+  assert.deepEqual(sections(rows)['Partly cleaned up'], ['kept']);
+  const [item] = items(rows);
+  assert.deepEqual(item.agent, { text: '◐ partly cleaned up', tone: 'yellow' });
+  assert.match(meta(item, Date.now()).join(' '), /partly cleaned up.*Live process 4242 holds the checkout/);
+  assert.match(rows.at(-1).text, /1 stopped task hidden/);
 });
 
 test('an old coordinator is explained instead of reported as an invalid action', () => {
@@ -559,7 +581,7 @@ test('the inbox leads with coordinator questions and dialogs, then merged PRs as
   assert.equal(dialog.title, 'Waiting on a dialog: Remove Rex worktree?');
   assert.deepEqual(actionsFor(dialog, []).map(([key, label]) => `${key} ${label}`), ['enter open coordinator', 'h hide']);
   assert.deepEqual(actionsFor(ask, []).map(([key, label]) => `${key} ${label}`), ['enter answer', 'y yes', 'h hide']);
-  assert.deepEqual(actionsFor(approval, []).map(([key, label]) => `${key} ${label}`), ['enter approve cleanup', 'K keep, no cleanup', 'o PR', 'h hide']);
+  assert.deepEqual(actionsFor(approval, []).map(([key, label]) => `${key} ${label}`), ['enter approve cleanup', 'K keep, no cleanup', 'F force clean up', 'o PR', 'h hide']);
   assert.equal(inbox({ ...data, coordinator: undefined }).count, 1);
 });
 

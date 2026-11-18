@@ -49,6 +49,17 @@ test('send, stop, resume and coordinator messages map to the coordinator; resume
   assert.throws(() => parseRequest(request('shell', {})), /Unsupported/);
 });
 
+test('force cleanup is its own request, shares the cleanup lane for a checkout and accepts a task without one', () => {
+  const force = parseRequest(request('force-cleanup', { id: 'task-1', checkout: '/w/plt-4', preserve: true, kill: true }));
+  assert.deepEqual(force, { tool: 'force_cleanup', params: { id: 'task-1', checkout: '/w/plt-4', preserve: true } });
+  assert.equal(duplicateKey(force), duplicateKey(parseRequest(request('cleanup', { id: 'task-1', checkout: '/w/plt-4' }))));
+  const bare = parseRequest(request('force-cleanup', { id: 'task-1' }));
+  assert.deepEqual(bare, { tool: 'force_cleanup', params: { id: 'task-1', checkout: undefined, preserve: false } });
+  assert.equal(duplicateKey(bare), 'task:task-1');
+  assert.throws(() => parseRequest(request('force-cleanup', { id: 'task-1', checkout: 'relative' })), /checkout path/);
+  assert.throws(() => parseRequest(request('force-cleanup', { id: '../x' })), /Invalid task ID/);
+});
+
 test('requests expire so a late coordinator never launches stale work', () => {
   assert.throws(() => parseRequest(request('stop', { id: 'task-1' }, { createdAt: Date.now() - REQUEST_TTL - 1 })), /expired/);
   assert.throws(() => parseRequest(request('stop', { id: 'task-1' }, { createdAt: undefined })), /expired/);

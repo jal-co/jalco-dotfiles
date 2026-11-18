@@ -101,7 +101,7 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 | Inbox | What needs you, in order: the coordinator's unanswered question or open confirmation dialog, agents asking a question, merged PRs to approve for cleanup, failed or crashed agents, and finished work ready for review. It opens first when it has anything |
 | Issues | Linear issues assigned to you, in progress and todo, sorted by priority |
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
-| Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state. Stashed tasks sit in their own Stashed section at the end, newest first |
+| Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state. Stashed tasks sit in their own Stashed section at the end, newest first, followed by Partly cleaned up |
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
 | Archive | Every cleaned-up task, newest first, titled by its Linear issue or the goal in its brief. `enter` reopens its conversation as a new Pi session (`pi --fork`) in a tab of the repository's session; the archive itself is never changed. `v` opens the transcript in the browser via Pi's HTML export, `/` filters |
 | Search | Linear search results, after `/` |
@@ -123,6 +123,7 @@ The bottom bar lists only the keys that apply to the selected row, with what eac
 | `z` | Stash a running or idle task: stop its agent and close its tab, keeping its session, branch, checkout and uncommitted work for `u` later |
 | `d` | Stop or retire a task after confirmation. Logs, branch and checkout are kept |
 | `D` | Clean up a task: stop its agent if running, archive its logs and remove its checkout. Branch and commits stay. `p` instead of `enter` first commits uncommitted work |
+| `F` | Force clean up a stuck task, best effort: on a merged PR awaiting cleanup, a failed or crashed agent, a partly cleaned task, or any row whose cleanup just failed. See [Force cleanup](#force-cleanup) |
 | `a` | On a merged PR in the Inbox, clean up every merged task waiting on cleanup, with progress and a summary of any that need attention |
 | `h` | Hide the selected row everywhere. In the Hidden menu, unhide it |
 | `H` | Open or close the Hidden menu |
@@ -151,6 +152,19 @@ The launch screen names the pick and why, and marks a close call as a best guess
 Launch, send, stop, stash, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop`, `rex_task_stash` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
 
 Cleanup from the command center runs as one coordinator request per task. Your confirmation stands in for the coordinator's removal dialog through a one-shot internal approval the model cannot set; every other removal check still applies: ownership, leases, processes, Git state and the log archive. A running agent is stopped first and its exit confirmed within 30 seconds; otherwise nothing is removed. Requests are claimed when they arrive, so a long cleanup queue never expires the requests behind it. Hidden rows are stored as row keys in `~/.rex/command-center.json`; hiding changes nothing about the task.
+
+### Force cleanup
+
+`F` is for a task that ordinary cleanup cannot finish: its agent's process is gone or unreadable, its checkout was deleted outside Rex, or something unrelated still holds the checkout. It asks for confirmation, then runs as one coordinator request and does what it safely can:
+
+1. Another live coordinator owning the task, a task from another coordinator directory, or an agent this coordinator still supervises and cannot stop refuses the whole request. Nothing changes.
+2. An agent proven alive by its recorded PID, start time and command line gets a graceful stop. If the stop fails or it has not exited after 30 seconds, it gets `SIGTERM`, but only while all three still match. If it still runs, nothing is retired or removed.
+3. A confirmed exit retires the task as `d` does. Its tab closes only when nothing but an idle shell runs in it and no other process has its working directory in the checkout; otherwise the tab stays and the result names what runs there.
+4. Unconfirmed exit (no attestation, a tab still open, unreadable process state, or processes left in the checkout) retires the task record anyway and frees its slot. Its state becomes `detached` and its reason says the exit is unconfirmed. No process is signalled and its tab stays open. Running `F` again rechecks; once the exit is confirmed the task becomes an ordinary retired one. Until then, a new task under the same name is refused.
+5. A checkout that still exists goes through the normal removal: ownership, containment, leases, process holders, Git state and the log archive all still apply. Uncommitted or untracked work keeps it unless you press `p`, which commits it first. Ignored files are deleted with the checkout, as with `D`.
+6. A checkout missing from disk has its logs archived first, then its registry entry is marked removed and its own Git worktree metadata is deleted. A failed archive, a live coordinator lease or a locked worktree keeps the entry. The branch and its commits stay.
+
+The result is green when everything was cleaned up, yellow when something was kept, and red when the request was refused. A partial result lists every kept item and why. The task leaves the Inbox, moves to Partly cleaned up in Sessions with what was kept, and a merged PR's cleanup state becomes `residual` instead of `pending`, so it leaves Approve cleanup. `D` and `F` stay available there; removing the checkout later by either clears the residue and sets the PR to `removed`. Running `F` again is safe: it rechecks and reports what is left. It never runs `kill` on an unverified PID, never closes a tab with something running in it, never force-removes a Git worktree and never discards uncommitted work.
 
 Removing a checkout moves it into `~/.rex/trash` (an instant rename on the same disk), deletes only that checkout's Git registration under the repository's `.git/worktrees`, and deletes the moved folder in the background, so the coordinator never waits on deleting `node_modules`. It still refuses uncommitted or untracked changes and locked worktrees. Tracked files that are only deleted, as left by an interrupted removal, do not count as uncommitted work. The branch and its commits stay.
 

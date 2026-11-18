@@ -187,6 +187,12 @@ export class PullRequestWatcher {
     assert.ok(row, 'PR is not tracked');
     row.cleanup = 'retained'; this.store.write(row); return row;
   }
+  markResidual(checkout, residual) {
+    for (const row of this.store.list(this.origin)) {
+      if (row.checkout !== checkout || !['pending', 'residual'].includes(row.cleanup)) continue;
+      row.cleanup = 'residual'; row.residual = residual; this.store.write(row);
+    }
+  }
   reconcileCleanup(records) {
     for (const row of this.store.list(this.origin)) {
       if (records.some((record) => record.path === row.checkout && record.removed) && row.cleanup !== 'removed') {

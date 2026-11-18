@@ -287,6 +287,31 @@ export class RexWorktrees {
     });
   }
 
+  async forgetMissing(path, archive) {
+    return this.exclusive(async () => {
+      const matches = this.records().filter((record) => !record.removed && record.path === path);
+      if (matches.length !== 1) throw new Error('Cleanup requires one exact managed checkout so its Pi history can be retained.');
+      const [record] = matches;
+      if (existsSync(path)) throw new Error(`${path} exists, so it is not missing.`);
+      const leased = this.leaseHolders(path);
+      if (leased.length) throw new Error(leased.join('; '));
+      const row = registeredWorktrees(record.repo).find((entry) => entry.path === path);
+      if (row?.locked) throw new Error(`Git lists ${path} as a locked worktree; unlock or inspect it first.`);
+      archive(record);
+      if (row) {
+        const common = realpathSync(git(record.repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']).trim());
+        const metadata = join(common, 'worktrees');
+        const admin = readdirSync(metadata).map((name) => join(metadata, name))
+          .find((entry) => existsSync(join(entry, 'gitdir')) && readFileSync(join(entry, 'gitdir'), 'utf8').trim() === join(path, '.git'));
+        if (admin) rmSync(admin, { recursive: true, force: true });
+      }
+      record.removed = true;
+      record.missing = { at: Date.now() };
+      this.save(record);
+      return `Its checkout ${path} was already gone from disk; logs archived and the entry marked removed. Branch ${record.branch} and its commits stay.`;
+    });
+  }
+
   async removeWorkspace(workspaceId) {
     const matches = this.records().filter((record) => !record.removed && record.workspaceId === workspaceId);
     if (matches.length !== 1) throw new Error('Rex task session ownership is missing or ambiguous.');

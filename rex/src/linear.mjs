@@ -138,6 +138,7 @@ export function linkedTask(issue, tasks) {
 
 export const live = (task) => Boolean(task) && !task.stopConfirmed && task.state !== 'stopped';
 export const stashed = (task) => Boolean(task?.stashed && task.stopConfirmed);
+export const partlyCleaned = (task) => Boolean(task?.stopConfirmed && task.forced?.kept?.length);
 
 const PROGRAM_STATES = new Set(['idle', 'working', 'blocked', 'done', 'error']);
 
@@ -158,6 +159,8 @@ export function startOfYesterday(now = Date.now()) {
 
 export function agentLabel({ task, pr, issue }) {
   if (task?.stashed) return stashed(task) ? { text: '◇ stashed', tone: 'cyan' } : { text: '◌ stashing', tone: 'dim' };
+  if (partlyCleaned(task)) return { text: '◐ partly cleaned up', tone: 'yellow' };
+  if (task?.detached) return { text: '◌ detached', tone: 'yellow' };
   const settled = !live(task) || ['done', 'idle'].includes(task.state);
   if (!settled) {
     const [text, tone] = AGENT[task.state] ?? AGENT.unknown;
@@ -316,11 +319,13 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
   if (tab === 2) {
     if (!data.tasks.length) return [note('No tracked Rex tasks yet.')];
     const shelf = data.tasks.filter((task) => task.stashed).sort((a, b) => b.stashed.at - a.stashed.at);
-    const rest = data.tasks.filter((task) => !task.stashed);
+    const residue = data.tasks.filter((task) => !task.stashed && partlyCleaned(task)).sort((a, b) => b.forced.at - a.forced.at);
+    const rest = data.tasks.filter((task) => !task.stashed && !partlyCleaned(task));
     const shown = rest.filter((task) => showStopped || live(task)).sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
     const hidden = rest.length - shown.length;
     return [...grouped(shown.map((task) => taskItem(task, data)), (item) => item.project),
       ...section('Stashed', shelf.map((task) => taskItem(task, data))),
+      ...section('Partly cleaned up', residue.map((task) => taskItem(task, data))),
       ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden · x shows them`)] : [])];
   }
   const { inProgress, next, done } = brief(data, now);

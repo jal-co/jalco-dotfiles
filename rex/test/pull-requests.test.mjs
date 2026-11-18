@@ -105,6 +105,22 @@ test('a user retention decision survives restarts and successful cleanup is reco
   await replacement.close();
 });
 
+test('a partial force cleanup takes a merged PR out of the approvals until its checkout is finally removed', async () => {
+  const f = fixture(); f.pr.state = 'MERGED'; f.pr.mergedAt = 'now'; await f.watcher.tick();
+  assert.equal(f.store.list('/coordinator')[0].cleanup, 'pending');
+  f.watcher.markResidual('/elsewhere', 'Kept /elsewhere');
+  assert.equal(f.store.list('/coordinator')[0].cleanup, 'pending');
+  f.watcher.markResidual(f.records[0].path, 'Kept it: Live process 4242 holds the checkout.');
+  assert.deepEqual([f.store.list('/coordinator')[0].cleanup, f.store.list('/coordinator')[0].residual], ['residual', 'Kept it: Live process 4242 holds the checkout.']);
+  await f.watcher.tick();
+  assert.equal(f.store.list('/coordinator')[0].cleanup, 'residual');
+  f.watcher.markResidual(f.records[0].path, 'Kept it: Dirty worktree.');
+  assert.equal(f.store.list('/coordinator')[0].residual, 'Kept it: Dirty worktree.');
+  f.records[0].removed = true; f.watcher.reconcileCleanup(f.records);
+  assert.equal(f.store.list('/coordinator')[0].cleanup, 'removed');
+  await f.watcher.close();
+});
+
 test('API failures preserve prior state and do not claim a merge', async () => {
   const f = fixture(); await f.watcher.tick();
   f.watcher.query = async () => { throw new Error('authentication failed'); };

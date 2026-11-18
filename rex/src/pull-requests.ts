@@ -51,6 +51,7 @@ export function registerPullRequests(pi: ExtensionAPI, records: () => unknown[])
   return {
     entries: (origin: string) => store.list(origin),
     reconcileCleanup: (entries) => watcher?.reconcileCleanup(entries),
+    markResidual: (checkout: string, residual: string) => watcher?.markResidual(checkout, residual),
     retain: (url: string) => {
       if (!watcher) throw new Error('PR watcher has not started');
       return watcher.retain(url);

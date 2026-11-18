@@ -15,7 +15,7 @@ import { loadPersistentConfig } from '../host/maestro/core/config/persistent-con
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
   SEARCH_TAB, TABS, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
-  createProject, directCheckout, loadLinear, moveCursor, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
+  createProject, directCheckout, loadLinear, moveCursor, partlyCleaned, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
 
@@ -67,7 +67,7 @@ export function meta(item, now) {
   if (item.coordinator) return [item.coordinator.dialog ? 'waiting on a confirmation in its tab' : 'waiting for your answer'];
   if (item.archive) return [`archived ${ago(item.archive.archivedAt, now)}`, cleanText(item.archive.branch ?? ''), item.archive.pullRequests?.[0] ? pullNumber(item.archive.pullRequests[0]) : ''].filter(Boolean);
   const { task, pr, issue } = item;
-  const reason = live(task) && task.state !== 'done' && task.reason ? cleanText(task.reason) : '';
+  const reason = live(task) && task.state !== 'done' && task.reason ? cleanText(task.reason) : partlyCleaned(task) ? cleanText(task.forced.kept.join(' ')) : '';
   return [
     item.agent.text.replace(/^[^\p{L}\p{N}\s]+\s+/u, '') || issue?.state.name || task?.state || '',
     reason !== item.title ? reason : '',
@@ -112,6 +112,7 @@ const HELP = [
   ['z', 'stash: stop the agent, keep everything to resume later'],
   ['d', 'stop or retire the agent'],
   ['D', 'stop, remove checkout'],
+  ['F', 'force clean up a stuck task, best effort'],
   ['a', 'clean up all merged'],
   ['h', 'hide, or unhide in Hidden'],
   ['H', 'open or close Hidden'],
@@ -135,11 +136,12 @@ export function legend(state) {
   if (state.prompt) return [['enter', state.prompt.verb ?? 'submit'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'retire') return [['enter', 'confirm'], ['esc', 'cancel']];
   if (state.confirm?.kind === 'cleanup') return [['enter', 'clean up'], ['p', 'keep uncommitted work as a commit'], ['esc', 'cancel']];
+  if (state.confirm?.kind === 'force') return [['enter', 'force clean up'], ...(state.confirm.checkout ? [['p', 'keep uncommitted work as a commit']] : []), ['esc', 'cancel']];
   if (state.confirm) return [['enter', 'launch'], ['tab', 'other repo'], ['N', 'new project'], ['t', 'type a path'], ['e', 'edit brief'], ['esc', 'cancel']];
   const selected = state.rows?.[state.cursor];
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'keys'], ['q', 'quit']];
-  const actions = item ? actionsFor(item, state.records ?? []) : [];
+  const actions = item ? actionsFor(item, state.records ?? [], state.cleanupFailed) : [];
   const globals = [['n', 'new'], ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
   return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
@@ -156,14 +158,15 @@ export function enterAction(item) {
   return undefined;
 }
 
-export function actionsFor(item, records) {
+export function actionsFor(item, records, cleanupFailed = new Set()) {
   if (item.coordinator) return [['enter', enterAction(item)], ...(item.coordinator.ask ? [['y', 'yes']] : []), ['h', 'hide']];
-  if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
+  if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['F', 'force clean up'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   if (item.archive) return [['enter', 'recall'], ['v', 'view transcript'], ...(item.archive.pullRequests?.length ? [['o', 'PR']] : []), ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   const task = item.task;
   const running = live(task) && !['unknown', 'error'].includes(task.state);
   const checkout = checkoutOf(item);
   const cleanable = checkout && (task?.id ?? item.pr?.taskId) && records.some((record) => record.path === checkout && !record.removed);
+  const forceable = task && !stashed(task) && (cleanupFailed.has(item.key) || (!running && !task.stopConfirmed) || partlyCleaned(task));
   const enter = enterAction(item);
   return [
     ...(enter ? [['enter', enter]] : []),
@@ -171,6 +174,7 @@ export function actionsFor(item, records) {
     ...(task && !task.stopConfirmed && !running ? [['u', 'resume']] : []),
     ...(running && !task.stashed ? [['z', 'stash']] : []),
     ...(cleanable ? [['D', 'clean up']] : []),
+    ...(forceable ? [['F', 'force clean up']] : []),
     ...(task && !task.stopConfirmed ? [['d', running ? 'stop' : 'retire']] : []),
     ...(item.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? [['a', 'clean up all merged']] : []),
     ...(item.pr ? [['o', 'PR']] : item.issue ? [['o', 'issue']] : []),
@@ -187,6 +191,13 @@ function confirmLines(confirm) {
       [[`${running ? 'Stop' : 'Retire'} ${task.name}?`, 'bold']],
       [[running ? `The agent is ${task.state}. It stops gracefully after its current step.` : `${cleanText(task.reason ?? 'Its process is unverified')}. Only a confirmed exit is retired.`, 'dim']],
       [['Logs, branch and checkout are kept. The tab closes and its agent slot is freed.', 'dim']],
+    ];
+  }
+  if (confirm.kind === 'force') {
+    return [
+      [[`Force clean up ${confirm.label}?`, 'bold'], ['  best effort', 'yellow']],
+      [['Retires the task and frees its slot. Stops only a process proven to be its agent; anything unverified keeps running and is listed.', 'dim']],
+      [[confirm.checkout ? 'Removes the checkout only if nothing uses it. Uncommitted work keeps it unless you press p. Branch, commits and logs stay.' : 'Its session and logs stay.', 'dim']],
     ];
   }
   if (confirm.kind === 'cleanup') {
@@ -297,7 +308,7 @@ const editorTheme = {
 export class LinearApp {
   constructor({ origin = process.env.REX_COORDINATOR_CWD ?? join(homedir(), 'rex-coord') } = {}) {
     this.origin = origin;
-    this.state = { tab: 4, mode: 'brief', showStopped: false, selected: {}, rows: [], cursor: -1 };
+    this.state = { tab: 4, mode: 'brief', showStopped: false, selected: {}, rows: [], cursor: -1, cleanupFailed: new Set() };
     this.linear = { status: 'loading', message: 'Loading Linear issues…', open: [], done: [] };
     this.pending = new Map();
     this.bases = new Map();
@@ -434,6 +445,11 @@ export class LinearApp {
 
   slot() { return this.state.hiddenView ? 'hidden' : this.state.tab; }
 
+  noteCleanup(entry, result) {
+    if (!entry.key || result.outcome === 'duplicate') return;
+    if (result.ok) this.state.cleanupFailed.delete(entry.key); else this.state.cleanupFailed.add(entry.key);
+  }
+
   remember() {
     const row = this.state.rows[this.state.cursor];
     if (row?.kind === 'item') this.state.selected[this.slot()] = row.key;
@@ -552,9 +568,15 @@ export class LinearApp {
       if (confirm.items.length > 1 || this.batch) this.batch = this.batch ? { ...this.batch, total: this.batch.total + confirm.items.length } : { total: confirm.items.length, done: 0, failed: [] };
       for (const item of confirm.items) {
         this.request('cleanup', { id: item.task?.logicalId ?? item.task?.id ?? item.pr?.taskId, checkout: checkoutOf(item), preserve },
-          this.batch ? `Cleaning up: ${this.batch.done} of ${this.batch.total} done…` : `Cleaning up ${item.task?.name ?? item.id}…`, { batch: Boolean(this.batch), label: item.task?.name ?? item.id, checkout: checkoutOf(item) });
+          this.batch ? `Cleaning up: ${this.batch.done} of ${this.batch.total} done…` : `Cleaning up ${item.task?.name ?? item.id}…`, { batch: Boolean(this.batch), label: item.task?.name ?? item.id, checkout: checkoutOf(item), key: item.key });
       }
       return;
+    }
+    if (confirm.kind === 'force') {
+      if (name !== 'enter' && !(name === 'p' && confirm.checkout)) return;
+      this.state.confirm = undefined;
+      return this.request('force-cleanup', { id: confirm.id, checkout: confirm.checkout, preserve: name === 'p' },
+        `Force cleaning up ${confirm.label}…`, { label: confirm.label, checkout: confirm.checkout, key: confirm.key });
     }
     if (confirm.kind === 'retire') {
       if (name !== 'enter') return;
@@ -613,6 +635,7 @@ export class LinearApp {
     if (item.coordinator && name === 'enter') return item.coordinator.dialog ? this.focusSurface(this.coordinatorSurface, 'the coordinator') : this.answerCoordinator();
     if (item.coordinator && name === 'y' && item.coordinator.ask) return this.request('message', { message: 'Yes.' }, 'Answered the coordinator: yes.');
     if (item.approval && name === 'enter') return this.cleanup([item]);
+    if (item.approval && name === 'F') return this.force(item);
     if (item.approval && name === 'K') return this.request('retain', { url: item.pr.url }, `Keeping ${item.task?.name ?? item.id}…`);
     if (item.archive && name === 'enter') return this.recall(item);
     if (item.archive && name === 'v') return this.viewTranscript(item);
@@ -624,6 +647,7 @@ export class LinearApp {
     if (name === 'd') return this.retire(item);
     if (name === 'h') return this.toggleHidden(item);
     if (name === 'D') return this.cleanup([item]);
+    if (name === 'F') return this.force(item);
     if (name === 'a') {
       if (!(item.pr?.state === 'MERGED' && item.pr.cleanup === 'pending')) return this.status('yellow', 'Select a merged PR in the Inbox to clean up all merged tasks.');
       return this.cleanup(inbox(this.view()).merged.filter((entry) => !this.hidden.has(entry.key) && checkoutOf(entry)));
@@ -719,6 +743,16 @@ export class LinearApp {
     if (!usable.length && items.some((item) => busy.has(checkoutOf(item)))) return this.status('yellow', this.batch ? `Already cleaning up: ${this.batch.done} of ${this.batch.total} done.` : 'Already cleaning that up.');
     if (!usable.length) return this.status('yellow', `${items[0]?.id ?? 'This row'} has no checkout to clean up.`);
     this.state.confirm = { kind: 'cleanup', items: usable };
+    this.state.status = undefined;
+    this.draw();
+  }
+
+  force(item) {
+    const id = item.task?.logicalId ?? item.task?.id ?? item.pr?.taskId;
+    if (!id) return this.status('yellow', `${item.id} has no task to clean up.`);
+    const checkout = checkoutOf(item);
+    if (checkout && this.cleaning().has(checkout)) return this.status('yellow', 'Already cleaning that up.');
+    this.state.confirm = { kind: 'force', id, checkout, key: item.key, label: item.task?.name ?? item.id };
     this.state.status = undefined;
     this.draw();
   }
@@ -841,6 +875,7 @@ export class LinearApp {
         this.pending.delete(id);
         this.data = this.snapshot();
         this.batch.done += 1;
+        this.noteCleanup(entry, result);
         if (result.outcome === 'duplicate') this.batch.skipped = (this.batch.skipped ?? 0) + 1;
         else if (!result.ok) this.batch.failed.push(`${entry.label} (${explain(result).slice(0, 80)})`);
         const { total, done, failed, skipped = 0 } = this.batch;
@@ -852,7 +887,8 @@ export class LinearApp {
       } else if (result.state === 'done') {
         this.pending.delete(id);
         this.data = this.snapshot();
-        this.status(result.ok ? (result.outcome === 'queued' ? 'yellow' : 'green') : 'red', explain(result));
+        this.noteCleanup(entry, result);
+        this.status(result.ok ? (['queued', 'partial'].includes(result.outcome) ? 'yellow' : 'green') : 'red', explain(result));
       } else if (result.state === 'queued' && Date.now() - entry.at > REQUEST_TTL) {
         this.pending.delete(id);
         if (entry.batch && this.batch) this.batch = undefined;

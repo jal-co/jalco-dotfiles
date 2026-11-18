@@ -279,6 +279,8 @@ export class RexRecovery {
     const live = [...this.running().values()].find((row) => row.name === params.name);
     if (live) throw new Error(`Task ${params.name} already has a live host agent (${live.id}). No replacement was launched.`);
     const existing = this.store.list().find((row) => row.originCwd === this.originCwd && row.name === params.name && (row.stashed || (!row.stopConfirmed && !row.completed)));
+    const detached = this.store.list().find((row) => row.originCwd === this.originCwd && row.name === params.name && row.detached);
+    if (detached) throw new Error(`Task ${params.name} was retired without a confirmed exit (${detached.detached.reason}). Close its tab or confirm it stopped with force cleanup before launching a replacement.`);
     if (existing?.stashed) throw new Error(`Task ${params.name} is stashed (${existing.id}). Resume it with subagent_resume and session ${existing.sessionFile}; do not launch a replacement.`);
     if (existing) throw new Error(`Task ${params.name} already has a retained agent (${existing.id}). Reconnect or stop it; do not launch a replacement.`);
     if (params.persistent) this.assertCapacity(capacity);
@@ -367,6 +369,90 @@ export class RexRecovery {
       this.releaseLease(current);
       this.closeTab(current);
       return { id: current.id, name: current.name, status: 'retired', facts: { logicalId: current.logicalId }, sessionFile: current.sessionFile, reason: current.reason };
+    });
+  }
+  otherOwner(record) {
+    if (this.owned(record)) return undefined;
+    const stamp = this.birth(record.owner.pid);
+    return stamp && (!record.owner.birth || stamp === record.owner.birth) ? `Another live coordinator (process ${record.owner.pid}) owns ${record.name}` : undefined;
+  }
+  forceEvidence(params) {
+    const record = this.resolve(params, true);
+    if (!record) return undefined;
+    try {
+      const owner = this.otherOwner(record);
+      if (owner) return { state: 'owned', reason: owner };
+    } catch (error) {
+      return { state: 'owned', reason: `The owner of ${record.name} cannot be checked (${String(error)})` };
+    }
+    return { ...this.exitEvidence({ ...record }), attached: this.running().has(record.id) || this.recovered.has(record.id) };
+  }
+  terminate(params, signal = process.kill) {
+    const identity = this.resolve(params, true)?.identity;
+    if (!identity?.pid || !identity.birth || !identity.command) return false;
+    if (probeProcess(identity, { birth: this.birth, command: this.command }).state !== 'alive') return false;
+    signal(identity.pid, 'SIGTERM');
+    return true;
+  }
+  detach(params) {
+    const record = this.resolve(params, true);
+    if (!record) return undefined;
+    if (this.running().has(record.id)) throw new Error(`${record.name} is still supervised by this coordinator; nothing was retired`);
+    return this.store.exclusive(record.id, () => {
+      const current = this.store.read(record.id);
+      if (current.surface !== record.surface || current.sessionFile !== record.sessionFile) throw new Error('Task binding changed during force cleanup; nothing was retired');
+      const owner = this.otherOwner(current);
+      if (owner) throw new Error(`${owner}; nothing was retired`);
+      const evidence = this.exitEvidence(current);
+      if (evidence.state === 'alive') throw new Error(`${current.name} is still running (${evidence.reason}); nothing was retired`);
+      const confirmed = evidence.state === 'crashed';
+      current.owner = this.owner;
+      current.stopRequested = true;
+      current.stopConfirmed = true;
+      current.state = confirmed ? 'stopped' : 'detached';
+      current.reason = confirmed ? `Retired after confirmed agent exit: ${evidence.reason}` : `Retired without a confirmed exit: ${evidence.reason}`;
+      if (!confirmed) current.detached = { at: Date.now(), reason: evidence.reason };
+      delete current.failure;
+      delete current.queued;
+      current.updatedAt = Date.now();
+      this.store.write(current);
+      this.recovered.delete(current.id);
+      this.view.delete(current.id);
+      this.liveness.delete(current.id);
+      this.releaseLease(current);
+      return { id: current.id, name: current.name, status: confirmed ? 'retired' : 'detached', reason: current.reason, tab: confirmed ? this.closeIdleTab(current) : undefined };
+    });
+  }
+  closeIdleTab(record) {
+    try {
+      if (!this.provider.windowOf(record.surface)) return undefined;
+      const { foreground } = this.provider.process(record.surface);
+      const shell = ['zsh', 'bash', 'fish', 'sh'].includes(foreground?.name) && foreground.argv0?.startsWith('-') ? foreground.pid : undefined;
+      if (!shell) return `${foreground?.name ?? 'an unidentified process'}${foreground?.pid ? ` (process ${foreground.pid})` : ''} is running in it`;
+      if (record.worktree && existsSync(record.worktree)) {
+        const pids = this.holders(record.worktree);
+        if (pids === null) return 'the processes in its checkout cannot be listed';
+        const others = pids.filter((pid) => pid !== shell);
+        if (others.length) return `process ${others.join(', ')} is running in its checkout`;
+      }
+    } catch (error) {
+      return `it cannot be inspected (${String(error)})`;
+    }
+    this.closeTab(record);
+    return undefined;
+  }
+  recheckDetached(id) {
+    return this.store.exclusive(id, () => {
+      const current = this.store.read(id);
+      if (!current?.detached) return undefined;
+      const evidence = this.exitEvidence(current);
+      if (evidence.state !== 'crashed') return evidence;
+      delete current.detached;
+      current.state = 'stopped';
+      current.reason = `Retired; exit confirmed later: ${evidence.reason}`;
+      current.updatedAt = Date.now();
+      this.store.write(current);
+      return { ...evidence, tab: this.closeIdleTab(current) };
     });
   }
   releaseLease(record, owner = null) {

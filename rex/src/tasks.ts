@@ -126,6 +126,7 @@ export function boundedSummary(file, at = '9999') {
 export function taskState(record, activity, events, ledger, alive) {
   if (record.failure) return { state: 'unknown', reason: record.failure };
   if (record.dispatching) return { state: 'unknown', reason: 'A dispatch may already have reached this agent; verify it before retrying' };
+  if (record.detached) return { state: 'detached', reason: record.reason };
   if (record.stopConfirmed) return { state: 'stopped', reason: 'Agent process exit confirmed' };
   if (record.completed) return { state: record.completed.error ? 'error' : 'done', reason: record.completed.error ?? 'Result delivered' };
   if (alive !== true) return { state: 'unknown', reason: alive === false ? 'Agent exited; completion is unconfirmed' : 'Agent identity is unverified' };
