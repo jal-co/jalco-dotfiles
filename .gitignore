@@ -140,3 +140,4 @@ pi/agent/chatgpt-pool.json
 /pi/agent/extensions/shared/message.ts
 
 __pycache__/
+/pi/agent/extensions/prmsg.ts
