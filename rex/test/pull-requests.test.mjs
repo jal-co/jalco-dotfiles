@@ -180,10 +180,10 @@ test('scheduled checks detect a merge and shutdown stops the watcher timer', asy
   context.mock.timers.enable({ apis: ['setInterval'] });
   const f = fixture(); f.watcher.start(); await f.watcher.pending;
   f.pr.state = 'MERGED'; f.pr.mergedAt = 'now';
-  context.mock.timers.tick(60000); await f.watcher.pending;
+  context.mock.timers.tick(300000); await f.watcher.pending;
   assert.equal(f.messages.length, 1);
   await f.watcher.close(); const count = f.queries.length;
-  context.mock.timers.tick(60000);
+  context.mock.timers.tick(300000);
   assert.equal(f.queries.length, count);
 });
 
