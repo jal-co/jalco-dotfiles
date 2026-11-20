@@ -38,7 +38,11 @@ To manage a new file, move it into a folder here, add a line to `[dotfiles]`, an
 
 ## Private files
 
-Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private`. Clone it to `~/dotfiles-private` and run its `link.sh`. Credentials live in Proton Pass, not in either repo.
+Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private`. Clone it to `~/dotfiles-private` and run its `link.sh`.
+
+Mastra work setup lives in the private repo `jal-co/dotfiles-work`: the Pi skills in `pi/agent/skills/work` and `mdev`, which runs Mastra apps per worktree. Clone it to `~/dotfiles-work` and run `mise trust && mise dot apply` there. Until then `pi/agent/skills/work` is missing, and the Mastra rows in `pi/agent/AGENTS.md` and `mdev` in `pi/agent/workflows/frontend.md` point at nothing.
+
+Credentials live in Proton Pass, not in any of these repos.
 
 ## Layout
 
@@ -72,7 +76,7 @@ Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not
 
 Pi also loads shared skills from `~/.agents/skills`. Keep each skill in one of the two roots, not both.
 
-In `pi/agent/skills`, `core/` holds the everyday skills, `work/` the Mastra skills and the ones `mastra-work` routes to, and `design/` the licensed Emil skills. Pi finds skills in subfolders. A skill with `disable-model-invocation: true` is hidden from automatic selection and read by path. Skills installed with `npx skills` stay flat in `agents/skills`, because `skills update` writes them there.
+In `pi/agent/skills`, `core/` holds the everyday skills, `work/` the Mastra skills and the ones `mastra-work` routes to (a link into `~/dotfiles-work`), and `design/` the licensed Emil skills. Pi finds skills in subfolders. A skill with `disable-model-invocation: true` is hidden from automatic selection and read by path. Skills installed with `npx skills` stay flat in `agents/skills`, because `skills update` writes them there.
 
 MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`. API keys go in `~/.zshrc.local`.
 
@@ -81,8 +85,9 @@ MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <s
 A fresh clone does not include everything. These are gitignored and installed separately:
 
 - Licensed skills: the `emil-*` skills and `interface-craft`.
-- Private skills: `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`, `platform-local-dev`.
-- Mastra skills and prompts that link to `~/dev/agent-contracts-justin`.
+- Private skills: `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`.
+- Work skills: all of `pi/agent/skills/work`, from `~/dotfiles-work`. Some of them link on to `~/dev/agent-contracts-justin`.
+- Mastra prompts that link to `~/dev/agent-contracts-justin`.
 
 Sessions, auth, caches, and retired skills stay in `~/.pi/agent`, outside this repository.
 

@@ -58,6 +58,7 @@ fi
 #               Shell Environment
 ###############################################
 
+export TURBO_CACHE_DIR="$HOME/.cache/turbo"
 export EDITOR="nano"
 export VISUAL="nano"
 export PAGER="less"

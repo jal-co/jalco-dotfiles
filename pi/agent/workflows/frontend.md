@@ -62,7 +62,7 @@ Use accessibility `snapshot` and `eval` assertions for the agent's own checks. S
 
 Group a known flow into one `"$BROWSER" batch --bail` call with JSON command arrays on stdin. Stop on failure and refresh refs after page changes. See the task-browser notes for an example.
 
-Keep one dev server per worktree and reuse Vite's hot updates. MUST NOT restart a healthy Vite server after each edit or start a second main-branch server for before images. Capture the baseline before editing, then use `diff screenshot --baseline <before.png>`. Use `diff url <existing-base-url> <task-url>` when a comparable base is already served. Neither command reconstructs uncaptured before evidence. If no valid baseline or already-served base exists, report the missing evidence and stop for a review decision instead of inventing it or starting another server.
+Keep one dev server per worktree and reuse Vite's hot updates. In `mastra-ai/platform`, MUST start it with `mdev up platform` and stop it with `mdev down platform` after reading `~/.pi/agent/skills/work/platform-local-dev/SKILL.md`; raw `pnpm dev` commands share fixed ports and one database across worktrees, so parallel tasks break each other. MUST NOT restart a healthy Vite server after each edit or start a second main-branch server for before images. Capture the baseline before editing, then use `diff screenshot --baseline <before.png>`. Use `diff url <existing-base-url> <task-url>` when a comparable base is already served. Neither command reconstructs uncaptured before evidence. If no valid baseline or already-served base exists, report the missing evidence and stop for a review decision instead of inventing it or starting another server.
 
 </rules>
 

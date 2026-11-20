@@ -70,7 +70,7 @@ run = "mkdir -p ~/.local/bin && ln -sf /Applications/Scrawl.app/Contents/MacOS/s
 [tasks.hooks]
 description = "Install the gitleaks pre-commit hook in the dotfiles repos"
 run = """
-for repo in "$HOME/dotfiles" "$HOME/dotfiles-private"; do
+for repo in "$HOME/dotfiles" "$HOME/dotfiles-private" "$HOME/dotfiles-work"; do
   [ -d "$repo/.git" ] || continue
   printf '#!/bin/sh\nexec gitleaks git --staged --redact --no-banner\n' > "$repo/.git/hooks/pre-commit"
   chmod +x "$repo/.git/hooks/pre-commit"
