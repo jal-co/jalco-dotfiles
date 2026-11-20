@@ -66,7 +66,7 @@ Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not
 | `AGENTS.md` | Global agent rules |
 | `settings.json` | Model, packages, Pi settings |
 | `models.json`, `mcp.json`, `keybindings.json` | Models, MCP servers, keys |
-| `extensions/` | Local extensions |
+| `extensions/` | Local extensions. `chart/` gives codemode scripts a `tools.chart` that renders PNG charts with [mpljs](https://github.com/ivarvong/mpl), pinned to a commit in `extensions/package.json` |
 | `packages/` | Local forks of `rpiv-ask-user-question` and `rpiv-todo` |
 | `skills/` | Pi-only skills |
 | `prompts/` | Prompt templates |
