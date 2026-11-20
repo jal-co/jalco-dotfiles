@@ -75,7 +75,7 @@ export class PullRequestStore {
 }
 
 export class PullRequestWatcher {
-  constructor({ store = new PullRequestStore(), origin, tasks, records, send, notify, query = github, interval = 60000 }) {
+  constructor({ store = new PullRequestStore(), origin, tasks, records, send, notify, query = github, interval = 300000 }) {
     Object.assign(this, { store, origin, tasks, records, send, notify, query, interval });
     this.controller = new AbortController();
     this.closed = false;
