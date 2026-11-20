@@ -67,6 +67,8 @@ The helper reads `op item get` into memory, saves the password through `auth sav
 
 <instructions>
 
+Ports 3010 and 5173 in the examples are the repository defaults. Under `mdev up platform` each worktree has its own; substitute the ones `mdev ports` prints. The test environment accepted a callback on an `mdev` port (3301) without registration on 2026-11-20, so the list below matters only for the discovery callback and for runs outside `mdev`.
+
 Justin adds these exact URLs once in the WorkOS **test environment**, not production. Reserve API ports 3010 through 3014. Use `WORKOS_REDIRECT_URI` for the active API port and `WORKOS_DISCOVERY_REDIRECT_URI` for its discovery URL. The API does not derive callbacks from its listening port. Its default stays at 3010. Repo-root `.env` overrides shell values unless `ENV_PRESERVE` names them. Frontend ports are return destinations, not these OAuth callbacks.
 
 ```text
