@@ -21,8 +21,15 @@ export default async function rexTask(pi: ExtensionAPI) {
   let running = false;
   let blocked = false;
   let outcome: 'error' | 'aborted' | undefined;
-  const questions = new Set<string>();
-  const prompts: BlockKind[] = [];
+  const questions = new Map<string, string>();
+  const prompts: { kind: BlockKind; title: string }[] = [];
+  const firstLine = (text: string | undefined) => (text ?? '').split('\n').map((line) => line.trim()).find(Boolean) ?? '';
+  const asked = (args) => {
+    let list = args?.questions;
+    if (!Array.isArray(list)) { try { list = JSON.parse(String(list)); } catch { list = []; } }
+    const first = Array.isArray(list) ? list[0] : undefined;
+    return firstLine(String(first?.header || first?.question || ''));
+  };
   const emit = (state: Status, message: string, kind?: BlockKind) => {
     current = state;
     if (!enabled) return;
@@ -36,8 +43,10 @@ export default async function rexTask(pi: ExtensionAPI) {
     process.stdout.write(`\u001b]7501;id=rex-task:state=${state}:app=pi:msg=${Buffer.from(text).toString('base64')}${kind ? `:kind=${kind}` : ''}\u001b\\`);
   };
   const update = (message = 'Working') => {
-    const kind = prompts.at(-1) ?? (blocked || questions.size ? 'question' : undefined);
-    if (kind) emit('blocked', blocked ? 'Needs coordinator help' : 'Waiting for user', kind);
+    const prompt = prompts.at(-1);
+    const kind = prompt?.kind ?? (blocked || questions.size ? 'question' : undefined);
+    const waiting = prompt?.title || [...questions.values()].filter(Boolean).at(-1) || 'Waiting for user';
+    if (kind) emit('blocked', blocked ? 'Needs coordinator help' : waiting, kind);
     else emit(running ? 'working' : 'idle', running ? message : 'Ready');
   };
   const unsubscribe = [
@@ -65,7 +74,7 @@ export default async function rexTask(pi: ExtensionAPI) {
       emit('working', 'Working');
     }),
     pi.on('tool_execution_start', (event) => {
-      if (event.toolName === 'ask_user_question') questions.add(event.toolCallId);
+      if (event.toolName === 'ask_user_question') questions.set(event.toolCallId, asked(event.args));
       update(event.toolName);
     }),
     pi.on('tool_execution_end', (event) => {
@@ -74,12 +83,12 @@ export default async function rexTask(pi: ExtensionAPI) {
       update(event.toolName);
     }),
     pi.on('ui_prompt_start', (event) => {
-      prompts.push(event.kind === 'confirm' ? 'permission' : 'question');
+      prompts.push({ kind: event.kind === 'confirm' ? 'permission' : 'question', title: firstLine(event.title) });
       update();
     }),
     pi.on('ui_prompt_end', (event) => {
       const kind = event.kind === 'confirm' ? 'permission' : 'question';
-      const index = prompts.lastIndexOf(kind);
+      const index = prompts.map((prompt) => prompt.kind).lastIndexOf(kind);
       if (index !== -1) prompts.splice(index, 1);
       update();
     }),

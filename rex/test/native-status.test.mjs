@@ -238,3 +238,19 @@ test('ordinary Rex sessions keep their own session naming', async (context) => {
   const [handler] = f.handlers.get('tool_call');
   assert.equal(await handler({ toolName: 'bash', input: { command: 'rex session rename "$REX_SESSION" my-work' } }, f.ctx), undefined);
 });
+
+test('a blocked tab says what it waits on: the question header, else the prompt title', async (context) => {
+  const f = await fixture(context);
+  const message = () => Buffer.from(f.last().msg, 'base64').toString();
+  await f.emit('session_start'); await f.emit('agent_start');
+  await f.emit('tool_execution_start', { toolCallId: 'q1', toolName: 'ask_user_question', args: { questions: JSON.stringify([{ header: 'Save button', question: 'Keep the footer one?' }]) } });
+  assert.deepEqual([f.last().state, message()], ['blocked', 'Save button']);
+  await f.emit('ui_prompt_start', { kind: 'select', title: 'Git push — Auto Permissions needs approval\n\nnot authorized\n\ngit push' });
+  assert.equal(message(), 'Git push — Auto Permissions needs approval');
+  await f.emit('ui_prompt_end', { kind: 'select' });
+  assert.equal(message(), 'Save button');
+  await f.emit('tool_execution_end', { toolCallId: 'q1', toolName: 'ask_user_question' });
+  assert.equal(f.last().state, 'working');
+  await f.emit('tool_execution_start', { toolCallId: 'q2', toolName: 'ask_user_question', args: {} });
+  assert.equal(message(), 'Waiting for user');
+});

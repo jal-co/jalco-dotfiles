@@ -48,6 +48,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/requests.ts` | Request inbox the coordinator uses to launch, message, stop and resume tasks for other tools |
 | `src/work.ts`, `src/work-tool.ts`, `src/work-heartbeat.ts` | Durable work queue of fixes and delivery batches, the coordinator's `rex_work` tool and the heartbeat that checks it |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
+| `src/alerts.mjs`, `src/webpush.mjs`, `alerts/`, `systemd/rex-alerts.service` | Phone alerts when a Rex tab waits on Justin |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
@@ -214,6 +215,22 @@ Linear access uses a personal API key in the `Agents / Dev` vault. `~/.rex/linea
 ```
 
 The key is read with `op read` at startup and kept in memory only. Without a reference, or when 1Password or Linear is unavailable, the issue tabs explain why and Sessions still works. Set `REX_COORDINATOR_CWD` to target a coordinator outside `~/rex-coord`.
+
+## Phone alerts
+
+`src/alerts.mjs` runs on b1 and follows `rex events --all --json`. When any tab reports that it is blocked on a question, a permission or a sign-in (the program status protocol, which Pi and Rex task agents already speak), and is still blocked 20 seconds later, it sends one Web Push alert: "fix-toast needs you", or "wants approval" for permissions, with the session and the tab's status line. A prompt answered at the desk within 20 seconds never alerts. Each tab alerts once per wait. Help requests aimed at the coordinator are skipped. When it starts or reconnects to Rex it rescans every tab, so a restart neither loses nor repeats what is waiting.
+
+It changes nothing inside agents and never answers anything. Tap the alert, then answer in Rex, in the tab itself or through View Activity. Rex iOS has no link that opens a specific tab.
+
+The phone side is a small Home Screen web app, Asks, served by the same process on `127.0.0.1:8787` behind Tailscale Serve. It lists what is waiting, turns alerts on and has a Send test alert button that reports whether the alert reached the phone. Only the Tailscale login that owns b1 can open it. VAPID keys and subscriptions live in `~/.rex/phone`.
+
+```sh
+systemctl --user link ~/dotfiles/rex/systemd/rex-alerts.service
+systemctl --user enable --now rex-alerts
+tailscale serve --bg --https=8443 http://127.0.0.1:8787
+```
+
+On the iPhone, open `https://b1.tail95e906.ts.net:8443` in Safari, Share, Add to Home Screen, open Asks from there and turn on alerts. A Pi session shows what it waits on (the question header, or the permission prompt's first line) once it has been reloaded with this version.
 
 ## Appearance
 
