@@ -25,13 +25,23 @@ dotfiles.relative_symlinks = true
 run = "npm install -g agent-browser@0.43.0 corepack superset vercel && mise run hooks"
 
 [tasks.hooks]
-description = "Install the gitleaks pre-commit hook in the dotfiles repos"
+description = "Install the gitleaks pre-commit hook in the dotfiles repos, and on macOS a hook that has b1 pull right after a push"
 run = """
 for repo in "$HOME/dotfiles" "$HOME/dotfiles-private" "$HOME/dotfiles-work"; do
   [ -d "$repo/.git" ] || continue
   printf '#!/bin/sh\nexec gitleaks git --staged --redact --no-banner\n' > "$repo/.git/hooks/pre-commit"
   chmod +x "$repo/.git/hooks/pre-commit"
-  echo "hook installed in $repo"
+  if [ "$(uname -s)" = Darwin ]; then
+    cat > "$repo/.git/hooks/reference-transaction" <<'HOOK'
+#!/bin/sh
+[ "$1" = committed ] || exit 0
+grep -q ' refs/remotes/origin/' || exit 0
+ssh -o BatchMode=yes -o ConnectTimeout=5 b1 'systemctl --user start --no-block dotsync.service' </dev/null >/dev/null 2>&1 &
+exit 0
+HOOK
+    chmod +x "$repo/.git/hooks/reference-transaction"
+  fi
+  echo "hooks installed in $repo"
 done
 """
 
