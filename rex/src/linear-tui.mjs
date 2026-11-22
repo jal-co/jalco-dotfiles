@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, statSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -18,7 +18,8 @@ import {
   SEARCH_TAB, TABS, WORK_TAB, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   createProject, directCheckout, loadLinear, moveCursor, partlyCleaned, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
-import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
+import { confident, githubRepository, knownRepositories, rankRepositories } from './repositories.mjs';
+import { busy, call, chooseHost, loadHosts, selfName, statuses } from './remote.mjs';
 
 export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36' };
@@ -93,7 +94,7 @@ export function meta(item, now) {
     item.agent.text.replace(/^[^\p{L}\p{N}\s]+\s+/u, '') || issue?.state.name || task?.state || '',
     reason !== item.title ? reason : '',
     pr && !item.id.startsWith('#') ? pullNumber(pr.url) : '',
-    ago(task?.updatedAt ?? pr?.mergedAt ?? issue?.completedAt, now),
+    ago(task?.updatedAt ?? item.remote?.updatedAt ?? pr?.mergedAt ?? issue?.completedAt, now),
   ].filter(Boolean);
 }
 
@@ -210,6 +211,7 @@ export function workDraft(item) {
 export function actionsFor(item, records, cleanupFailed = new Set()) {
   if (item.work) return workActions(item);
   if (item.coordinator) return [['enter', enterAction(item)], ...(item.coordinator.ask ? [['y', 'yes']] : []), ['h', 'hide']];
+  if (item.remote) return [...(item.remote.state === 'stopped' ? [] : [['s', 'send'], ['d', 'stop']]), ['h', 'hide']];
   if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['F', 'force clean up'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   if (item.archive) return [['enter', 'recall'], ['v', 'view transcript'], ...(item.archive.pullRequests?.length ? [['o', 'PR']] : []), ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   const task = item.task;
@@ -233,7 +235,20 @@ export function actionsFor(item, records, cleanupFailed = new Set()) {
   ];
 }
 
+export function machineCells(machines = {}) {
+  return Object.entries(machines).flatMap(([name, status]) => {
+    const tone = !status.reachable ? 'red' : busy(status) ? 'yellow' : 'green';
+    return [[`${name} `, 'dim'], [status.reachable ? '●' : '○', tone], [GAP]];
+  });
+}
+
 function confirmLines(confirm) {
+  if (confirm.kind === 'remote-stop') {
+    return [
+      [[`Stop ${confirm.remote.name} on ${confirm.remote.host}?`, 'bold']],
+      [[`The ${confirm.remote.host} coordinator owns it and stops it gracefully. Its logs, branch and checkout stay there.`, 'dim']],
+    ];
+  }
   if (confirm.kind === 'retire') {
     const { task } = confirm;
     const running = live(task) && task.state !== 'unknown';
@@ -262,7 +277,8 @@ function confirmLines(confirm) {
   const choice = confirm.choices[confirm.index];
   const next = confirm.choices[(confirm.index + 1) % confirm.choices.length];
   return [
-    [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
+    [[`Launch ${confirm.label} in ${choice.name}`, 'bold'], [confirm.host ? ` on ${confirm.host}` : '', 'bold'], [confirm.index === 0 && confirm.sure ? '' : confirm.index === 0 ? '  best guess' : '  your pick', 'yellow']],
+    ...(confirm.hosts?.length > 1 ? [[[`machine: ${confirm.host}${confirm.hostReason ? ` (${confirm.hostReason})` : ''}${GAP}m switches`, 'dim']]] : []),
     [[`why: ${choice.reasons.join('; ')}${confirm.choices.length > 1 && next !== choice ? `${GAP}next: ${next.name}` : ''}`, 'dim']],
     [[`${confirm.direct ? 'directly in the checkout, no worktree' : `${confirm.branch} from ${confirm.base ?? '…'}`}${GAP}${confirm.brief.split('\n')[0]}`, 'dim']],
   ];
@@ -304,7 +320,7 @@ const indent = (rendered, width) => rendered.map((text) => `${MARGIN}${text}${' 
 export function renderScreen(state, width, height) {
   const blank = line([], width);
   const tabs = tabCells(state);
-  const status = [[state.working ? `${state.spinner ?? '●'} ` : '', 'yellow'], [state.working ? `${state.working} working${GAP}` : '', 'dim'], [`${state.capacity.used}/${state.capacity.max} agents`, 'dim'], [MARGIN]];
+  const status = [...machineCells(state.machines), [state.working ? `${state.spinner ?? '●'} ` : '', 'yellow'], [state.working ? `${state.working} working${GAP}` : '', 'dim'], [`${state.capacity.used}/${state.capacity.max} agents`, 'dim'], [MARGIN]];
   const gap = width - [...tabs, ...status].reduce((sum, [text]) => sum + columns(text), 0);
   const header = [blank, gap >= 1 ? line([...tabs, [' '.repeat(gap)], ...status], width) : line(tabs, width), underline(tabs, state, width), blank];
   const about = context(state);
@@ -364,6 +380,10 @@ export class LinearApp {
     this.bases = new Map();
     this.programStatus = new Map();
     this.goals = new Map();
+    try { this.hosts = loadHosts(); } catch { this.hosts = { order: [], hosts: {} }; }
+    this.self = selfName(this.hosts);
+    this.machines = {};
+    this.remote = {};
     this.dirty = true;
     this.data = this.snapshot();
     this.hidden = new Set(readPreferences().hidden);
@@ -382,7 +402,58 @@ export class LinearApp {
   }
 
   view() {
-    return { ...this.data, coordinator: this.coordinatorState(), tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear };
+    return { ...this.data, coordinator: this.coordinatorState(), tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear, remote: this.remote };
+  }
+
+  async pollMachines() {
+    if (this.machinePolling || !this.hosts.order.length) return;
+    this.machinePolling = true;
+    try {
+      const machines = await statuses(this.hosts);
+      const others = this.hosts.order.filter((name) => name !== this.self);
+      const remote = Object.fromEntries(await Promise.all(others.map(async (name) => {
+        if (!machines[name]?.reachable) return [name, { error: machines[name]?.error ?? 'not reachable' }];
+        try { return [name, { tasks: await call(this.hosts, name, 'tasks') }]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message) }]; }
+      })));
+      const changed = JSON.stringify([machines, remote]) !== JSON.stringify([this.machines, this.remote]);
+      this.machines = machines;
+      this.remote = remote;
+      if (changed) this.draw();
+    } finally {
+      this.machinePolling = false;
+    }
+  }
+
+  hostChoice() {
+    const up = this.hosts.order.filter((name) => this.machines[name]?.reachable);
+    if (!up.length) return { host: this.self, hosts: [], reason: '' };
+    const host = chooseHost({ order: this.hosts.order, statuses: this.machines });
+    return { host, hosts: up, reason: busy(this.machines[this.self] ?? {}) && host !== this.self ? `${this.self} is busy` : 'least loaded first choice' };
+  }
+
+  remoteStop(item) {
+    this.state.confirm = { kind: 'remote-stop', remote: item.remote };
+    this.draw();
+  }
+
+  remoteSend(item) {
+    const { host, id, name } = item.remote;
+    this.ask(`Message ${name} on ${host}`, (message) => {
+      if (!message) return this.status('dim', 'Nothing sent.');
+      this.status('dim', `Sending to ${name} on ${host}…`);
+      call(this.hosts, host, 'send', { id, message }).then((result) => this.status(result.ok ? 'green' : 'red', `${host}: ${explain(result)}`), (error) => this.status('red', `${host}: ${cleanText(error.stderr || error.message).slice(0, 160)}`));
+    }, '', { multiline: true });
+  }
+
+  remoteLaunch(confirm, choice, params) {
+    let repo;
+    try { repo = githubRepository(execFileSync('git', ['-C', choice.path, 'remote', 'get-url', 'origin'], { encoding: 'utf8', timeout: 5_000 }).trim()); } catch {}
+    if (!repo) return this.status('red', `${choice.name} has no GitHub remote, so ${confirm.host} cannot find its checkout. Launch it here instead.`);
+    const { host } = confirm;
+    this.status('dim', `Asking the ${host} coordinator to launch ${params.name} in ${repo}…`);
+    call(this.hosts, host, 'launch', { name: params.name, repo, task: params.task, branch: params.worktree?.branch, base: params.worktree?.base })
+      .then((result) => { this.status(result.ok ? 'green' : 'red', `${host}: ${explain(result).slice(0, 200)}`); void this.pollMachines(); },
+        (error) => this.status('red', `${host}: ${cleanText(error.stderr || error.message).slice(0, 200)}`));
   }
 
   coordinatorState() {
@@ -565,6 +636,7 @@ export class LinearApp {
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.slots = slotsOf(data.tasks, this.hidden);
     state.records = this.data.records;
+    state.machines = this.machines;
     state.now = Date.now();
   }
 
@@ -635,6 +707,8 @@ export class LinearApp {
       this.tui?.requestRender();
     }, 80);
     void this.pollStatus();
+    this.machineTimer = setInterval(() => { void this.pollMachines(); }, 20_000);
+    void this.pollMachines();
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
     const missed = orphanResults();
@@ -648,6 +722,7 @@ export class LinearApp {
     clearInterval(this.poll);
     clearInterval(this.statusTimer);
     clearInterval(this.spinTimer);
+    clearInterval(this.machineTimer);
     clearInterval(this.reload);
     clearTimeout(this.fade);
     clearTimeout(this.timer);
@@ -703,12 +778,25 @@ export class LinearApp {
       return this.request('force-cleanup', { id: confirm.id, checkout: confirm.checkout, preserve: name === 'p' },
         `Force cleaning up ${confirm.label}…`, { label: confirm.label, checkout: confirm.checkout, key: confirm.key });
     }
+    if (confirm.kind === 'remote-stop') {
+      if (name !== 'enter') return;
+      this.state.confirm = undefined;
+      const { host, id, name: label } = confirm.remote;
+      this.status('dim', `Asking the ${host} coordinator to stop ${label}…`);
+      return void call(this.hosts, host, 'stop', { id }).then((result) => { this.status(result.ok ? 'green' : 'red', `${host}: ${explain(result)}`); void this.pollMachines(); },
+        (error) => this.status('red', `${host}: ${cleanText(error.stderr || error.message).slice(0, 160)}`));
+    }
     if (confirm.kind === 'retire') {
       if (name !== 'enter') return;
       this.state.confirm = undefined;
       return this.request('stop', { id: confirm.task.logicalId ?? confirm.task.id }, `Asked the coordinator to stop ${confirm.task.name}…`);
     }
     if (name === 'tab' && confirm.choices.length > 1) { confirm.index = (confirm.index + 1) % confirm.choices.length; return this.prepare(); }
+    if (name === 'm' && confirm.hosts?.length > 1) {
+      confirm.host = confirm.hosts[(confirm.hosts.indexOf(confirm.host) + 1) % confirm.hosts.length];
+      confirm.hostReason = 'your pick';
+      return this.draw();
+    }
     if (name === 'N') return this.ask('new project name, created under ~/dev', (project) => this.newProject(confirm, project), confirm.subject.name ?? slugFor(confirm.subject.title ?? confirm.label), { verb: 'create' });
     if (name === 't') return this.ask('repository path', (path) => this.typedRepository(confirm, path), join(homedir(), 'dev', ''));
     if (name === 'e') return this.ask(`Brief for ${confirm.label}`, (text) => { if (text) confirm.brief = text; this.draw(); }, confirm.brief, { multiline: true, verb: 'save' });
@@ -719,6 +807,7 @@ export class LinearApp {
     this.state.confirm = undefined;
     if (confirm.subject.team?.key) saveRepository(confirm.subject.team.key, choice.path);
     const params = launchParams(confirm.subject, { repo: choice.path, base: confirm.base, brief: confirm.brief });
+    if (confirm.host && confirm.host !== this.self) return this.remoteLaunch(confirm, choice, params);
     this.request('launch', params, `Asked the coordinator to launch ${params.name} in ${choice.name}${confirm.warning ? `. ${confirm.warning}` : ''}…`);
   }
 
@@ -768,6 +857,13 @@ export class LinearApp {
     if (item.archive && name === 'enter') return this.recall(item);
     if (item.archive && name === 'v') return this.viewTranscript(item);
     if (item.archive && name === 'o') return this.open(item.archive.pullRequests?.[0], item.id);
+    if (item.remote) {
+      if (name === 's' && item.remote.state !== 'stopped') return this.remoteSend(item);
+      if (name === 'd' && item.remote.state !== 'stopped') return this.remoteStop(item);
+      if (name === 'h') return this.toggleHidden(item);
+      if (name === 'enter') return this.status('dim', `${item.remote.name} runs on ${item.remote.host}. Switch Rex to ${item.remote.host} to open its tab.`);
+      return undefined;
+    }
     if (name === 'enter') return this.enter(item);
     if (name === 'o') return this.open(item.pr?.url ?? item.issue?.url, item.id);
     if (name === 'l') return item.issue ? this.open(item.issue.url, item.id) : this.status('yellow', `${item.id} has no linked Linear issue.`);
@@ -940,7 +1036,8 @@ export class LinearApp {
     });
     const branch = launchParams(subject, { repo: '', base: '', brief: '' }).worktree.branch;
     const brief = subject.identifier ? issueBrief(subject, branch) : taskBrief({ goal: subject.title, branch });
-    const confirm = { kind: 'launch', subject, label, branch, brief, choices, index: 0, sure: confident(choices) };
+    const machine = this.hostChoice();
+    const confirm = { kind: 'launch', subject, label, branch, brief, choices, index: 0, sure: confident(choices), host: machine.host, hosts: machine.hosts, hostReason: machine.reason };
     if (!choices.length) return this.ask('repository path', (path) => this.typedRepository(confirm, path), join(homedir(), 'dev', ''));
     this.state.confirm = confirm;
     return this.prepare();

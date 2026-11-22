@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { cpus, freemem, homedir, hostname, loadavg, platform, totalmem } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
 import { findCoordinator } from './coordinator-session.mjs';
 import { callRex } from './provider.ts';
 import { githubRepository, knownRepositories, workspaceRepositories } from './repositories.mjs';
@@ -168,14 +168,13 @@ export async function call(config, name, command, payload = {}, { self = selfNam
   const host = config.hosts[name];
   if (!host) throw new Error(`Unknown host ${name}`);
   const timeout = command === 'launch' ? 16 * 60_000 : command === 'status' ? 15_000 : 6 * 60_000;
-  const output = execFileSync('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh,
-    '~/.local/share/mise/shims/node ~/dotfiles/rex/src/remote.mjs agent', command], {
-    input: JSON.stringify(payload), encoding: 'utf8', timeout, stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  return JSON.parse(output);
+  const child = promisify(execFile)('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh,
+    '~/.local/share/mise/shims/node ~/dotfiles/rex/src/remote.mjs agent', command], { encoding: 'utf8', timeout, maxBuffer: 16 * 1024 * 1024 });
+  child.child.stdin.end(JSON.stringify(payload));
+  return JSON.parse((await child).stdout);
 }
 
-async function statuses(config) {
+export async function statuses(config) {
   const entries = await Promise.all(config.order.map(async (name) => {
     try { return [name, await call(config, name, 'status')]; } catch (error) {
       return [name, { reachable: false, error: cleanText(error.stderr || error.message).slice(0, 200) }];

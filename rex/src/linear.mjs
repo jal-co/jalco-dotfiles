@@ -341,6 +341,26 @@ export function archiveView(data, { filter = '', now = Date.now() } = {}) {
   ];
 }
 
+const REMOTE_TONE = { working: 'yellow', running: 'yellow', done: 'green', idle: 'green', blocked: 'red', error: 'red', unknown: 'red', stopped: 'dim' };
+
+export function remoteItem(host, task) {
+  return {
+    kind: 'item', key: `r:${host}:${task.id}`, id: cleanText(task.name), title: cleanText(task.branch ?? task.name),
+    project: host, remote: { host, id: task.id, name: cleanText(task.name), state: task.state, updatedAt: task.updatedAt },
+    agent: { text: cleanText(task.state ?? 'unknown'), tone: REMOTE_TONE[task.state] ?? 'dim' },
+  };
+}
+
+export function remoteSections(remote = {}, showStopped = false) {
+  return Object.entries(remote).flatMap(([host, entry]) => {
+    const heading = (text, tone) => [{ kind: 'section', title: `On ${host}`, count: 0 }, note(text, tone), { kind: 'blank' }];
+    if (entry.error) return heading(`${host} is unreachable: ${cleanText(entry.error).slice(0, 120)}`, 'yellow');
+    if (!entry.tasks) return heading(`Checking ${host}…`);
+    const shown = entry.tasks.filter((task) => showStopped || task.state !== 'stopped').map((task) => remoteItem(host, task));
+    return section(`On ${host}`, shown, `Nothing running on ${host}.`);
+  });
+}
+
 export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search, filter } = {}) {
   if (tab === TABS.length - 1) return archiveView(data, { filter, now });
   if (tab === 0) {
@@ -366,7 +386,7 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
     return backlog.length ? grouped(backlog, (item) => item.project) : [note('Your backlog is empty.')];
   }
   if (tab === 2) {
-    if (!data.tasks.length) return [note('No tracked Rex tasks yet.')];
+    if (!data.tasks.length) return [note('No tracked Rex tasks yet.'), ...remoteSections(data.remote, showStopped)];
     const shelf = data.tasks.filter((task) => task.stashed).sort((a, b) => b.stashed.at - a.stashed.at);
     const residue = data.tasks.filter((task) => !task.stashed && partlyCleaned(task)).sort((a, b) => b.forced.at - a.forced.at);
     const rest = data.tasks.filter((task) => !task.stashed && !partlyCleaned(task));
@@ -375,7 +395,8 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
     return [...grouped(shown.map((task) => taskItem(task, data)), (item) => item.project),
       ...section('Stashed', shelf.map((task) => taskItem(task, data))),
       ...section('Partly cleaned up', residue.map((task) => taskItem(task, data))),
-      ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden · x shows them`)] : [])];
+      ...(hidden ? [note(`${hidden} stopped task${hidden === 1 ? '' : 's'} hidden · x shows them`)] : []),
+      ...remoteSections(data.remote, showStopped)];
   }
   const { inProgress, next, done } = brief(data, now);
   if (mode === 'list') {
