@@ -10,3 +10,5 @@
 "apt:ninja-build" = "latest"
 "apt:docker.io" = "latest"
 "apt:docker-compose-v2" = "latest"
+"apt:sysstat" = "latest"
+"apt:atop" = "latest"
