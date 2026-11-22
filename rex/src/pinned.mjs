@@ -38,6 +38,13 @@ const piCommand = () => {
   if (!existsSync(pi)) throw new Error(`Pi executable not found: ${pi}`);
   return [pi, '--approve', '--model', model];
 };
+const idle = (info) => !info.last_exit && (!info.foreground || /^-|(^|\/)(zsh|bash|fish|sh)$/.test(info.foreground.argv0 ?? ''));
+const idleWindows = (id, label) => {
+  const info = new Map(terminals(id).map((entry) => [entry.block_id, entry]));
+  const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
+  return (view.windows ?? []).filter((window) => window.label === label)
+    .filter((window) => window.layers.every((layer) => layer.blocks.every((block) => !info.has(block.block_id) || idle(info.get(block.block_id)))));
+};
 const pin = (session) => {
   const actions = JSON.parse(callRex(['actions', '--json'])).actions;
   if (actions.some((action) => action.name === 'pin_session')) callRex(['do', '-s', session, 'pin_session']);
@@ -47,6 +54,10 @@ const sessions = JSON.parse(callRex(['ls', '--json'])).sessions;
 const existing = findCoordinator(sessions, terminals, cwd);
 let session = existing;
 if (existing?.stopped) {
+  for (const window of idleWindows(existing.session_id, 'coordinator')) {
+    callRex(['window', 'close', '-s', existing.session_id, window.window_id]);
+    console.log('Closed a coordinator tab left with only a shell, such as one Rex restored after a reboot.');
+  }
   callRex(['window', 'new', '-s', existing.session_id, 'coordinator', '-c', cwd, '--json', '--shell=none', '--', ...piCommand()]);
   console.log(`Started the coordinator in a new tab of ${JSON.stringify(existing.label)}. Its other tabs were left alone.`);
 } else if (existing) {
@@ -80,7 +91,13 @@ const coordinatorWindow = existing && !existing.stopped && (view.windows ?? []).
   && window.layers.some((layer) => layer.blocks.some((block) => terminals(session.session_id).some((info) => info.block_id === block.block_id
     && [info.foreground, ...(info.ancestors ?? [])].some((process) => process?.argv0 === 'pi' && process.cwd === cwd)))));
 if (coordinatorWindow) callRex(['window', 'rename', '-s', session.session_id, coordinatorWindow.window_id, 'coordinator']);
-const open = (view.windows ?? []).some((window) => window.label === centerLabel && window.layers.some((layer) => layer.blocks.length));
+const staleCenters = idleWindows(session.session_id, centerLabel);
+for (const window of staleCenters) {
+  callRex(['window', 'close', '-s', session.session_id, window.window_id]);
+  console.log(`Closed a ${JSON.stringify(centerLabel)} tab left with only a shell.`);
+}
+const open = (view.windows ?? []).some((window) => window.label === centerLabel && !staleCenters.some((stale) => stale.window_id === window.window_id)
+  && window.layers.some((layer) => layer.blocks.length));
 if (open) {
   console.log(`The ${JSON.stringify(centerLabel)} tab is already open.`);
 } else if (!installed) {

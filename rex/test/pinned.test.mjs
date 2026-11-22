@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const CENTER = '\u{f0516} linear';
 const terminal = (block_id, label) => ({ block_id, label, creator_name: 'com.superlogical.terminal' });
 
-function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, oldPane = false, legacy = false, windowLabel = 'coordinator' } = {}) {
+function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, centerRunning = true, exited = false, oldPane = false, legacy = false, windowLabel = 'coordinator' } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'rex-pinned-test-'));
   const binary = join(directory, 'rex');
   const cwd = join(directory, 'rex-coord');
@@ -28,7 +28,7 @@ function runPinned({ label = 'inbox', running = true, coordinator = true, center
     'session:other': [{ label: 'work', layers: [{ blocks: [terminal('block:other'), ...(oldPane ? [terminal('block:old', 'command-center')] : [])] }] }],
     'session:coordinator': [
       { window_id: 'window:coordinator', label: windowLabel, layers: [{ blocks: [terminal('block:coordinator')] }] },
-      ...(centerTab ? [{ label: CENTER, layers: [{ blocks: [terminal('block:center')] }] }] : []),
+      ...(centerTab ? [{ window_id: 'window:center', label: CENTER, layers: [{ blocks: [terminal('block:center')] }] }] : []),
     ],
     'session:legacy': [{ label: 'command center', layers: [{ blocks: [terminal('block:legacy')] }] }],
     'session:created': [{ label: 'coordinator', layers: [{ blocks: [terminal('block:created')] }] }],
@@ -41,7 +41,7 @@ const record = () => fs.appendFileSync(${JSON.stringify(log)}, args.join(' ') + 
 let result;
 if (args[0] === 'ls') result = { sessions: ${JSON.stringify(sessions)} };
 else if (args[0] === 'session' && args[1] === 'inspect') result = { windows: windows[args[2]] };
-else if (args[0] === 'block' && args[1] === 'call') result = { foreground: { argv0: args[5] === 'block:coordinator' && ${running} ? 'pi' : '-zsh', cwd: ${JSON.stringify(cwd)} } };
+else if (args[0] === 'block' && args[1] === 'call') result = { foreground: { argv0: args[5] === 'block:coordinator' && ${running} ? 'pi' : args[5] === 'block:center' && ${centerRunning} ? '/usr/bin/node' : '-zsh', cwd: ${JSON.stringify(cwd)} }, ...(${exited} && args[5] === 'block:coordinator' ? { last_exit: { code: 1 } } : {}) };
 else if (args[0] === 'actions') result = { actions: [{ name: 'pin_session' }] };
 else if (args[0] === 'new') { record(); result = { session_id: 'session:created', initial_windows: [{ block_ids: ['block:created'] }] }; }
 else if (['window', 'block', 'do', 'kill', 'session'].includes(args[0])) { record(); result = { window_id: 'window:new', block_ids: ['block:new'] }; }
@@ -93,7 +93,7 @@ test('pinned folds an old split pane and the separate command center session int
 });
 
 test('pinned restarts a stopped coordinator in its existing session and creates Command when none exists', () => {
-  const stopped = runPinned({ label: 'Command', running: false });
+  const stopped = runPinned({ label: 'Command', running: false, exited: true });
   assert.match(stopped.output, /Started the coordinator in a new tab of "Command"/);
   assert.match(stopped.calls[0], /^window new -s session:coordinator coordinator -c .* --shell=none -- .*\/\.pi\/agent\/bin\/pi --approve --model provider\/model$/);
   assert.match(stopped.calls[1], centerTab('session:coordinator'));
@@ -101,6 +101,14 @@ test('pinned restarts a stopped coordinator in its existing session and creates 
   assert.match(fresh.calls[0], /^new Command -c .*rex-coord --window coordinator --json --shell=none -- .*\/bin\/pi --approve/);
   assert.match(fresh.calls[1], centerTab('session:created'));
   assert.equal(fresh.calls[2], 'do -s session:created pin_session');
+});
+
+test('after a reboot pinned replaces restored tabs that hold only a shell', () => {
+  const { calls } = runPinned({ label: 'Command', running: false, centerTab: true, centerRunning: false });
+  assert.equal(calls[0], 'window close -s session:coordinator window:coordinator');
+  assert.match(calls[1], /^window new -s session:coordinator coordinator -c .* --shell=none -- .*\/\.pi\/agent\/bin\/pi --approve/);
+  assert.equal(calls[2], 'window close -s session:coordinator window:center');
+  assert.match(calls[3], centerTab('session:coordinator'));
 });
 
 test('pinned names a coordinator tab that still has its default name', () => {
