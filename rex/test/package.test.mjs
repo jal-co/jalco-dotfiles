@@ -55,7 +55,7 @@ test('the native package loads lifecycle and PR tools without modifying the inst
   const loaded = await loadExtensions([join(root, 'src/index.ts')], root);
   assert.deepEqual(loaded.errors, []);
   const extension = loaded.extensions[0];
-  for (const name of ['subagent', 'subagent_send', 'subagent_stop', 'worktree_list', 'worktree_remove', 'rex_pr_track', 'rex_task_history', 'rex_task_stash']) {
+  for (const name of ['subagent', 'subagent_send', 'subagent_stop', 'worktree_list', 'worktree_remove', 'rex_pr_track', 'rex_task_history', 'rex_task_stash', 'rex_work']) {
     assert.ok(extension.tools.has(name), name);
   }
   assert.ok(extension.commands.has('rex-prs'));

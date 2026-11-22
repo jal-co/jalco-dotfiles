@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, watch, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, watch, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rexBinary, surfaceTarget } from './provider.ts';
@@ -8,6 +8,7 @@ import { agentIdentityFile, boundedSummary, cwdHolders, sessionCwd, processBirth
 import { leaseAlive } from './worktrees.ts';
 
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+const sameOwner = (a, b) => a.pid === b.pid && a.birth === b.birth;
 
 export class RexRecovery {
   constructor({ store, provider, worktrees, protocol, activity, running, retireStopped, send, notify, flags, owner, originCwd, birth = processBirth, command = processCommand, parentOf = processParent, holders = cwdHolders, onChange, launch }) {
@@ -21,8 +22,13 @@ export class RexRecovery {
     this.closed = false;
   }
   capture() {
-    for (const child of this.running().values()) {
+    for (const child of this.running().values()) this.locked(child.id, () => {
       const previous = this.store.read(child.id);
+      const other = previous && this.otherOwner(previous);
+      if (other) {
+        this.notify(`${child.name}: ${other}; this coordinator no longer saves or controls it.`);
+        return true;
+      }
       const old = previous?.sessionFile === child.sessionFile ? previous : undefined;
       const policy = this.readPolicy(child.sessionFile);
       this.store.write({
@@ -35,11 +41,47 @@ export class RexRecovery {
         branch: child.worktree?.branch, worktree: child.worktree?.path,
         model: child.runtimePlan?.model, thinking: child.runtimePlan?.thinking, updatedAt: Date.now(),
       });
-    }
+      return true;
+    });
     this.observe();
+    this.publish();
+  }
+  capabilityFile(pid) {
+    return join(this.store.root, 'coordinators', `${pid}.json`);
+  }
+  publish() {
+    const hosted = [...this.running().keys()].sort();
+    const key = JSON.stringify(hosted);
+    if (this.closed || this.published === key) return;
+    const file = this.capabilityFile(this.owner.pid);
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+    const temporary = `${file}.${randomUUID()}.tmp`;
+    writeFileSync(temporary, JSON.stringify({ version: 1, takeover: 1, pid: this.owner.pid, birth: this.owner.birth, hosted }), { mode: 0o600 });
+    renameSync(temporary, file);
+    this.published = key;
+  }
+  support(owner) {
+    let value;
+    try { value = JSON.parse(readFileSync(this.capabilityFile(owner.pid), 'utf8')); } catch { return undefined; }
+    return value?.version === 1 && value.takeover === 1 && Boolean(owner.birth) && sameOwner(value, owner) && Array.isArray(value.hosted) ? value : undefined;
   }
   owned(record) {
-    return record.owner.pid === this.owner.pid && record.owner.birth === this.owner.birth;
+    return sameOwner(record.owner, this.owner);
+  }
+  locked(id, operation) {
+    try { return this.store.exclusive(id, operation); } catch (error) {
+      if (error.code !== 'EEXIST' || error.path !== `${this.store.file(id)}.lock`) throw error;
+      if (!this.closed) setTimeout(() => this.schedule(id), 250).unref();
+      return undefined;
+    }
+  }
+  commit(record) {
+    return this.locked(record.id, () => {
+      const current = this.store.read(record.id);
+      if (!current || !sameOwner(current.owner, record.owner) || this.otherOwner(current)) return false;
+      this.store.write(record);
+      return true;
+    }) ?? false;
   }
   probe(record) {
     try {
@@ -179,7 +221,10 @@ export class RexRecovery {
     const child = this.running().get(id);
     if (child && child.sessionFile !== record.sessionFile) { this.capture(); record = this.store.read(id); }
     const policy = this.checkPolicy(record);
-    if (this.attest(record)) { this.store.write(record); this.liveness.delete(id); }
+    if (this.attest(record)) {
+      if (!this.commit(record)) return;
+      this.liveness.delete(id);
+    }
     const events = this.protocol.readPersistentTaskEvents(record.sessionFile).filter((row) => row.generation === policy.generationId);
     const ledger = this.protocol.readPersistentDeliveryLedger(record.sessionFile).filter((row) => row.generation === policy.generationId && row.policyHash === policy.policyHash);
     let alive;
@@ -195,31 +240,46 @@ export class RexRecovery {
         if (ledger.some((row) => row.task === event.task && row.outcome === outcome) || this.inFlight.has(key)) continue;
         if (record.pendingReceipts?.includes(key)) {
           record.failure = 'Result delivery is uncertain. Check the retained session before requesting redelivery.';
-          this.store.write(record);
+          if (!this.commit(record)) return;
           continue;
         }
-        this.inFlight.add(key);
         record.pendingReceipts = [...(record.pendingReceipts ?? []), key];
-        this.store.write(record);
+        if (!this.commit(record)) return;
+        this.inFlight.add(key);
         this.send({ customType: event.type === 'task-done' ? 'subagent_result' : 'subagent_ping', display: true,
           content: event.type === 'task-done' ? `Recovered task "${record.name}" completed.\n\n${boundedSummary(record.sessionFile, event.at)}` : `Recovered task "${record.name}" needs help: ${event.message ?? ''}`,
           details: { name: record.name, sessionFile: record.sessionFile, logicalId: record.logicalId, generationId: record.generationId, policyHash: record.policyHash, task: event.task, rexReceipt: { id, key, outcome } } },
         { triggerTurn: true, deliverAs: 'steer' });
       }
       record = this.store.read(id);
+      if (!this.owned(record)) return;
       if (existsSync(`${record.sessionFile}.exit`) && alive === false) {
-        if (record.stopRequested) {
-          record.stopConfirmed = true;
-          this.releaseLease(record);
-          if (!record.stopNotified) {
-            this.closeTab(record);
-            this.send({ customType: 'subagent_stop', display: true, content: `Recovered agent "${record.name}" has stopped. Its session and checkout are retained.`, details: { status: 'stopped', facts: { logicalId: record.logicalId } } }, { triggerTurn: true, deliverAs: 'steer' });
-            record.stopNotified = true;
-          }
+        if (record.stopRequested && record.stopConfirmed && record.stopNotified) this.releaseLease(record);
+        else if (record.stopRequested) {
+          const first = this.locked(id, () => {
+            const current = this.store.read(id);
+            if (!this.owned(current) || !current.stopRequested) return false;
+            current.stopConfirmed = true;
+            this.releaseLease(current);
+            const unnotified = !current.stopNotified;
+            if (unnotified) this.closeTab(current);
+            current.stopNotified = true;
+            this.store.write(current);
+            return unnotified;
+          });
+          if (first) this.send({ customType: 'subagent_stop', display: true, content: `Recovered agent "${record.name}" has stopped. Its session and checkout are retained.`, details: { status: 'stopped', facts: { logicalId: record.logicalId } } }, { triggerTurn: true, deliverAs: 'steer' });
+          record = this.store.read(id);
         } else if (!record.persistent && !record.completed) {
           const exit = JSON.parse(readFileSync(`${record.sessionFile}.exit`, 'utf8'));
-          record.completed = { error: exit.type === 'error' ? exit.errorMessage : undefined };
-          this.send({ customType: 'subagent_result', display: true, content: `Recovered task "${record.name}" exited.\n\n${boundedSummary(record.sessionFile)}`, details: { name: record.name, sessionFile: record.sessionFile, error: exit.errorMessage } }, { triggerTurn: true, deliverAs: 'steer' });
+          const completed = this.locked(id, () => {
+            const current = this.store.read(id);
+            if (!this.owned(current) || current.completed) return false;
+            current.completed = { error: exit.type === 'error' ? exit.errorMessage : undefined };
+            this.store.write(current);
+            return true;
+          });
+          if (completed) this.send({ customType: 'subagent_result', display: true, content: `Recovered task "${record.name}" exited.\n\n${boundedSummary(record.sessionFile)}`, details: { name: record.name, sessionFile: record.sessionFile, error: exit.errorMessage } }, { triggerTurn: true, deliverAs: 'steer' });
+          record = this.store.read(id);
         }
       }
     }
@@ -227,8 +287,14 @@ export class RexRecovery {
       const active = ledger.filter((row) => row.outcome === 'dispatched').at(-1)?.task ?? record.taskId;
       if (!active || events.some((row) => row.task === active && row.type === 'task-done')) {
         const queued = record.queued;
-        delete record.queued;
-        this.dispatch(record, queued.task, queued.message);
+        this.locked(id, () => {
+          const current = this.store.read(id);
+          if (!this.owned(current) || current.queued?.task !== queued.task || current.stopRequested || current.dispatching) return false;
+          delete current.queued;
+          this.dispatch(current, queued.task, queued.message);
+          return true;
+        });
+        record = this.store.read(id);
       }
     }
     const read = this.activity.readSubagentActivityFile(record.activityFile, record.id);
@@ -239,8 +305,9 @@ export class RexRecovery {
     this.onChange?.();
     if (record.state !== view.state || record.reason !== view.reason || record.stopConfirmed || record.completed) {
       Object.assign(record, view, { updatedAt: Date.now() });
-      this.store.write(record);
+      this.commit(record);
     }
+    this.publish();
   }
   attached() { return [...this.view.values()]; }
   receipt(message) {
@@ -252,26 +319,37 @@ export class RexRecovery {
     const rows = this.protocol.readPersistentDeliveryLedger(record.sessionFile);
     const acknowledged = rows.some((row) => row.task === message.details.task && row.outcome === receipt.outcome && row.generation === record.generationId);
     if (acknowledged && !record.pendingReceipts?.includes(receipt.key)) return;
-    if (!acknowledged) {
-      this.protocol.appendPersistentDeliveryLedger(record.sessionFile, { task: message.details.task, outcome: receipt.outcome, generation: record.generationId, logicalId: record.logicalId, policyHash: record.policyHash });
-    }
-    record.pendingReceipts = (record.pendingReceipts ?? []).filter((key) => key !== receipt.key);
-    this.store.write(record);
-    this.inFlight.delete(receipt.key);
-    this.schedule(record.id);
+    this.locked(record.id, () => {
+      const current = this.store.read(record.id);
+      if (!this.owned(current) || current.generationId !== record.generationId) return false;
+      if (!acknowledged) {
+        this.protocol.appendPersistentDeliveryLedger(current.sessionFile, { task: message.details.task, outcome: receipt.outcome, generation: current.generationId, logicalId: current.logicalId, policyHash: current.policyHash });
+      }
+      current.pendingReceipts = (current.pendingReceipts ?? []).filter((key) => key !== receipt.key);
+      this.store.write(current);
+      this.inFlight.delete(receipt.key);
+      this.schedule(current.id);
+      return true;
+    });
   }
   message(message) {
     const details = message.details;
     if (!details) return;
     for (const record of this.store.list().filter((row) => row.originCwd === this.originCwd && this.owned(row))) {
       if (details.sessionFile !== record.sessionFile && details.facts?.logicalId !== record.logicalId) continue;
-      if (message.customType === 'subagent_result' && !record.persistent) record.completed = { error: details.error ?? details.errorMessage };
-      if (message.customType === 'subagent_stop' && details.status === 'stopped') {
-        record.stopConfirmed = true;
-        delete record.queued;
-        this.closeTab(record);
-      }
-      this.store.write(record);
+      const saved = this.locked(record.id, () => {
+        const current = this.store.read(record.id);
+        if (!this.owned(current)) return false;
+        if (message.customType === 'subagent_result' && !current.persistent) current.completed = { error: details.error ?? details.errorMessage };
+        if (message.customType === 'subagent_stop' && details.status === 'stopped') {
+          current.stopConfirmed = true;
+          delete current.queued;
+          this.closeTab(current);
+        }
+        this.store.write(current);
+        return true;
+      });
+      if (saved === undefined) this.notify(`${record.name}: its task record was busy, so the ${message.customType} update was not saved. It is rechecked shortly.`);
       this.schedule(record.id, true);
     }
   }
@@ -295,6 +373,8 @@ export class RexRecovery {
     if (!record) throw new Error('No running task matches this stash request; it may already be stopped or stashed');
     return this.store.exclusive(record.id, () => {
       const current = this.store.read(record.id);
+      const other = this.otherOwner(current);
+      if (other) throw new Error(`${other}; nothing was stashed`);
       if (current.stopConfirmed) throw new Error(`Task "${current.name}" is already stopped`);
       if (current.stashed) throw new Error(`Task "${current.name}" is already being stashed; wait for its agent to exit`);
       current.stashed = { at: Date.now() };
@@ -305,6 +385,7 @@ export class RexRecovery {
   unstash(id) {
     this.store.exclusive(id, () => {
       const current = this.store.read(id);
+      if (this.otherOwner(current)) return;
       delete current.stashed;
       this.store.write(current);
     });
@@ -375,6 +456,81 @@ export class RexRecovery {
     if (this.owned(record)) return undefined;
     const stamp = this.birth(record.owner.pid);
     return stamp && (!record.owner.birth || stamp === record.owner.birth) ? `Another live coordinator (process ${record.owner.pid}) owns ${record.name}` : undefined;
+  }
+  hosted(params) {
+    const record = this.store.list().find((row) => row.originCwd === this.originCwd && this.running().has(row.id) && (params.id ? row.id === params.id || row.logicalId === params.id : row.name === params.name));
+    const other = record && this.otherOwner(record);
+    return other ? new Error(`${other} since a takeover; this coordinator no longer controls it. Nothing was changed.`) : undefined;
+  }
+  takeoverTarget(params) {
+    const matches = this.store.list().filter((row) => row.originCwd === this.originCwd && !row.completed && (!row.stopConfirmed || row.stashed) && (params.id ? row.id === params.id || row.logicalId === params.id : row.name === params.name));
+    if (matches.length > 1) throw new Error('Task name is ambiguous; use its exact ID. Nothing changed.');
+    if (!matches.length) throw new Error(`No retained task matches ${params.id ?? params.name}. Nothing changed.`);
+    return matches[0];
+  }
+  takeoverEvidence(record) {
+    if (this.running().has(record.id) || this.owned(record)) throw new Error(`Task "${record.name}" already belongs to this coordinator. Nothing changed.`);
+    if (!this.otherOwner(record)) throw new Error(`The coordinator that owned "${record.name}" (process ${record.owner.pid}) has exited, so no takeover is needed. Use subagent_resume or subagent_stop.`);
+    const support = this.support(record.owner);
+    if (!support) throw new Error(`The coordinator in process ${record.owner.pid} runs Rex code that cannot hand tasks over safely. Run /reload in that coordinator once, then take "${record.name}" over. Nothing changed.`);
+    if (support.hosted.includes(record.id)) throw new Error(`The coordinator in process ${record.owner.pid} still supervises "${record.name}" as a running agent. Stop it there instead. Nothing changed.`);
+    if (!record.persistent) throw new Error(`Task "${record.name}" is not a persistent specialist; only those can be taken over. Nothing changed.`);
+    if (record.stopRequested && !record.stopConfirmed) throw new Error(`A stop of "${record.name}" is pending in its coordinator. Nothing changed.`);
+    if (record.dispatching) throw new Error(`A dispatch to "${record.name}" may be in flight. Nothing changed.`);
+    this.checkPolicy(record);
+    this.attest(record);
+    if (!record.identity?.pid || !record.identity.birth) throw new Error(`"${record.name}" has no process attestation, so its agent cannot be proven gone. Nothing changed.`);
+    let probe;
+    try { probe = probeProcess(record.identity, { birth: this.birth, command: this.command }); } catch (error) { probe = { state: 'unknown', reason: String(error) }; }
+    if (probe.state !== 'crashed') throw new Error(`The agent of "${record.name}" is ${probe.state === 'alive' ? 'still running' : 'not proven gone'} (${probe.reason}). Nothing changed.`);
+    return { reason: probe.reason, checkout: this.takeoverCheckout(record) };
+  }
+  takeoverCheckout(record) {
+    if (!record.worktree) return undefined;
+    const matches = this.worktrees.records().filter((row) => !row.removed && row.path === record.worktree);
+    if (matches.length !== 1) throw new Error(`The checkout of "${record.name}" is not one managed worktree. Nothing changed.`);
+    const [checkout] = matches;
+    this.worktrees.verify(checkout);
+    const other = this.store.list().find((row) => row.id !== record.id && row.worktree === record.worktree && !row.stopConfirmed && !row.completed);
+    if (other) throw new Error(`Task "${other.name}" uses the checkout of "${record.name}". Nothing changed.`);
+    const { lease } = checkout;
+    if (lease && (lease.runId !== record.id || (!sameOwner(lease, record.owner) && leaseAlive(lease, { birth: this.birth })))) {
+      throw new Error(`Another task or process holds the checkout lease of "${record.name}". Nothing changed.`);
+    }
+    return checkout;
+  }
+  takeover(confirmed) {
+    return this.store.exclusive(confirmed.id, () => {
+      const current = this.store.read(confirmed.id);
+      if (!current || !sameOwner(current.owner, confirmed.owner) || Boolean(current.stopConfirmed) !== Boolean(confirmed.stopConfirmed)
+        || ['surface', 'sessionFile', 'logicalId', 'generationId', 'policyHash'].some((key) => current[key] !== confirmed[key])) {
+        throw new Error(`Task "${confirmed.name}" changed after the takeover was confirmed. Nothing changed.`);
+      }
+      const { reason, checkout } = this.takeoverEvidence(current);
+      const lease = checkout?.lease;
+      if (lease) {
+        checkout.lease = { ...lease, pid: this.owner.pid, birth: this.owner.birth };
+        this.worktrees.save(checkout);
+      }
+      const from = current.owner;
+      current.owner = this.owner;
+      current.handoff = { from, at: Date.now(), evidence: reason };
+      current.reason = `Taken over from coordinator process ${from.pid} after its agent exited: ${reason}`;
+      delete current.failure;
+      current.updatedAt = Date.now();
+      try { this.store.write(current); } catch (error) {
+        if (lease) {
+          checkout.lease = lease;
+          this.worktrees.save(checkout);
+        }
+        throw error;
+      }
+      this.recovered.add(current.id);
+      this.liveness.delete(current.id);
+      this.observe();
+      this.schedule(current.id);
+      return { id: current.id, name: current.name, status: 'taken_over', from, sessionFile: current.sessionFile, surface: current.surface, worktree: current.worktree, reason: current.reason };
+    });
   }
   forceEvidence(params) {
     const record = this.resolve(params, true);
@@ -495,6 +651,8 @@ export class RexRecovery {
     if (probe.state === 'alive') throw new Error(`Task "${record.name}" is still running (${probe.reason}); use subagent_send instead of resuming it`);
     if (probe.state === 'unknown') throw new Error(`Task "${record.name}" liveness cannot be established (${probe.reason}); nothing was resumed`);
     if (record.stopConfirmed && !record.stashed) throw new Error(`Task "${record.name}" was stopped and its tab closed; launch a new task instead`);
+    const other = this.otherOwner(record);
+    if (other) throw new Error(`${other}; nothing was resumed. If its agent has exited, Justin can move the task here with /rex-takeover.`);
     const stashed = Boolean(record.stopConfirmed && record.stashed);
     if (stashed) {
       if (record.persistent) this.assertCapacity(capacity);
@@ -576,6 +734,8 @@ export class RexRecovery {
     return candidates[0];
   }
   control(name, params) {
+    const fenced = this.hosted(params);
+    if (fenced) throw fenced;
     const record = this.resolve(params);
     if (!record) return undefined;
     if (!this.flags.recovery || !this.recovered.has(record.id)) {
@@ -623,6 +783,7 @@ export class RexRecovery {
   }
   close() {
     this.closed = true;
+    if (this.published !== undefined && sameOwner(this.support(this.owner) ?? {}, this.owner)) unlinkSync(this.capabilityFile(this.owner.pid));
     for (const watcher of this.watchers.values()) watcher.close();
     this.watchers.clear();
     this.events?.kill('SIGTERM');

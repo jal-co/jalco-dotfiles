@@ -4,11 +4,13 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { cleanText, sessionCwd } from './tasks.ts';
+import { batchOf, blockers, findWork, isClosed, workStatus } from './work.ts';
 
 const run = promisify(execFile);
 const reference = /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/([^/\r\n]+\/)?[^/\r\n]+$/;
 
-export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Archive'];
+export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Work', 'Archive'];
+export const WORK_TAB = 5;
 export const SEARCH_TAB = TABS.length;
 const AGENT = {
   blocked: ['! blocked', 'red'],
@@ -205,7 +207,51 @@ const note = (text, tone = 'dim') => ({ kind: 'note', text, tone });
 
 function section(title, items, empty) {
   if (!items.length && !empty) return [];
-  return [{ kind: 'section', title, count: items.length }, ...(items.length ? items : [note(empty)]), { kind: 'blank' }];
+  return [{ kind: 'section', title, count: items.filter((item) => !item.parent).length }, ...(items.length ? items : [note(empty)]), { kind: 'blank' }];
+}
+
+const WORK_LABEL = {
+  open: ['○ open', 'dim'], active: ['● active', 'yellow'], blocked: ['◌ waiting', 'yellow'],
+  ready: ['◆ ready', 'green'], done: ['✓ done', 'green'], dropped: ['– dropped', 'dim'],
+};
+
+export function workItem(doc, entry, batch) {
+  const status = workStatus(doc, entry);
+  const [text, tone] = WORK_LABEL[status];
+  const member = batch?.members.find((row) => row.id === entry.id);
+  return {
+    kind: 'item', key: `w:${entry.id}`, id: entry.id, title: batch ? `↳ ${entry.title}` : entry.title,
+    project: entry.kind === 'batch' ? entry.downstream ?? '' : basename(entry.links.repo ?? ''),
+    work: { entry, status, blockers: isClosed(entry) ? [] : blockers(doc, entry), included: member?.included?.version },
+    agent: { text, tone }, parent: batch && `w:${batch.id}`,
+  };
+}
+
+const stepItem = (batch, step, index) => ({
+  kind: 'item', key: `w:${batch.id}:${index + 1}`, id: `step ${index + 1}`, title: `↳ ${step.text}`, project: '', compact: true,
+  work: { entry: batch, step: index + 1, done: step.done }, agent: { text: step.done ? 'done' : '', tone: step.done ? 'green' : 'dim' }, parent: `w:${batch.id}`,
+});
+
+export function readyToLand(doc) {
+  return (doc?.entries ?? []).filter((entry) => entry.kind === 'batch' && entry.state === 'open' && workStatus(doc, entry) === 'ready');
+}
+
+export function workView(data, { showStopped = false } = {}) {
+  const doc = data.work;
+  if (doc?.error) return [note(doc.error, 'red')];
+  if (!doc?.entries.length) return [note('Nothing queued. w queues a fix from one sentence, b starts a batch.')];
+  const batchRows = (batch) => [workItem(doc, batch), ...batch.members.map((member) => workItem(doc, findWork(doc, member.id), batch)), ...batch.steps.map((step, index) => stepItem(batch, step, index))];
+  const open = doc.entries.filter((entry) => !isClosed(entry));
+  const batches = open.filter((entry) => entry.kind === 'batch');
+  const ready = batches.filter((entry) => workStatus(doc, entry) === 'ready');
+  const loose = (entry) => entry.kind === 'fix' && !batches.includes(batchOf(doc, entry.id));
+  const closed = doc.entries.filter((entry) => isClosed(entry) && (entry.kind === 'batch' || loose(entry)));
+  return [
+    ...section('Ready to land', ready.flatMap(batchRows)),
+    ...section('Batches', batches.filter((entry) => !ready.includes(entry)).flatMap(batchRows)),
+    ...section('Fixes', open.filter(loose).map((entry) => workItem(doc, entry))),
+    ...(showStopped ? section('Done or dropped', closed.map((entry) => workItem(doc, entry))) : closed.length ? [note(`${closed.length} done or dropped   x shows them`)] : []),
+  ];
 }
 
 function grouped(items, key) {
@@ -265,7 +311,9 @@ export function inbox(data) {
       return { ...(task ? taskItem(task, data) : pullRequestItem(pr)), key: `p:${pr.url}`, pr, approval: true };
     });
   const coordinator = coordinatorItems(data.coordinator);
-  return { coordinator, asked, broken, review, merged, count: coordinator.length + asked.length + broken.length + review.length + merged.length };
+  const landing = readyToLand(data.work).map((entry) => workItem(data.work, entry));
+  const flagged = (data.work?.entries ?? []).filter((entry) => entry.flag && !isClosed(entry)).map((entry) => workItem(data.work, entry));
+  return { coordinator, asked, broken, review, merged, landing, flagged, count: coordinator.length + asked.length + broken.length + review.length + merged.length + landing.length + flagged.length };
 }
 
 function archiveItem(row, data) {
@@ -296,10 +344,11 @@ export function archiveView(data, { filter = '', now = Date.now() } = {}) {
 export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search, filter } = {}) {
   if (tab === TABS.length - 1) return archiveView(data, { filter, now });
   if (tab === 0) {
-    const { coordinator, asked, broken, review, merged, count } = inbox(data);
+    const { coordinator, asked, broken, review, merged, landing, flagged, count } = inbox(data);
     if (!count) return [note('Nothing needs you right now.')];
-    return [...section('Coordinator asks', coordinator), ...section('Agents asking', asked), ...section('Approve cleanup', merged), ...section('Failed or crashed', broken), ...section('Ready for review', review)];
+    return [...section('Coordinator asks', coordinator), ...section('Agents asking', asked), ...section('Approve cleanup', merged), ...section('Failed or crashed', broken), ...section('Ready for review', review), ...section('Ready to land', landing), ...section('Check work', flagged)];
   }
+  if (tab === WORK_TAB) return workView(data, { showStopped });
   if (tab === SEARCH_TAB) {
     if (!search) return [note('Press / to search Linear or paste an issue link.')];
     if (search.status) return [note(search.status, search.tone ?? 'dim')];
@@ -345,8 +394,8 @@ export function withoutHidden(rows, hidden) {
   let section;
   for (const row of rows) {
     if (row.kind === 'section') { section = { ...row, count: 0 }; out.push(section); continue; }
-    if (row.kind === 'item' && hidden.has(row.key)) continue;
-    if (row.kind === 'item' && section) section.count += 1;
+    if (row.kind === 'item' && (hidden.has(row.key) || hidden.has(row.parent))) continue;
+    if (row.kind === 'item' && section && !row.parent) section.count += 1;
     out.push(row);
   }
   return out.filter((row, index) => row.kind !== 'section' || row.count > 0 || out[index + 1]?.kind === 'note')

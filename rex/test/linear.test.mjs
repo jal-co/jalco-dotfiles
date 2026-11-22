@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mock, test } from 'node:test';
 import {
-  applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  SEARCH_TAB, applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   createProject, defaultBase, directCheckout, readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories, terms, workspaceRepositories } from '../src/repositories.mjs';
@@ -174,9 +174,9 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[1], /^ {2}Inbox {4}Issues {4}Backlog {4}Sessions {4}Today {4}Archive +● 1 working {3}8\/8 agents {2}$/);
+  assert.match(screen[1], /^ {2}Inbox {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive +● 1 working {3}8\/8 agents {2}$/);
   assert.match(screen[2], /^ {44}▔{5} +$/);
-  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[1]), /^ {2}Inbox 3 {4}Issues {4}Backlog {4}Sessions {4}Today {4}Archive +● 1 working/);
+  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[1]), /^ {2}Inbox 3 {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive +● 1 working/);
   assert.match(plain(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[2]), /^ {13}▔{6} +$/);
   assert.match(plain(renderScreen({ ...state, working: 0, counts: [0] }, 140, 24)[1]), /^ {2}Inbox {4}Issues.* {2,}8\/8 agents {2}$/);
   assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[1], /\u001b\[1mIssues\u001b\[0m {4}\u001b\[2mBacklog/);
@@ -188,7 +188,7 @@ test('the screen fills the terminal exactly, measures wide characters and strips
   assert.match(screen[9], /^ {4}working +$/);
   assert.ok(!screen.some((row) => row.includes('·')));
   assert.match(screen.at(-4), /^ +$/);
-  assert.match(screen.at(-2), /^ {2}h hide {3}n new {3}\/ search {3}c coordinator {3}H hidden {3}r refresh {3}\? keys {3}q quit +$/);
+  assert.match(screen.at(-2), /^ {2}h hide {3}n new {3}w queue fix {3}\/ search {3}c coordinator {3}H hidden {3}r refresh {3}\? keys {3}q quit +$/);
   assert.match(renderScreen(state, 40, 24).map(plain).at(-2), /^ {2}h hide {3}n new {3}\? keys {3}q quit +$/);
   assert.match(renderScreen(state, 20, 24).map(plain).at(-2), /^ {2}\? keys {3}q quit +$/);
   const help = renderScreen({ ...state, help: true }, 100, 24).map(plain);
@@ -283,9 +283,9 @@ test('the inbox collects questions, failures, finished work and merged PRs waiti
 
 test('search results render in their own tab', () => {
   const data = { tasks: [], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } };
-  assert.deepEqual(sections(buildView(6, data, { search: { query: 'storage', issues: [issue('ENG-10', 'backlog')] } })), { 'Results for “storage”': ['ENG-10'] });
-  assert.equal(buildView(6, data, { search: { query: 'x', status: 'Searching Linear…' } })[0].text, 'Searching Linear…');
-  assert.match(buildView(6, data, { search: { query: 'zzz', issues: [] } })[0].text, /No issues match/);
+  assert.deepEqual(sections(buildView(SEARCH_TAB, data, { search: { query: 'storage', issues: [issue('ENG-10', 'backlog')] } })), { 'Results for “storage”': ['ENG-10'] });
+  assert.equal(buildView(SEARCH_TAB, data, { search: { query: 'x', status: 'Searching Linear…' } })[0].text, 'Searching Linear…');
+  assert.match(buildView(SEARCH_TAB, data, { search: { query: 'zzz', issues: [] } })[0].text, /No issues match/);
 });
 
 test('pasted Linear links and identifiers resolve to one issue; other text searches', async () => {

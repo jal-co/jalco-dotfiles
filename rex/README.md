@@ -46,6 +46,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/linear.mjs`, `src/linear-tui.mjs`, `bin/rex-linear` | Standalone command center for the inbox, Linear issues and task sessions |
 | `src/repositories.mjs` | Picks the repository for a launch from linked PRs, history and code matches |
 | `src/requests.ts` | Request inbox the coordinator uses to launch, message, stop and resume tasks for other tools |
+| `src/work.ts`, `src/work-tool.ts`, `src/work-heartbeat.ts` | Durable work queue of fixes and delivery batches, the coordinator's `rex_work` tool and the heartbeat that checks it |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
@@ -80,9 +81,9 @@ Checkouts live under `~/.rex/worktrees`. Ownership records, terminal bindings, m
 
 ## PR tracking and retained memory
 
-The coordinator checks managed task branches through read-only `gh` queries once a minute while it is running. After authorized publication, `rex_pr_track` registers a task ID and canonical GitHub PR URL explicitly; automatic discovery also catches PRs created in task sessions. Repository and head branch must match the managed task. Multiple matching PRs require explicit selection rather than a guess.
+The coordinator checks managed task branches through read-only `gh` queries every five minutes while it is running. After authorized publication, `rex_pr_track` registers a task ID and canonical GitHub PR URL explicitly; automatic discovery also catches PRs created in task sessions. Repository and head branch must match the managed task. Multiple matching PRs require explicit selection rather than a guess.
 
-PR records live in `~/.rex/pull-requests`, outside Git. Watches resume on coordinator reload or restart and check immediately. They do not run while the coordinator is closed. GitHub authentication or network failures are reported and do not count as merges. Closed-but-unmerged PRs do not trigger cleanup prompts.
+PR records live in `~/.rex/pull-requests`, outside Git. Watches resume on coordinator reload or restart. They do not run while the coordinator is closed. Each check asks GitHub for a repository's name once, however many tasks share it. Coordinators in the same directory share one persisted due time, kept under the watcher lock. Every watcher checks it, including the one that set it, so neither extra ticks, a reload nor a second coordinator repeats a sweep before it is due, and each watcher's timer wakes at that time. Merge notifications still go out on every tick. Explicit `rex_pr_track` registration still checks GitHub right away. An exhausted rate limit or an unreachable GitHub ends the sweep at once instead of failing every remaining task. A rate limit pauses checks for every coordinator until GitHub's reset time, or 15 minutes when it gives none; a network outage retries when the next sweep is due. Either is announced once, with one more line once GitHub actually answers again, and watches stay registered throughout. Other GitHub failures are reported once per task. None of them count as merges. Closed-but-unmerged PRs do not trigger cleanup prompts.
 
 A verified merge sends one coordinator message asking whether to clean up the task. Nothing is stopped or removed automatically. `/rex-prs` shows PR state, notification delivery and cleanup state. `/rex-pr-retain <URL>` records a decision to keep the task without further cleanup prompts. After approval, the coordinator follows the existing process-ownership and worktree-removal checks; successful removal updates the saved cleanup state.
 
@@ -98,11 +99,12 @@ Use `rex_task_history` to find archived logs by task name, branch, checkout or P
 
 | Tab | Shows |
 | --- | --- |
-| Inbox | What needs you, in order: the coordinator's unanswered question or open confirmation dialog, agents asking a question, merged PRs to approve for cleanup, failed or crashed agents, and finished work ready for review. It opens first when it has anything |
+| Inbox | What needs you, in order: the coordinator's unanswered question or open confirmation dialog, agents asking a question, merged PRs to approve for cleanup, failed or crashed agents, finished work ready for review, open batches ready to land, and work the heartbeat flagged for you to check. It opens first when it has anything |
 | Issues | Linear issues assigned to you, in progress and todo, sorted by priority |
 | Backlog | Assigned backlog and triage issues, grouped by Linear project |
 | Sessions | The coordinator's tasks from `~/.rex/tasks`, grouped by repository, with agent and PR state. Stashed tasks sit in their own Stashed section at the end, newest first, followed by Partly cleaned up |
 | Today | Brief: in progress, up next and done since yesterday, including merged PRs. `←` `→` switches to a flat list |
+| Work | The [work queue](#work-queue): batches ready to land, batches still waiting with their fixes and steps underneath, and fixes on their own. `x` shows done and dropped work |
 | Archive | Every cleaned-up task, newest first, titled by its Linear issue or the goal in its brief. `enter` reopens its conversation as a new Pi session (`pi --fork`) in a tab of the repository's session; the archive itself is never changed. `v` opens the transcript in the browser via Pi's HTML export, `/` filters |
 | Search | Linear search results, after `/` |
 
@@ -111,9 +113,10 @@ The bottom bar lists only the keys that apply to the selected row, with what eac
 | Key | Action |
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |
-| `tab`, `shift+tab`, `1` to `6` | Switch tabs |
+| `tab`, `shift+tab`, `1` to `7` | Switch tabs |
 | `enter` | Focus a running task's Rex tab, open its PR, or launch an agent for an issue |
 | `n` | New task from a one-line goal, with or without a Linear issue |
+| `w` | Queue a fix from one sentence. Starts nothing |
 | `/` | Search Linear. Pasting an issue link or ID goes straight to launching it |
 | `c` | Type to the coordinator. On a merged PR, the cleanup request is prefilled |
 | `o` | Open the PR, or the Linear issue when there is no PR |
@@ -152,6 +155,38 @@ The launch screen names the pick and why, and marks a close call as a best guess
 Launch, send, stop, stash, resume and coordinator messages go to the running coordinator, so the cap, single-writer checks and recovery rules apply exactly as when the coordinator calls those tools itself. The command center writes a request to `~/.rex/requests`; the coordinator whose directory matches claims it once, runs `subagent`, `subagent_send`, `subagent_stop`, `rex_task_stash` or `subagent_resume`, or delivers your message as if typed, then writes the result back. Tool requests also leave a note for its next turn. Requests expire after 60 seconds, so a coordinator that starts later never runs stale work. Reading Linear, focusing tabs and opening links happen in the command center directly.
 
 Cleanup from the command center runs as one coordinator request per task. Your confirmation stands in for the coordinator's removal dialog through a one-shot internal approval the model cannot set; every other removal check still applies: ownership, leases, processes, Git state and the log archive. A running agent is stopped first and its exit confirmed within 30 seconds; otherwise nothing is removed. Requests are claimed when they arrive, so a long cleanup queue never expires the requests behind it. Hidden rows are stored as row keys in `~/.rex/command-center.json`; hiding changes nothing about the task.
+
+### Work queue
+
+The work queue holds work that is not a Linear ticket yet, or spans several: a fix to make upstream later, or several upstream changes that should land downstream in one package bump and one PR. It lives in `~/.rex/work.json` (`REX_WORK_FILE` overrides it), outside Git, and survives restarts. The coordinator and the command center both write to it through a lock file, so neither loses the other's change. A corrupt file is reported and never overwritten.
+
+A **fix** can be one sentence. Repository, Linear issue, Rex task and PR links are optional. A **batch** includes fixes and tracks what its release has to contain, not only its version:
+
+```text
+w3 batch [blocked] Update Platform playground
+  delivers @mastra/playground-ui to platform
+  includes: w1 Alert card alignment (done, in 1.4.0); w2 Sidebar details panel (done)
+  release: 1.4.0 (npm changelog lists #101)
+  steps: 1.[ ] Bump @mastra/playground-ui in platform  2.[ ] Apply the integration changes it needs  3.[ ] Verify everything together  4.[ ] Open one PR
+  blocked by: w2 not confirmed in 1.4.0
+```
+
+A batch is ready to land when every included fix is done, a release is recorded, and each fix is confirmed in that version. A fix that missed the release keeps the batch blocked instead of quietly completing it. Recording a new version does not carry earlier confirmations over. Any entry can also depend on others. Every entry is open, active, done or dropped. Done is refused while a dependency, included fix, confirmation or batch step is outstanding, and the refusal names each one. A fix belongs to at most one batch that is not dropped. Dependency and membership cycles are rejected.
+
+Ask the coordinator in plain words: "queue a fix for the toast overflow upstream", "put w1 and w2 in the next playground bump", "leave w2 out of w3", "1.4.0 is published and its changelog lists #101" or "what is ready to land?". It uses `rex_work` (`show`, `add`, `update`, `release`). It records a release only from evidence it has seen and confirms each fix by ID. `/rex-work` lists open work, `/rex-work all` everything and `/rex-work w3` one entry. `/rex-fix <sentence>` queues a fix.
+
+#### Heartbeat
+
+While the coordinator runs, a heartbeat checks the queue every 10 minutes, and a couple of seconds after `rex_work` changes something. It only reads from GitHub, npm and Git, so it notices work you finished outside the coordinator:
+
+1. A fix whose linked PR merged is marked done, with the PR number, merge time and commit. A PR closed without merging is flagged.
+2. A fix without a PR is searched for an existing fix, at most every six hours and five searches per check, among PRs merged in its repository since it was queued. A PR naming its exact Linear issue in the title or branch (`PLTFRM-12` as a whole token, in any case, so `PLTFRM-123` does not count) is linked and closes the fix. Any other match is only flagged ("may already be fixed by #31016"). `K` on the row, or `dismissFlag` through the coordinator, dismisses it so that PR is not flagged again.
+3. A batch with a package is checked against the newest `alpha` or `latest` version on npm. The heartbeat reads that exact version's npm metadata and needs its `gitHead`, the full commit it was published from, and the same GitHub repository as the package. A fix counts as shipped only when the package's `CHANGELOG.md` at that commit lists its PR in that version's section or an older one below it; the default branch is never used, since it can list a PR that shipped later. The heartbeat records the commit as the release evidence and names each merged fix that is missing. When npm records no commit, a different repository or another version, nothing is confirmed and the batch waits until you record the release through the coordinator. Once every fix is confirmed, the release stays on that version, so a newer alpha does not move it.
+4. A batch lands, with every step checked, when the downstream repository's default branch pins the package at or past the confirmed version (`git fetch`, then `git grep` of its `package.json` files), or when its linked downstream PR merges.
+
+The coordinator gets one message per check, and only when something changed, so it tells you in a line or two. There is no daily nudge. Ready batches and flagged work wait in the Inbox. The repeated state is not announced again, and connectivity failures stay quiet. A heartbeat change never starts, publishes or cleans up anything. Package, repository and downstream names that are not plain package names, repository names or absolute paths are skipped before any command runs.
+
+Queuing records intent only. It never launches an agent, creates or changes a Linear issue, commits, pushes, opens a PR or cleans up, and those still need your usual approval. In the Work tab, `enter` drafts a message to the coordinator (`Start w4: …`, `Land w3: …`) that you edit and send yourself. `space` checks off a fix, batch or step, `m` moves a fix into or out of a batch, `K` dismisses a heartbeat flag, `b` starts a batch, `d` drops an entry and `u` reopens it. Releases, packages and dependencies are set through the coordinator.
 
 ### Force cleanup
 
@@ -209,6 +244,16 @@ Recovery saves task metadata under `~/.rex/tasks`. After a coordinator process r
 On first installation, reload the coordinator and any already-running task agents before relying on restart recovery. Old children without process attestation remain unverified. Reloading a task agent publishes its identity without starting a new process. This does not restore agents whose Rex terminals or processes have been destroyed.
 
 `rex_task_probe` reports whether a task's recorded PID still has the recorded start time and command line. Absence or a mismatch is a crash. `subagent_stop` retires a confirmed-crashed task, attached or not, clearing its lease and capacity and closing its tab. `subagent_resume` with the task's session file restarts the same session, generation and identity in its retained tab and worktree instead. A closed tab is reopened in the repository session. Neither runs automatically, and both refuse while the process is alive or unverifiable. Confirmed stops close the task tab, resolving its window from the terminal at close time. Managed tasks cannot rename the shared repository session.
+
+### Taking over a task from another coordinator
+
+A task owned by another live coordinator is refused everywhere: "Another live coordinator owns this task". When that coordinator keeps running but its task agent has died, `/rex-takeover <name or ID>`, or `rex_task_takeover` when you ask the coordinator to take a task over, moves the task to this coordinator after a confirmation dialog. It refuses unless the recorded agent PID's start time or command line proves the agent gone. A live, unattested or unreadable agent is never taken over, and neither is a task whose stop or dispatch is still pending, an ordinary agent, or a retired one.
+
+The old owner must also have published that it can hand tasks over. Every coordinator running this build writes `~/.rex/tasks/coordinators/<pid>.json` with its process start time and the tasks its own agent host still supervises, and removes it on shutdown or reload. A takeover requires that file to match the owner's PID and start time exactly and not to list the task. A coordinator started before this build has no such file, so its tasks cannot be taken over: older code writes task records and drives its supervised agents without checking for a handoff, and nothing can change that from outside. Run `/reload` in that coordinator once; it keeps its agents and tasks, and from then on its tasks can be taken over. A coordinator that exited needs none of this, because normal recovery already reclaims its tasks.
+
+The takeover rechecks everything under the task's lock and refuses if the task changed after you confirmed. It keeps the logical identity, generation, policy, tab, session, checkout and logs, moves the checkout lease only when it belongs to that task and to the old owner or a dead process (and puts it back if the task record cannot be written), and records the old owner under `handoff`. It launches nothing. Resume the task afterwards with `subagent_resume`, which runs its normal checks.
+
+After the handoff the old coordinator refuses to resume, send to, stop, retire or stash the task, and its task saves, result deliveries, stop confirmations, receipts and messages for it no longer write once the owner has changed.
 
 ### Stashed tasks
 

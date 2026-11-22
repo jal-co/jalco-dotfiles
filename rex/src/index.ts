@@ -16,6 +16,7 @@ import { TaskHistory } from './history.ts';
 import { RexRecovery } from './recovery.ts';
 import { RequestInbox } from './requests.ts';
 import { cleanupTask, forceCleanupTask } from './cleanup.ts';
+import { registerWork } from './work-tool.ts';
 import rexTask from './task.ts';
 
 export default async function rexAgents(pi: ExtensionAPI) {
@@ -36,6 +37,7 @@ export default async function rexAgents(pi: ExtensionAPI) {
     load('maestro/adapters/pi/launch.ts'),
   ]);
   const pullRequests = registerPullRequests(pi, () => worktrees.records());
+  registerWork(pi);
   const history = new TaskHistory();
   pi.registerTool({
     name: 'rex_task_history', label: 'Task history',
@@ -91,6 +93,37 @@ export default async function rexAgents(pi: ExtensionAPI) {
       const result = await stash(params, ctx);
       if (!result.ok) throw new Error(result.text);
       return { content: [{ type: 'text', text: result.text }], details: result };
+    },
+  });
+  const takeover = async (params, ctx) => {
+    if (!recovery) throw new Error('Rex task recovery is disabled, so task processes cannot be checked; nothing was taken over.');
+    const active = recovery;
+    const task = active.takeoverTarget(params);
+    const { reason } = active.takeoverEvidence({ ...task });
+    const question = `Move "${task.name}" from the coordinator in process ${task.owner.pid}${task.owner.session ? ` (${task.owner.session})` : ''} to this one? Its agent is gone: ${reason}. The session, generation, tab, checkout and logs stay as they are and nothing is launched; resume it afterwards with subagent_resume. That coordinator has published that it runs takeover-aware Rex code and no longer supervises the task, so it keeps running and refuses further changes to it.`;
+    if (!ctx.hasUI || !await ctx.ui.confirm('Take over Rex task?', question)) throw new Error('Rex task takeover was not confirmed. Nothing changed.');
+    return active.takeover(task);
+  };
+  const takenOver = (result) => `Task "${result.name}" now belongs to this coordinator. ${result.reason}. Nothing was launched; resume it with subagent_resume and session ${result.sessionFile}.`;
+  pi.registerTool({
+    name: 'rex_task_takeover', label: 'Take over task',
+    description: 'Move a retained Rex task from another live coordinator to this one, only when Justin explicitly asks for a takeover. He confirms it in a dialog. Refused unless the task agent is proven gone by its recorded PID start time and command line; a live or unverifiable agent is never taken over. Launches nothing and keeps the session, generation, tab, checkout and logs; resume the task afterwards with subagent_resume. "Another live coordinator owns this task" alone is not a request to take it over.',
+    parameters: Type.Object({ id: Type.Optional(Type.String()), name: Type.Optional(Type.String()) }),
+    async execute(_id, params, _signal, _update, ctx) {
+      const result = await takeover(params, ctx);
+      return { content: [{ type: 'text', text: takenOver(result) }], details: result };
+    },
+  });
+  pi.registerCommand('rex-takeover', {
+    description: 'Take over a task from another live coordinator once its agent has exited: /rex-takeover <task name or ID>',
+    handler: async (args, ctx) => {
+      const target = args.trim();
+      try {
+        const byId = recovery?.store.list().some((row) => row.id === target || row.logicalId === target);
+        ctx.ui.notify(takenOver(await takeover(byId ? { id: target } : { name: target }, ctx)), 'info');
+      } catch (error) {
+        ctx.ui.notify(error instanceof Error ? error.message : String(error), 'error');
+      }
     },
   });
   const removeApproved = async (target, preserve, ctx) => {

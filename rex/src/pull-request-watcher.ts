@@ -10,10 +10,19 @@ import { lockOwnerGone, reclaimLock } from './worktrees.ts';
 
 const execute = promisify(execFile);
 const fields = 'url,state,mergedAt,headRefName,headRefOid,headRepository';
-const CONNECTIVITY_ERROR = /error connecting to api\.github\.com|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network/i;
+const CONNECTIVITY_ERROR = /error connecting to api\.github\.com|ENOTFOUND|ECONNREFUSED|ECONNRESET|ECONNABORTED|ETIMEDOUT|EAI_AGAIN|EPIPE|\bEOF\b|connection reset|broken pipe|i\/o timeout|TLS handshake timeout|no such host|context deadline exceeded|socket hang up|network/i;
+const RATE_LIMIT = /rate limit|HTTP 429|submitted too quickly|abuse detection/i;
+const RATE_COOLDOWN = 15 * 60_000;
+const errorText = (error) => `${error?.stderr ?? ''}\n${error?.message ?? error}`;
 
-function isConnectivityError(error) {
-  return CONNECTIVITY_ERROR.test(String(error?.stderr ?? '') + String(error?.message ?? error));
+export function isConnectivityError(error) {
+  return Boolean(error?.killed) || CONNECTIVITY_ERROR.test(errorText(error));
+}
+
+export function outageOf(error) {
+  if (RATE_LIMIT.test(errorText(error))) return 'rate';
+  if (isConnectivityError(error)) return 'network';
+  return undefined;
 }
 
 export async function github(args, cwd, signal) {
@@ -46,6 +55,17 @@ export class PullRequestStore {
     const file = join(this.root, `${this.key(row.origin, row.url)}.json`);
     const temporary = `${file}.${randomUUID()}.tmp`;
     writeFileSync(temporary, `${JSON.stringify(row, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+    renameSync(temporary, file);
+  }
+  sweepFile(origin) { return join(this.root, `${this.key(origin, 'watch')}.sweep`); }
+  sweep(origin) {
+    try { return JSON.parse(readFileSync(this.sweepFile(origin), 'utf8')); } catch { return {}; }
+  }
+  writeSweep(origin, value) {
+    mkdirSync(this.root, { recursive: true, mode: 0o700 });
+    const file = this.sweepFile(origin);
+    const temporary = `${file}.${randomUUID()}.tmp`;
+    writeFileSync(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' });
     renameSync(temporary, file);
   }
   async exclusive(origin, operation) {
@@ -90,9 +110,10 @@ export class PullRequestWatcher {
     }
     return [...unique.values()];
   }
-  async lookup(candidate, url) {
+  async lookup(candidate, url, names = new Map()) {
     const { task, checkout } = candidate;
-    const repo = await this.query(['repo', 'view', '--json', 'nameWithOwner'], checkout.repo, this.controller.signal);
+    if (!names.has(checkout.repo)) names.set(checkout.repo, this.query(['repo', 'view', '--json', 'nameWithOwner'], checkout.repo, this.controller.signal));
+    const repo = await names.get(checkout.repo);
     assert.match(repo.nameWithOwner, /^[\w.-]+\/[\w.-]+$/);
     let prs;
     if (url) {
@@ -141,28 +162,9 @@ export class PullRequestWatcher {
   async tick() {
     if (this.closed || this.pending || this.tracking) return this.pending;
     this.pending = this.store.exclusive(this.origin, async () => {
-      const candidates = this.candidates();
-      const saved = this.store.list(this.origin);
-      for (const candidate of candidates) {
-        if (this.closed) return;
-        const known = saved.filter((row) => row.checkout === candidate.checkout.path);
-        try {
-          if (!known.length) {
-            const pr = await this.lookup(candidate);
-            if (pr) this.save(candidate, pr);
-          } else {
-            for (const row of known.filter((row) => row.state !== 'MERGED' && row.cleanup === 'pending')) {
-              this.save(candidate, await this.lookup(candidate, row.url));
-            }
-          }
-          this.errors.delete(candidate.task.id);
-        } catch (error) {
-          if (!this.closed && !this.errors.has(candidate.task.id) && !isConnectivityError(error)) {
-            this.errors.add(candidate.task.id);
-            this.notify(`PR tracking for ${candidate.task.name} failed: ${String(error)}`);
-          }
-        }
-      }
+      const state = this.store.sweep(this.origin);
+      const now = Date.now();
+      if (now >= (state.dueAt ?? 0)) await this.sweep(state, now);
       if (this.closed) return;
       for (const row of this.store.list(this.origin)) {
         if (row.state !== 'MERGED' || row.cleanup !== 'pending' || row.notification) continue;
@@ -175,6 +177,65 @@ export class PullRequestWatcher {
       }
     }).catch((error) => { if (!this.closed) this.notify(`PR watcher: ${String(error)}`); }).finally(() => { this.pending = undefined; });
     return this.pending;
+  }
+  async sweep(state, startedAt) {
+    const names = new Map();
+    const saved = this.store.list(this.origin);
+    let answered = 0;
+    let outage;
+    for (const candidate of this.candidates()) {
+      if (this.closed) return;
+      const known = saved.filter((row) => row.checkout === candidate.checkout.path);
+      try {
+        if (!known.length) {
+          const pr = await this.lookup(candidate, undefined, names);
+          answered += 1;
+          if (pr) this.save(candidate, pr);
+        } else {
+          for (const row of known.filter((row) => row.state !== 'MERGED' && row.cleanup === 'pending')) {
+            const pr = await this.lookup(candidate, row.url, names);
+            answered += 1;
+            this.save(candidate, pr);
+          }
+        }
+        this.errors.delete(candidate.task.id);
+      } catch (error) {
+        const kind = outageOf(error);
+        if (kind) {
+          outage = { kind, cwd: candidate.checkout.repo, reason: errorText(error).trim().split('\n')[0].slice(0, 160) };
+          break;
+        }
+        if (!this.closed && !this.errors.has(candidate.task.id)) {
+          this.errors.add(candidate.task.id);
+          this.notify(`PR tracking for ${candidate.task.name} failed: ${String(error)}`);
+        }
+      }
+    }
+    if (this.closed) return;
+    const next = { dueAt: startedAt + this.interval };
+    if (outage) {
+      next.outage = outage.kind;
+      if (outage.kind === 'rate') next.dueAt = await this.rateReset(outage.cwd);
+      if (this.closed) return;
+      if (state.outage !== outage.kind) {
+        this.notify(outage.kind === 'rate'
+          ? `PR checks paused: the GitHub API rate limit is used up. Watches stay registered and checks resume at ${new Date(next.dueAt).toLocaleTimeString()}.`
+          : `PR checks paused: GitHub could not be reached (${outage.reason}). Watches stay registered and checks retry every ${Math.round(this.interval / 60000)} minutes.`);
+      }
+    } else if (state.outage && !answered) {
+      next.outage = state.outage;
+    } else if (state.outage) {
+      this.notify('PR checks resumed: GitHub is reachable again.');
+    }
+    this.store.writeSweep(this.origin, next);
+  }
+  async rateReset(cwd) {
+    try {
+      const { resources } = await this.query(['api', 'rate_limit'], cwd, this.controller.signal);
+      const exhausted = [resources?.graphql, resources?.core].filter((row) => row?.remaining === 0 && row.reset * 1000 > Date.now());
+      if (exhausted.length) return Math.max(...exhausted.map((row) => row.reset * 1000));
+    } catch {}
+    return Date.now() + RATE_COOLDOWN;
   }
   receipt(message) {
     const receipt = message.details?.rexPullRequest;
@@ -204,13 +265,19 @@ export class PullRequestWatcher {
     const uncertain = this.store.list(this.origin).filter((row) => row.notification === 'pending' && row.cleanup === 'pending');
     if (uncertain.length === 1) this.notify(`Merge notification delivery is uncertain for ${uncertain[0].url}. Inspect /rex-prs; cleanup still needs approval.`);
     if (uncertain.length > 1) this.notify(`Merge notification delivery is uncertain for ${uncertain.length} merged PRs. They wait in the command center Inbox under "Merged, cleanup pending"; cleanup still needs approval.`);
-    void this.tick();
-    this.timer = setInterval(() => { void this.tick(); }, this.interval);
+    void this.cycle();
+  }
+  async cycle() {
+    await this.tick();
+    if (this.closed) return;
+    const due = this.store.sweep(this.origin).dueAt ?? 0;
+    const wait = due > Date.now() ? Math.min(due - Date.now(), this.interval) : this.interval;
+    this.timer = setTimeout(() => { void this.cycle(); }, wait);
     this.timer.unref();
   }
   async close() {
     this.closed = true;
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     this.controller.abort();
     await Promise.allSettled([this.pending, this.tracking]);
   }

@@ -9,12 +9,13 @@ import { RexSurfaceProvider, callRex, rexBinary, surfaceTarget } from './provide
 import { PullRequestStore } from './pull-request-watcher.ts';
 import { orphanResults, requestRoot, requestState, submitRequest, REQUEST_TTL } from './requests.ts';
 import { cleanText, TaskStore } from './tasks.ts';
+import { addWork, batchOf, changeWork, readWork, updateWork, workFile } from './work.ts';
 import { TaskHistory } from './history.ts';
 import { RexWorktrees } from './worktrees.ts';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  SEARCH_TAB, TABS, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  SEARCH_TAB, TABS, WORK_TAB, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   createProject, directCheckout, loadLinear, moveCursor, partlyCleaned, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, knownRepositories, rankRepositories } from './repositories.mjs';
@@ -63,7 +64,27 @@ export function ago(at, now) {
 
 const pullNumber = (url) => `PR #${String(url).split('/').at(-1)}`;
 
+function workMeta(item, now) {
+  const { entry, blockers, included } = item.work;
+  const batch = entry.kind === 'batch';
+  const confirmed = batch && entry.release ? entry.members.filter((member) => member.included?.version === entry.release.version).length : 0;
+  const steps = batch ? entry.steps.filter((step) => step.done).length : 0;
+  return [
+    item.agent.text.replace(/^[^\p{L}\p{N}\s]+\s+/u, ''),
+    entry.flag ? `check: ${entry.flag.text}` : '',
+    blockers.length > 1 ? `${blockers[0]} (+${blockers.length - 1} more)` : blockers[0] ?? '',
+    batch && entry.release ? `${confirmed} of ${entry.members.length} confirmed in ${entry.release.version}` : '',
+    batch ? `${steps}/${entry.steps.length} steps` : '',
+    included ? `in ${included}` : '',
+    entry.links.pr ? pullNumber(entry.links.pr) : '',
+    entry.links.issue && !entry.links.issue.startsWith('https://') ? entry.links.issue : '',
+    entry.links.task ? `task ${entry.links.task}` : '',
+    ago(entry.updatedAt, now),
+  ].filter(Boolean);
+}
+
 export function meta(item, now) {
+  if (item.work) return workMeta(item, now);
   if (item.coordinator) return [item.coordinator.dialog ? 'waiting on a confirmation in its tab' : 'waiting for your answer'];
   if (item.archive) return [`archived ${ago(item.archive.archivedAt, now)}`, cleanText(item.archive.branch ?? ''), item.archive.pullRequests?.[0] ? pullNumber(item.archive.pullRequests[0]) : ''].filter(Boolean);
   const { task, pr, issue } = item;
@@ -82,11 +103,9 @@ function itemLines(item, width, selected, spinner, now) {
   const rightWidth = Math.min(columns(right), Math.floor(inner * 0.4));
   const title = fit(item.title, Math.max(8, inner - 6 - rightWidth));
   const dot = item.agent.spin ? spinner ?? '●' : !item.agent.text || item.agent.tone === 'dim' ? '○' : '●';
-  return [
-    line([[selected ? '▌ ' : '  ', 'bold'], [`${dot} `, item.agent.text ? item.agent.tone : 'dim'], [title, selected ? 'bold' : ''],
-      [' '.repeat(Math.max(2, inner - 4 - columns(title) - rightWidth))], [fit(right, rightWidth), 'dim']], width),
-    line([['    '], [meta(item, now).join(GAP), 'dim']], width),
-  ];
+  const head = line([[selected ? '▌ ' : '  ', 'bold'], [`${dot} `, item.agent.text ? item.agent.tone : 'dim'], [title, selected ? 'bold' : ''],
+    [' '.repeat(Math.max(2, inner - 4 - columns(title) - rightWidth))], [fit(right, rightWidth), 'dim']], width);
+  return item.compact ? [head] : [head, line([['    '], [meta(item, now).join(GAP), 'dim']], width)];
 }
 
 const KEY_GAP = '   ';
@@ -101,10 +120,12 @@ export function fitKeys(pairs, width) {
 }
 const HELP = [
   ['↑ ↓  j k', 'move'],
-  ['tab  1-7', 'switch tabs'],
+  ['tab  1-8', 'switch tabs'],
   ['← →', 'brief or list on Today'],
   ['enter', 'focus, open PR or launch'],
   ['n', 'new task from a goal'],
+  ['w', 'queue a fix from one sentence; starts nothing'],
+  ['b  m  space', 'Work: new batch, move a fix, check off'],
   ['/', 'search or paste a link'],
   ['c', 'type to the coordinator'],
   ['s', 'message the selected agent'],
@@ -142,11 +163,13 @@ export function legend(state) {
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'keys'], ['q', 'quit']];
   const actions = item ? actionsFor(item, state.records ?? [], state.cleanupFailed) : [];
-  const globals = [['n', 'new'], ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
+  const globals = [['n', 'new'], ['w', 'queue fix'], ...(state.tab === WORK_TAB ? [['b', 'new batch']] : []), ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
   return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
 
 export function enterAction(item) {
+  if (item.work?.step) return item.work.done ? 'uncheck' : 'check';
+  if (item.work) return item.work.entry.kind === 'fix' ? 'start' : item.work.status === 'ready' ? 'land' : 'ask about it';
   if (item.archive) return 'recall';
   if (item.coordinator) return item.coordinator.dialog ? 'open coordinator' : 'answer';
   if (item.approval) return 'approve cleanup';
@@ -158,7 +181,34 @@ export function enterAction(item) {
   return undefined;
 }
 
+function workActions(item) {
+  const { entry, step, done } = item.work;
+  if (step) return [['enter', done ? 'uncheck' : 'check'], ['h', 'hide']];
+  return [
+    ...(entry.state === 'dropped' ? [] : [['enter', enterAction(item)], ['space', entry.state === 'done' ? 'reopen' : 'done']]),
+    ...(entry.kind === 'fix' && entry.state !== 'dropped' ? [['m', 'batch']] : []),
+    ...(entry.flag ? [['K', 'not it']] : []),
+    entry.state === 'dropped' ? ['u', 'reopen'] : ['d', 'drop'],
+    ...(workLink(item) ? [['o', entry.links.pr || entry.flag?.pr ? 'PR' : 'issue']] : []),
+    ['h', 'hide'],
+  ];
+}
+
+export function workLink(item, issues = []) {
+  const { pr, issue } = item.work.entry.links;
+  if (pr || item.work.entry.flag?.pr) return pr ?? item.work.entry.flag.pr;
+  if (issue?.startsWith('https://')) return issue;
+  return issues.find((row) => row.identifier === issue?.toUpperCase())?.url;
+}
+
+export function workDraft(item) {
+  const { entry, status } = item.work;
+  if (entry.kind === 'fix') return `Start ${entry.id}: ${entry.title}`;
+  return status === 'ready' ? `Land ${entry.id}: ${entry.title}` : `What is left before ${entry.id} (${entry.title}) can land?`;
+}
+
 export function actionsFor(item, records, cleanupFailed = new Set()) {
+  if (item.work) return workActions(item);
   if (item.coordinator) return [['enter', enterAction(item)], ...(item.coordinator.ask ? [['y', 'yes']] : []), ['h', 'hide']];
   if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['F', 'force clean up'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
   if (item.archive) return [['enter', 'recall'], ['v', 'view transcript'], ...(item.archive.pullRequests?.length ? [['o', 'PR']] : []), ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
@@ -384,11 +434,86 @@ export class LinearApp {
         prs: new PullRequestStore().list(this.origin),
         records: new RexWorktrees(null).records(),
         archive: readArchive(),
+        work: this.readQueue(),
       };
     } catch (error) {
       this.state.status = { tone: 'red', text: `Task registry unreadable: ${cleanText(error.message)}` };
-      return { tasks: [], prs: [], records: [], archive: [] };
+      return { tasks: [], prs: [], records: [], archive: [], work: this.readQueue() };
     }
+  }
+
+  readQueue() {
+    try {
+      this.workStamp = existsSync(workFile()) ? statSync(workFile()).mtimeMs : 0;
+      return readWork();
+    } catch (error) {
+      return { error: `Work queue unreadable: ${cleanText(error.message)}`, entries: [] };
+    }
+  }
+
+  refreshWork() {
+    const stamp = existsSync(workFile()) ? statSync(workFile()).mtimeMs : 0;
+    if (stamp === this.workStamp) return;
+    this.data.work = this.readQueue();
+    this.draw();
+  }
+
+  writeWork(change, done) {
+    try {
+      const { doc, result } = updateWork(change);
+      this.data.work = doc;
+      this.workStamp = statSync(workFile()).mtimeMs;
+      this.status('green', done(result));
+    } catch (error) {
+      this.status('red', cleanText(error.message));
+    }
+  }
+
+  queueFix() {
+    this.ask('queue a fix, one sentence', (title) => (title
+      ? this.writeWork((doc) => addWork(doc, { title }), (entry) => `Queued ${entry.id}. Nothing was started; enter on it drafts a start message.`)
+      : this.status('dim', 'Nothing queued.')), '', { verb: 'queue' });
+  }
+
+  newBatch() {
+    this.ask('new batch, what will it deliver?', (title) => (title
+      ? this.writeWork((doc) => addWork(doc, { kind: 'batch', title }), (entry) => `Created batch ${entry.id}. m on a fix adds it; ask the coordinator to set its package and downstream repo.`)
+      : this.status('dim', 'No batch created.')), '', { verb: 'create' });
+  }
+
+  moveToBatch(item) {
+    const { entry } = item.work;
+    const current = batchOf(this.data.work, entry.id);
+    const open = this.data.work.entries.filter((row) => row.kind === 'batch' && row.state === 'open');
+    const label = current ? `batch for ${entry.id}, empty takes it out of ${current.id}` : `batch for ${entry.id}, such as ${open[0]?.id ?? 'w3'}`;
+    this.ask(label, (target) => {
+      if ((target || undefined) === current?.id) return this.status('dim', 'Nothing changed.');
+      this.writeWork((doc) => {
+        if (current) changeWork(doc, current.id, { removeMembers: [entry.id] });
+        if (target) changeWork(doc, target, { members: [entry.id] });
+      }, () => (target ? `Moved ${entry.id} into ${target}.` : `Took ${entry.id} out of ${current.id}.`));
+    }, current?.id ?? (open.length === 1 ? open[0].id : ''), { verb: 'move' });
+  }
+
+  workKey(item, name) {
+    const { entry, step, done } = item.work;
+    if (name === 'h') return this.toggleHidden(item);
+    if (step && (name === 'enter' || name === ' ')) {
+      return this.writeWork((doc) => changeWork(doc, entry.id, { [done ? 'uncheck' : 'check']: [step] }), () => `${done ? 'Unchecked' : 'Checked'} ${entry.id} step ${step}.`);
+    }
+    if (step) return undefined;
+    if (name === 'enter' && entry.state !== 'dropped') return this.ask('Message the coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), workDraft(item), { multiline: true });
+    if (name === ' ') {
+      if (entry.state === 'dropped') return this.status('yellow', `${entry.id} is dropped. Press u to reopen it first.`);
+      const state = entry.state === 'done' ? 'open' : 'done';
+      return this.writeWork((doc) => changeWork(doc, entry.id, { state }), () => (state === 'done' ? `Marked ${entry.id} done.` : `Reopened ${entry.id}.`));
+    }
+    if (name === 'm' && entry.kind === 'fix') return this.moveToBatch(item);
+    if (name === 'K' && entry.flag) return this.writeWork((doc) => changeWork(doc, entry.id, { dismissFlag: true }), () => `Dismissed the flag on ${entry.id}; that PR will not be flagged again.`);
+    if (name === 'd' && entry.state !== 'dropped') return this.writeWork((doc) => changeWork(doc, entry.id, { state: 'dropped' }), () => `Dropped ${entry.id}. u reopens it.`);
+    if (name === 'u' && entry.state === 'dropped') return this.writeWork((doc) => changeWork(doc, entry.id, { state: 'open' }), () => `Reopened ${entry.id}.`);
+    if (name === 'o') return this.open(workLink(item, [...this.linear.open, ...this.linear.done]), entry.id);
+    return undefined;
   }
 
   goalOf(file) {
@@ -435,7 +560,7 @@ export class LinearApp {
     state.doneCount = brief(data).done.length;
     state.inboxCount = this.inboxCount();
     const count = (tab) => withoutHidden(buildView(tab, data, { showStopped: false }), this.hidden).filter((row) => row.kind === 'item').length;
-    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, data.archive.length, state.search?.issues?.length];
+    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, count(WORK_TAB), data.archive.length, state.search?.issues?.length];
     state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.slots = slotsOf(data.tasks, this.hidden);
@@ -501,7 +626,7 @@ export class LinearApp {
       return watcher;
     });
     this.poll = setInterval(() => this.checkRequests(), 500);
-    this.statusTimer = setInterval(() => { void this.pollStatus(); }, 3_000);
+    this.statusTimer = setInterval(() => { this.refreshWork(); void this.pollStatus(); }, 3_000);
     this.frame = 0;
     this.spinTimer = setInterval(() => {
       if (!this.state.working) return;
@@ -609,8 +734,8 @@ export class LinearApp {
       this.remember();
       return this.draw();
     }
-    if ((/^[1-7]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
-      state.tab = /^[1-7]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
+    if ((/^[1-8]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
+      state.tab = /^[1-8]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
       state.hiddenView = false;
       state.status = undefined;
       return this.draw();
@@ -625,6 +750,8 @@ export class LinearApp {
     }
     const item = state.rows[state.cursor]?.kind === 'item' ? state.rows[state.cursor] : undefined;
     if (name === 'n') return this.ask('new task, what should it do?', (goal) => this.newTask(goal));
+    if (name === 'w') return this.queueFix();
+    if (name === 'b' && state.tab === WORK_TAB) return this.newBatch();
     if (name === '/' && state.tab === TABS.length - 1) return this.ask('filter the archive', (text) => { state.archiveFilter = text; state.selected[state.tab] = undefined; this.draw(); }, state.archiveFilter ?? '', { verb: 'filter' });
     if (name === '/') return this.ask('search Linear or paste an issue link', (text) => this.search(text));
     if (name === 'c') {
@@ -632,6 +759,7 @@ export class LinearApp {
       return this.ask('Message the coordinator', (message) => (message ? this.request('message', { message }, 'Sending to the coordinator…') : this.status('dim', 'Nothing sent.')), cleanup, { multiline: true });
     }
     if (!item) return;
+    if (item.work) return this.workKey(item, name);
     if (item.coordinator && name === 'enter') return item.coordinator.dialog ? this.focusSurface(this.coordinatorSurface, 'the coordinator') : this.answerCoordinator();
     if (item.coordinator && name === 'y' && item.coordinator.ask) return this.request('message', { message: 'Yes.' }, 'Answered the coordinator: yes.');
     if (item.approval && name === 'enter') return this.cleanup([item]);
