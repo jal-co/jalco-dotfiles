@@ -74,6 +74,7 @@ pi/agent/skills/exa/exa
 
 # Personal/private skills (PII, voice samples, account-specific data)
 pi/agent/skills/core/write-like-justin
+pi/agent/skills/core/b1-admin
 pi/agent/skills/work
 pi/agent/skills/job-search/
 pi/agent/skills/real-app/
