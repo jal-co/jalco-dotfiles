@@ -1,21 +1,5 @@
 {
   "mcpServers": {
-    "blender": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": [
-        "--python",
-        "3.11",
-        "blender-mcp"
-      ],
-      "env": {
-        "UV_PYTHON_PREFERENCE": "only-managed",
-        "BLENDER_HOST": "localhost",
-        "BLENDER_PORT": "9876",
-        "DISABLE_TELEMETRY": "true"
-      },
-      "enabled": false,
-      "description": "Blender 3D scene control and rendering"
-    },
     "natural": {
       "url": "https://mcp.natural.com",
       "enabled": false,

@@ -4,3 +4,15 @@ go = { version = "latest", auto_update = true }
 java = { version = "latest", auto_update = true }
 node = { version = "24", auto_update = true }
 python = { version = "latest", auto_update = true }
+gh        = { version = "latest", os = ["linux"] }
+ripgrep   = { version = "latest", os = ["linux"] }
+fd        = { version = "latest", os = ["linux"] }
+jq        = { version = "latest", os = ["linux"] }
+fzf       = { version = "latest", os = ["linux"] }
+eza       = { version = "latest", os = ["linux"] }
+zoxide    = { version = "latest", os = ["linux"] }
+starship  = { version = "latest", os = ["linux"] }
+gitleaks  = { version = "latest", os = ["linux"] }
+uv        = { version = "latest", os = ["linux"] }
+"npm:oxlint" = { version = "latest", os = ["linux"] }
+"npm:portless" = "latest"

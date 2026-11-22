@@ -1,0 +1,12 @@
+[bootstrap.packages]
+"apt:build-essential" = "latest"
+"apt:git" = "latest"
+"apt:git-lfs" = "latest"
+"apt:gnupg" = "latest"
+"apt:zsh" = "latest"
+"apt:curl" = "latest"
+"apt:unzip" = "latest"
+"apt:cmake" = "latest"
+"apt:ninja-build" = "latest"
+"apt:docker.io" = "latest"
+"apt:docker-compose-v2" = "latest"

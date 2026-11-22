@@ -142,7 +142,7 @@ fi
 export PATH="$PATH:/Users/justin/.local/bin"
 
 # Vite+ bin (https://viteplus.dev)
-. "$HOME/.config/vite-plus/env"
+[[ $OSTYPE == darwin* && -f "$HOME/.config/vite-plus/env" ]] && . "$HOME/.config/vite-plus/env"
 
 # Pi
 export PATH="$HOME/.local/bin:$PATH"
