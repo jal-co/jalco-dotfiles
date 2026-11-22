@@ -129,7 +129,7 @@
     "resend-personal": {
       "url": "https://mcp.resend.com/mcp",
       "headers": {
-        "Authorization": "!key=$(/Users/justin/.local/bin/op read 'op://o4g6exkkczbudy5cpn32s73scq/dufs5vne4oyakl4nk7dhdweeui/credential') && printf 'Bearer %s' \"$key\""
+        "Authorization": "!key=$($HOME/.local/bin/op read 'op://o4g6exkkczbudy5cpn32s73scq/dufs5vne4oyakl4nk7dhdweeui/credential') && printf 'Bearer %s' \"$key\""
       },
       "exposure": "codemode",
       "description": "Personal Resend account: contact email delivery, sender domains, DNS verification, and delivery logs. Authenticated through 1Password."
