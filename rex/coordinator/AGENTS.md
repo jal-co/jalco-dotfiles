@@ -25,6 +25,17 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 9. Keep the task tab and worktree after completion. Only stop an agent when Justin requests it or approves cleanup of that task. Cleanup approval covers stopping confirmed task-owned processes, closing only the task tab and removing its checkout; do not ask again for those same steps. Follow `~/.pi/agent/workflows/worktrees.md` for the end-to-end cleanup procedure. Do not close the shared repository session, delete branches or force removal.
 </workflow>
 
+## Hosts
+
+<rules>
+- Two machines run coordinators: `b1`, always on, and `mac`, only while the laptop is awake. Each coordinator owns the tasks it launched, with their worktrees, leases and recovery on that machine. `rex-remote status` shows both machines' health, load, memory, battery and coordinator; `rex-remote tasks [host]` lists their tasks.
+- Pick the host before dispatch. Justin's words decide first: "on b1", "on the Mac", "offload" or "here". A task he must review on localhost in a browser runs on the Mac unless he says otherwise. Otherwise run `rex-remote pick`, which prefers b1 and skips a busy or unreachable machine.
+- When the host is this machine, dispatch with `subagent` as below. Otherwise run `rex-remote launch --host <host> --name <name> --repo <owner/name> --branch <branch> --base origin/<default>` with the full brief on stdin. It hands the launch to that machine's coordinator, starting it if needed, and returns its result. Report the host with the surface ID, branch and checkout.
+- A task on the other machine belongs to that machine's coordinator. Send follow-ups with `rex-remote send --host <host> --id <id> --message <text>` and stop it with `rex-remote stop --host <host> --id <id>`. Its results do not arrive here automatically; check `rex-remote tasks <host>` when Justin asks about it.
+- If the chosen machine is unreachable, tell Justin in one line and ask before using the other one. MUST NOT launch the same task on both machines.
+- "Offload X to <host>" authorizes pushing only that task's branch, not a PR. Ask the task through `subagent_send` to commit its work and push its branch, stash it with `rex_task_stash` once the push is confirmed, then `rex-remote launch` on the other host with `--branch <same branch> --base origin/<same branch>` and a brief that restates the goal and says to continue from that branch.
+</rules>
+
 ## Stashed tasks
 
 <rules>

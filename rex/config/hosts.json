@@ -1,0 +1,7 @@
+{
+  "order": ["b1", "mac"],
+  "hosts": {
+    "b1": { "ssh": "b1", "hostname": "b1" },
+    "mac": { "ssh": "justin@justins-macbook-pro-2.tail95e906.ts.net", "hostname": "justins-macbook-pro-2" }
+  }
+}
