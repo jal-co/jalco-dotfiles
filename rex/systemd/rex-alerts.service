@@ -3,6 +3,7 @@ Description=Rex alerts: push a notification when a Rex tab waits on Justin
 After=network-online.target
 
 [Service]
+Environment=REX_BIN=/usr/bin/rex
 ExecStart=%h/.local/share/mise/shims/node %h/dotfiles/rex/src/alerts.mjs --port 8787
 Restart=on-failure
 RestartSec=5
