@@ -60,7 +60,7 @@ export async function reap({ dryRun = false, log = console.log } = {}) {
     if (dryRun) { log(`would run docker ${args.join(' ')}`); continue; }
     try {
       const summary = run('docker', args).trim().split('\n').at(-1);
-      if (!/: 0B$/.test(summary)) log(`docker ${args[0]} prune: ${summary}`);
+      if (!summary.endsWith(": 0B")) log(`docker ${args[0]} prune: ${summary}`);
     } catch (error) {
       log(`docker ${args[0]} prune skipped: ${String(error.stderr || error.message).trim().split('\n')[0]}`);
     }
