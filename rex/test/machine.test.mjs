@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { attention, describe, memoryTone, meter, parseCgroup, parseMeminfo, parsePressure, parseSar, parseStat, sparkline, stopProcess } from '../src/machine.mjs';
+import { attention, describe, memoryTone, meter, parseCgroup, parseJobs, routine, parseMeminfo, parsePressure, parseSar, parseStat, sparkline, stopProcess } from '../src/machine.mjs';
 
 const TAB = 'block:01a208ad-41b1-73bf-b674-13f14bcd271b';
 const GONE = 'block:01a20000-0000-7000-8000-000000000000';
@@ -126,4 +126,30 @@ Average:        all      1.16      0.00      0.61      0.09      0.00     98.14
   assert.deepEqual(parseSar(memory, (fields) => Number(fields[2]) * 1024), [27301692 * 1024]);
   assert.equal(sparkline([0, 12.5, 50, 99, 100, 150], 100), '▁▂▅███');
   assert.deepEqual([meter(0, 4), meter(0.5, 4), meter(1, 4), meter(2, 4)], ['░░░░', '██░░', '████', '████']);
+});
+
+test('jobs are the user timers from the home folder, with their last result', () => {
+  const timers = JSON.stringify([
+    { unit: 'review-sync.timer', activates: 'review-sync.service', last: 1795461144820066, next: 1795461264821544 },
+    { unit: 'reap.timer', activates: 'reap.service', last: 1795461038819862, next: 1795462838820772 },
+    { unit: 'launchpadlib-cache-clean.timer', activates: 'launchpadlib-cache-clean.service', last: 1, next: 2 },
+  ]);
+  const show = [
+    'Id=review-sync.service\nResult=success\nActiveState=inactive\nFragmentPath=/home/me/.config/systemd/user/review-sync.service',
+    'Id=reap.service\nResult=exit-code\nActiveState=failed\nFragmentPath=/home/me/.config/systemd/user/reap.service',
+    'Id=launchpadlib-cache-clean.service\nResult=success\nActiveState=inactive\nFragmentPath=/usr/lib/systemd/user/launchpadlib-cache-clean.service',
+  ].join('\n\n');
+  assert.deepEqual(parseJobs(timers, show, '/home/me'), [
+    { name: 'review-sync', lastAt: 1795461144820, nextAt: 1795461264822, running: false, failed: false },
+    { name: 'reap', lastAt: 1795461038820, nextAt: 1795462838821, running: false, failed: true },
+  ]);
+});
+
+test('the Rex server and tailscaled stay off the top lists unless there are two of them', () => {
+  const server = (pid) => ({ pid, comm: 'rex', command: '/usr/bin/rex server run --tailscale' });
+  const client = { pid: 3, comm: 'rex', command: '/usr/bin/rex events --all --json' };
+  const helper = { pid: 4, comm: 'tailscaled', command: '/usr/sbin/tailscaled be-child ssh-fwd --op=dial' };
+  const vite = { pid: 5, comm: 'node', command: 'vite' };
+  assert.deepEqual(routine([server(1), client, helper, vite]).map((row) => row.pid), [3, 5]);
+  assert.deepEqual(routine([server(1), server(2), vite]).map((row) => row.pid), [1, 2, 5]);
 });

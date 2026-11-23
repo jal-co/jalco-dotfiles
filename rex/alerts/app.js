@@ -135,21 +135,87 @@ const svg = (tag, attributes) => {
 };
 
 const niceMax = (peak) => [10, 25, 50, 100].find((step) => peak * 1.2 <= step) ?? 100;
-let gradients = 0;
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((value) => (value + 0.5) / 16);
+const DOT = 2;
+const DENSITY = 0.5;
+const charts = new Map();
+
+function drawDither(canvas) {
+  const { points } = charts.get(canvas) ?? {};
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!points || !width || !height) return;
+  const scale = devicePixelRatio || 1;
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const context = canvas.getContext('2d');
+  context.scale(scale, scale);
+  const color = getComputedStyle(canvas).color;
+  const tint = (alpha) => color.replace(/^rgb\((.*)\)$/, `rgba($1, ${alpha})`);
+  const top = (x) => {
+    const at = (x / width) * 100;
+    const next = points.findIndex(([px]) => px >= at);
+    if (next <= 0) return (points[0][1] / 100) * height;
+    const [x0, y0] = points[next - 1], [x1, y1] = points[next];
+    return ((y0 + ((at - x0) / (x1 - x0 || 1)) * (y1 - y0)) / 100) * height;
+  };
+  const fill = context.createLinearGradient(0, 0, 0, height);
+  fill.addColorStop(0, tint(0.12));
+  fill.addColorStop(1, tint(0));
+  context.beginPath();
+  context.moveTo(0, height);
+  for (let x = 0; x <= width; x += 1) context.lineTo(x, top(x));
+  context.lineTo(width, height);
+  context.fillStyle = fill;
+  context.fill();
+  context.clip();
+  for (let x = 0; x < width; x += DOT) {
+    const surface = Math.min(top(x), top(x + DOT));
+    for (let y = Math.floor(surface / DOT) * DOT; y < height; y += DOT) {
+      if (DENSITY <= BAYER[((y / DOT) % 4) * 4 + ((x / DOT) % 4)]) continue;
+      context.fillStyle = tint(0.9 * Math.max(0, 1 - (y - surface) / Math.max(DOT, height - surface)) ** 1.5);
+      context.fillRect(x, y, DOT, DOT);
+    }
+  }
+}
+
+const drawCharts = () => { for (const canvas of charts.keys()) if (canvas.isConnected) drawDither(canvas); else charts.delete(canvas); };
+addEventListener('resize', () => requestAnimationFrame(drawCharts));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => requestAnimationFrame(drawCharts));
 
 function chart(values, max, hue) {
-  const id = `fade-${(gradients += 1)}`;
   const point = (value, index) => [values.length === 1 ? 100 : (index / (values.length - 1)) * 100, 100 - Math.max(0, Math.min(1, value / max)) * 100];
   const points = values.map(point);
+  const dither = el('canvas', { class: 'dither', 'aria-hidden': 'true' });
+  dither.style.color = hue;
+  charts.set(dither, { points });
   const graph = svg('svg', { class: 'chart', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
-  const fade = svg('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 });
-  fade.append(svg('stop', { offset: '0%', 'stop-color': hue, 'stop-opacity': 0.45 }), svg('stop', { offset: '100%', 'stop-color': hue, 'stop-opacity': 0 }));
-  const defs = svg('defs', {});
-  defs.append(fade);
-  graph.append(defs, ...[25, 50, 75].map((y) => svg('line', { class: 'grid', x1: 0, x2: 100, y1: y, y2: y, 'vector-effect': 'non-scaling-stroke' })),
-    svg('polygon', { points: `0,100 ${points.map((pair) => pair.join(',')).join(' ')} 100,100`, fill: `url(#${id})` }),
+  graph.append(...[25, 50, 75].map((y) => svg('line', { class: 'grid', x1: 0, x2: 100, y1: y, y2: y, 'vector-effect': 'non-scaling-stroke' })),
     svg('polyline', { class: 'line', points: points.map((pair) => pair.join(',')).join(' '), stroke: hue, 'vector-effect': 'non-scaling-stroke' }));
-  return graph;
+  const frame = el('div', { class: 'chart-frame' }, dither);
+  frame.append(graph);
+  return frame;
+}
+
+const uptimeText = (seconds) => {
+  const days = Math.floor(seconds / 86400), hours = Math.floor((seconds % 86400) / 3600), minutes = Math.floor((seconds % 3600) / 60);
+  return days ? `${days}d ${hours}h` : hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+};
+
+function healthNodes() {
+  if (ui.view !== 'machine') return [];
+  if (!ui.machine) return [el('span', { class: `health-item ${ui.machineError ? 'bad' : ''}` }, el('span', { class: 'dot', 'aria-hidden': 'true' }), document.createTextNode(ui.machineError ? 'b1 unreachable' : 'b1'))];
+  const { memory, attention: stale, jobs, uptime } = ui.machine;
+  const machineTone = memory.tone === 'red' ? 'bad' : memory.tone === 'yellow' || stale.length ? 'warn' : 'good';
+  const machineText = ['b1', uptime ? `up ${uptimeText(uptime)}` : '', machineTone === 'good' ? 'healthy' : stale.length ? `${stale.length} to check` : 'memory tight'].filter(Boolean).join(' ');
+  const item = (tone, text, title, when) => el('span', { class: `health-item ${tone}`, title }, el('span', { class: 'dot', 'aria-hidden': 'true' }), document.createTextNode(text), when ? el('span', { class: 'when', text: when }) : null);
+  return [
+    item(machineTone, machineText),
+    ...(jobs === undefined ? [item('warn', "jobs can't be read")] : jobs.map((job) => item(
+      job.failed ? 'bad' : job.running ? 'warn' : 'good',
+      job.name,
+      job.nextAt ? `next run ${clock(job.nextAt)}` : undefined,
+      job.failed ? 'failed' : job.running ? 'running' : job.lastAt ? ago(job.lastAt) : 'not run yet'))),
+  ];
 }
 
 function metric({ name, hue, value, detail, history, max, scale, peak, fraction }) {
@@ -256,6 +322,8 @@ function paint({ focus } = {}) {
   status.className = `status ${ui.status?.tone ?? ''}`;
   status.textContent = ui.status?.text ?? '';
   $('#keys').replaceChildren(...keyNodes());
+  $('#health').replaceChildren(...healthNodes());
+  requestAnimationFrame(drawCharts);
   document.title = ui.view === 'machine' ? 'b1 machine' : 'Asks';
   $('.screen').dataset.view = ui.view;
   if (focusTarget) (document.querySelector(`[data-key="${focusTarget}"]`) ?? document.querySelector(`[data-focus="${focusTarget}"]`))?.focus({ preventScroll: false });

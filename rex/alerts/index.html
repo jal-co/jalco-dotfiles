@@ -28,7 +28,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; text-align: l
 .tabs a { display: flex; align-items: center; min-height: var(--key); color: var(--text-2); text-decoration: none; border-bottom: 2px solid transparent; }
 .tabs a[aria-current="page"] { color: var(--text); font-weight: 700; border-bottom-color: currentColor; }
 .count { margin-left: 1ch; color: var(--asks); font-weight: 400; }
-.meta { margin-left: auto; color: var(--text-2); white-space: nowrap; }
+.meta { margin-left: auto; min-width: 22ch; text-align: right; color: var(--text-2); white-space: nowrap; }
 .context { margin: 14px 0 0; color: var(--text-2); }
 .context p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .context b { font-weight: 400; color: var(--text); }
@@ -36,10 +36,12 @@ button { cursor: pointer; border: 0; background: none; padding: 0; text-align: l
 .metric { color: var(--hue); }
 .metric-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 2ch; margin-bottom: 6px; }
 .label { color: var(--text); min-width: 7ch; }
-.value { color: var(--hue); font-size: 20px; font-weight: 700; }
+.value { color: var(--hue); font-size: 20px; font-weight: 700; min-width: 8ch; }
 .detail-line { color: var(--text-2); }
 .plot { position: relative; }
-.chart { display: block; width: 100%; height: 64px; overflow: visible; border-bottom: 1px solid var(--track); }
+.chart-frame { position: relative; height: 64px; border-bottom: 1px solid var(--track); }
+.dither { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.chart { position: relative; display: block; width: 100%; height: 100%; overflow: visible; }
 .chart .grid { stroke: var(--track); stroke-width: 1; stroke-dasharray: 2 4; }
 .chart .line { fill: none; stroke-width: 1.75; stroke-linejoin: round; }
 .scale { position: absolute; top: -2px; right: 0; padding-left: 1ch; font-size: 12px; line-height: 16px; color: var(--text-2); background: var(--bg); white-space: nowrap; }
@@ -86,7 +88,16 @@ main { flex: 1; padding-bottom: 16px; }
 .status { min-height: 20px; margin: 0; overflow-wrap: anywhere; color: var(--text-2); }
 .status.red { color: var(--bad); }
 .status.green { color: var(--good); }
-.keys { display: flex; flex-wrap: wrap; gap: 0 3ch; margin-top: 4px; }
+.bar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 3ch; margin-top: 4px; }
+.keys { display: flex; flex-wrap: wrap; gap: 0 3ch; }
+.health { display: flex; flex-wrap: wrap; gap: 0 3ch; color: var(--text-2); }
+.health-item { display: inline-flex; align-items: center; gap: 1ch; min-height: 20px; white-space: nowrap; }
+@media (max-width: 600px) { .health { gap: 0 2ch; font-size: 12px; padding-bottom: 4px; } }
+.health-item .when { display: inline-block; min-width: 8ch; }
+.health-item .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.health-item.warn .dot { background: var(--asks); }
+.health-item.bad { color: var(--bad); }
+.health-item.bad .dot { background: var(--bad); }
 .keys button, .keys span { display: inline-flex; align-items: center; gap: 1ch; min-height: var(--key); color: var(--text-2); white-space: nowrap; }
 .keys kbd { font: inherit; font-weight: 700; color: var(--text); }
 .keys .danger, .keys .danger kbd { color: var(--bad); }
@@ -116,7 +127,10 @@ main { flex: 1; padding-bottom: 16px; }
   <footer class="bottom">
     <div class="confirm" id="confirm" role="alert" hidden></div>
     <p class="status" id="status" role="status"></p>
-    <div class="keys" id="keys" aria-label="Actions"></div>
+    <div class="bar-row">
+      <div class="keys" id="keys" aria-label="Actions"></div>
+      <div class="health" id="health" aria-label="Machine and job status"></div>
+    </div>
   </footer>
 </div>
 <script src="/app.js" type="module"></script>

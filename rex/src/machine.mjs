@@ -130,6 +130,15 @@ export function describe({ entries, listeners = new Map(), tasks = [], tabs, sel
   });
 }
 
+const isRexServer = (row) => row.comm === 'rex' && / server run\b/.test(row.command);
+const isTailscale = (row) => row.comm === 'tailscaled';
+
+export function routine(rows) {
+  const servers = rows.filter(isRexServer).length;
+  const daemons = rows.filter((row) => isTailscale(row) && !/ be-child /.test(row.command)).length;
+  return rows.filter((row) => !(isRexServer(row) && servers < 2) && !(isTailscale(row) && (daemons < 2 || / be-child /.test(row.command))));
+}
+
 export function attention(rows) {
   const order = { stale: 0, unsure: 1 };
   return rows.filter((row) => row.status === 'stale' || (row.status === 'unsure' && worth(row)))
@@ -219,6 +228,31 @@ const ancestors = (pid) => {
 
 let last;
 
+export function parseJobs(timersJson, showText, home = homedir()) {
+  const services = new Map(showText.split('\n\n').map((block) => {
+    const fields = Object.fromEntries(block.split('\n').filter(Boolean).map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+    return [fields.Id, fields];
+  }));
+  return JSON.parse(timersJson).flatMap((timer) => {
+    const service = services.get(timer.activates);
+    if (!service?.FragmentPath?.startsWith(`${home}/`)) return [];
+    const failed = service.Result !== 'success' || service.ActiveState === 'failed';
+    return [{ name: timer.unit.replace(/\.timer$/, ''), lastAt: timer.last ? Math.round(timer.last / 1000) : undefined, nextAt: timer.next ? Math.round(timer.next / 1000) : undefined, running: service.ActiveState === 'activating' || service.ActiveState === 'active', failed }];
+  });
+}
+
+function readJobs() {
+  try {
+    const timers = execFileSync('systemctl', ['--user', 'list-timers', '--all', '--output=json', '--no-pager'], { encoding: 'utf8', timeout: 5_000 });
+    const units = JSON.parse(timers).map((timer) => timer.activates).filter(Boolean);
+    if (!units.length) return [];
+    const show = execFileSync('systemctl', ['--user', 'show', ...units, '-p', 'Id,Result,ActiveState,FragmentPath'], { encoding: 'utf8', timeout: 5_000 });
+    return parseJobs(timers, show);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function readMachine({ uid = process.getuid(), self = process.pid } = {}) {
   if (!last || Date.now() - last.at > 60_000) {
     last = { at: Date.now(), cpu: parseCpuTicks(readFileSync('/proc/stat', 'utf8')), ticks: new Map(readEntries(uid).map((entry) => [`${entry.pid}:${entry.start}`, entry.ticks])) };
@@ -237,10 +271,12 @@ export async function readMachine({ uid = process.getuid(), self = process.pid }
   return {
     at, cpu: { cores: cpus().length, busy, load: loadavg() },
     memory: { ...memory, tone: memoryTone(memory) },
-    memoryTop: [...rows].sort((a, b) => b.rss - a.rss).slice(0, 6),
-    cpuTop: rows.filter((row) => row.cpu >= 1).sort((a, b) => b.cpu - a.cpu).slice(0, 4),
+    memoryTop: [...routine(rows)].sort((a, b) => b.rss - a.rss).slice(0, 6),
+    cpuTop: routine(rows).filter((row) => row.cpu >= 1).sort((a, b) => b.cpu - a.cpu).slice(0, 4),
     attention: attention(rows),
     history: readHistory(),
+    uptime,
+    jobs: readJobs(),
   };
 }
 
