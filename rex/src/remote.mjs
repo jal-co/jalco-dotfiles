@@ -200,9 +200,9 @@ export function forwardCommand(config, { ports, session, desk, self = selfName(c
   if (!target || target === self || !config.hosts[target]) throw new Error('No other machine to open the ports on');
   const mine = config.hosts[self]?.ssh;
   if (!mine) throw new Error('This machine has no ssh name in hosts.json');
-  const rex = `"$HOME/.local/bin/rex" -S ssh://${mine} forward new -s ${session} ${list.map((port) => `-L ${port}:127.0.0.1:${port}`).join(' ')}`;
-  return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh,
-    `nohup ${rex} >/dev/null 2>&1 </dev/null & sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done`] };
+  const rex = `"$HOME/.local/bin/rex" -S ssh://${mine} forward new -s ${session}`;
+  const script = `for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || nohup ${rex} -L $port:127.0.0.1:$port >/dev/null 2>&1 </dev/null & done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done`;
+  return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
 }
 
 export async function forwardToDesk(config, options) {

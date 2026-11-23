@@ -59,7 +59,7 @@ test('forward opens the ports on the other machine through this one, and refuses
   const { target, list, args } = forwardCommand(config, { ports: '3300, 3301', session: 'session:abc-1', self: 'b1' });
   assert.deepEqual([target, list], ['mac', [3300, 3301]]);
   assert.equal(args.at(-2), 'me@mac.ts.net');
-  assert.match(args.at(-1), /^nohup "\$HOME\/\.local\/bin\/rex" -S ssh:\/\/b1 forward new -s session:abc-1 -L 3300:127\.0\.0\.1:3300 -L 3301:127\.0\.0\.1:3301 /);
+  assert.match(args.at(-1), /^for port in 3300 3301; do nc -z 127\.0\.0\.1 \$port \|\| nohup "\$HOME\/\.local\/bin\/rex" -S ssh:\/\/b1 forward new -s session:abc-1 -L \$port:127\.0\.0\.1:\$port /);
   assert.throws(() => forwardCommand(config, { ports: '99999', session: 's', self: 'b1' }), /needs --ports/);
   assert.throws(() => forwardCommand(config, { ports: '3300', session: 'x; rm -rf ~', self: 'b1' }), /needs --session/);
   assert.throws(() => forwardCommand({ order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, { ports: '3300', session: 's', self: 'b1' }), /No other machine/);
