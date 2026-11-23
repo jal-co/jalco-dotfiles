@@ -64,3 +64,14 @@ test('forward opens the ports on the other machine through this one, and refuses
   assert.throws(() => forwardCommand(config, { ports: '3300', session: 'x; rm -rf ~', self: 'b1' }), /needs --session/);
   assert.throws(() => forwardCommand({ order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, { ports: '3300', session: 's', self: 'b1' }), /No other machine/);
 });
+
+test('forward can name its first port on the Mac with portless, and unname removes it', async () => {
+  const { forwardCommand, unnameCommand } = await import('../src/remote.mjs');
+  const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1' }, mac: { ssh: 'me@mac.ts.net' } } };
+  const { args } = forwardCommand(config, { ports: '4100,4103', name: 'studio.pltfrm-3925', session: 's', self: 'b1' });
+  assert.match(args.at(-1), /proxy start --unprivileged --https .* alias studio\.pltfrm-3925 4100 --force .*\|\| exit 4$/);
+  assert.doesNotMatch(forwardCommand(config, { ports: '4100', session: 's', self: 'b1' }).args.at(-1), /portless/);
+  assert.throws(() => forwardCommand(config, { ports: '4100', name: 'x;rm -rf ~', session: 's', self: 'b1' }), /--name takes/);
+  assert.match(unnameCommand(config, { name: 'studio.pltfrm-3925', self: 'b1' }).args.at(-1), /alias --remove studio\.pltfrm-3925 /);
+  assert.throws(() => unnameCommand(config, { name: '-rf', self: 'b1' }), /unname needs --name/);
+});

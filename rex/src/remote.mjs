@@ -232,16 +232,37 @@ export async function tasksOf(config, name, { self = selfName(config) } = {}) {
   return snapshot.tasks ?? [];
 }
 
-export function forwardCommand(config, { ports, session, desk, self = selfName(config) }) {
+const PORTLESS = '"$HOME/.local/share/mise/shims/portless"';
+const validName = (name) => /^[a-z0-9]([a-z0-9.-]{0,60}[a-z0-9])?$/.test(String(name ?? ''));
+
+function deskFor(config, desk, self) {
+  const target = desk ?? Object.keys(config.hosts).find((name) => name !== self);
+  if (!target || target === self || !config.hosts[target]) throw new Error('No other machine to open the ports on');
+  return target;
+}
+
+export function unnameCommand(config, { name, desk, self = selfName(config) }) {
+  if (!validName(name)) throw new Error('unname needs --name, such as studio.pltfrm-3925');
+  const target = deskFor(config, desk, self);
+  return { target, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, `${PORTLESS} alias --remove ${name} >/dev/null 2>&1; true`] };
+}
+
+export async function unnameOnDesk(config, options) {
+  const { target, args } = unnameCommand(config, options);
+  await promisify(execFile)('ssh', args, { encoding: 'utf8', timeout: 30_000 });
+  return { host: target, removed: `https://${options.name}.localhost` };
+}
+
+export function forwardCommand(config, { ports, session, desk, name, self = selfName(config) }) {
   const list = String(ports ?? '').split(',').map((port) => Number(port.trim()));
   if (!list.length || list.some((port) => !Number.isInteger(port) || port < 1 || port > 65535)) throw new Error('forward needs --ports, such as 3300,3301');
   if (!/^[\w:.-]{1,120}$/.test(String(session ?? ''))) throw new Error('forward needs --session, or run it inside a Rex tab');
-  const target = desk ?? Object.keys(config.hosts).find((name) => name !== self);
-  if (!target || target === self || !config.hosts[target]) throw new Error('No other machine to open the ports on');
+  if (name !== undefined && !validName(name)) throw new Error('--name takes lowercase letters, digits, dots and dashes, such as studio.pltfrm-3925');
+  const target = deskFor(config, desk, self);
   const mine = config.hosts[self]?.ssh;
   if (!mine) throw new Error('This machine has no ssh name in hosts.json');
   const rex = `"$HOME/.local/bin/rex" -S ssh://${mine} forward new -s ${session}`;
-  const script = `for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || nohup ${rex} -L $port:127.0.0.1:$port >/dev/null 2>&1 </dev/null & done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done`;
+  const script = `for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || nohup ${rex} -L $port:127.0.0.1:$port >/dev/null 2>&1 </dev/null & done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done${name ? `; ${PORTLESS} proxy start --unprivileged --https >/dev/null 2>&1; ${PORTLESS} alias ${name} ${list[0]} --force >/dev/null 2>&1 || exit 4` : ''}`;
   return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
 }
 
@@ -250,9 +271,12 @@ export async function forwardToDesk(config, options) {
   try {
     await promisify(execFile)('ssh', args, { encoding: 'utf8', timeout: 30_000 });
   } catch (error) {
-    throw new Error(error.code === 3 ? `The forward started on ${target} but a port is not listening there yet; check rex forward ls -s ${options.session}` : `Could not reach ${target}: ${cleanText(error.stderr || error.message).slice(0, 200)}`);
+    if (error.code === 3) throw new Error(`The forward started on ${target} but a port is not listening there yet; check rex forward ls -s ${options.session}`);
+    if (error.code === 4) throw new Error(`The ports are open on ${target}, but portless could not name ${options.name}; use http://localhost:${list[0]}`);
+    throw new Error(`Could not reach ${target}: ${cleanText(error.stderr || error.message).slice(0, 200)}`);
   }
-  return { host: target, urls: list.map((port) => `http://localhost:${port}`), close: `rex forward close --all -s ${options.session}` };
+  const urls = list.map((port) => `http://localhost:${port}`);
+  return { host: target, urls: options.name ? [`https://${options.name}.localhost`, ...urls] : urls, close: `rex forward close --all -s ${options.session}` };
 }
 
 export async function statuses(config, { self = selfName(config) } = {}) {
@@ -275,9 +299,11 @@ const usage = `Usage:
   rex-remote stop --host H --id ID
   rex-remote resume --host H --id ID     resume a crashed or stashed task there
   rex-remote stash --host H --id ID      stash a task there
-  rex-remote forward --ports 3300,3301 [--session S] [--host mac]
+  rex-remote forward --ports 3300,3301 [--name N] [--session S] [--host mac]
                                          make these ports on this machine open as http://localhost:PORT
-                                         on the Mac; close them with rex forward close --all -s S
+                                         on the Mac, and the first as https://N.localhost with --name;
+                                         close them with rex forward close --all -s S
+  rex-remote unname --name N [--host mac] remove the https://N.localhost name from the Mac
 
 The primary host (first in hosts.json) reaches the others only through the link
 each of them keeps open to it; a host that is offline refuses at once.`;
@@ -303,7 +329,8 @@ async function main(argv) {
       try { return [name, await tasksOf(config, name)]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message).slice(0, 200) }]; }
     })));
   }
-  if (command === 'forward') return forwardToDesk(config, { ports: values.ports, session: values.session ?? process.env.REX_SESSION, desk: values.host });
+  if (command === 'forward') return forwardToDesk(config, { ports: values.ports, name: values.name, session: values.session ?? process.env.REX_SESSION, desk: values.host });
+  if (command === 'unname') return unnameOnDesk(config, { name: values.name, desk: values.host });
   if (command === 'pick') return { host: chooseHost({ requested: values.host, order: config.order, statuses: await statuses(config) }) };
   if (command === 'launch') {
     if (!values.name || !values.repo) throw new Error('launch needs --name and --repo');
