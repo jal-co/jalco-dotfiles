@@ -1,11 +1,12 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { cpus, freemem, homedir, hostname, loadavg, platform, totalmem } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { findCoordinator } from './coordinator-session.mjs';
-import { callRex } from './provider.ts';
+import { callRex, RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.ts';
 import { githubRepository, knownRepositories, workspaceRepositories } from './repositories.mjs';
 import { requestState, submitRequest } from './requests.ts';
 import { brainName, linkStatus, loadHosts, remoteSnapshot, selfName, sendCommand } from './hosts.ts';
@@ -80,21 +81,50 @@ function resolveRepository(wanted) {
   return matchRepository(paths.map((path) => ({ path, remote: githubRepository(remoteUrl(path)) })), wanted);
 }
 
-const terminals = (id) => {
-  const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
-  return (view.windows ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
-    .filter((block) => block.creator_name === 'com.superlogical.terminal')
-    .map((block) => JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])));
-};
+const terminals = (id) => JSON.parse(callRex(['block', 'ls', '-s', id, '--json'])).blocks
+  .filter((block) => block.creator_name === 'com.superlogical.terminal')
+  .map((block) => JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])));
+
+export function isWorker(config = loadHosts(), self = selfName(config)) {
+  return Boolean(self) && self !== brainName(config);
+}
+
+function workerCommand() {
+  const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'agent');
+  const model = JSON.parse(readFileSync(join(agentDir, 'rex-agents/config.json'), 'utf8')).models?.default;
+  if (!model) throw new Error('No default agent model configured for the worker coordinator');
+  return ['/usr/bin/env', 'REX_WORKER=1', join(homedir(), '.pi/agent/bin/pi'), '--approve', '--model', model];
+}
+
+function repositorySession(cwd) {
+  const repo = repositoryFor(cwd);
+  const file = join(homedir(), '.rex', 'repositories', `${createHash('sha256').update(repo).digest('hex')}.json`);
+  const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).session : undefined;
+  const live = JSON.parse(callRex(['ls', '--json'])).sessions;
+  if (saved && live.some((entry) => entry.session_id === saved)) return saved;
+  const { session, block } = surfaceTarget(new RexSurfaceProvider().createSurface({ name: 'coordinator', cwd }));
+  callRex(['block', 'close', '-s', session, block]);
+  return session;
+}
+
+export function startWorker({ cwd, session }) {
+  const target = session ?? repositorySession(cwd);
+  callRex(['api', 'call', '-s', target, 'session.new_block', JSON.stringify({
+    flavor: 'com.superlogical.terminal.shell', label: 'coordinator',
+    options: { shell: 'none', command: workerCommand(), cwd: coordinatorCwd() },
+  })]);
+  return target;
+}
 
 function coordinatorRunning() {
   const found = findCoordinator(JSON.parse(callRex(['ls', '--json'])).sessions, terminals, coordinatorCwd());
   return Boolean(found && !found.stopped);
 }
 
-async function ensureCoordinator() {
+async function ensureCoordinator(place = {}) {
   if (coordinatorRunning()) return;
-  execFileSync(process.execPath, [join(root, 'src/pinned.mjs')], { encoding: 'utf8', timeout: 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
+  if (isWorker()) startWorker(place);
+  else execFileSync(process.execPath, [join(root, 'src/pinned.mjs')], { encoding: 'utf8', timeout: 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
   for (let attempt = 0; attempt < 45; attempt += 1) {
     if (coordinatorRunning()) return sleep(5_000);
     await sleep(1_000);
@@ -111,6 +141,16 @@ async function submitAndWait(action, params, timeoutMs) {
     await sleep(1_000);
   }
   return { state: 'timeout', ok: false, text: `No result from the ${hostname()} coordinator after ${Math.round(timeoutMs / 1000)}s; the request may still run there` };
+}
+
+async function forTask(id, run) {
+  const task = new TaskStore().list().find((row) => row.id === id || row.logicalId === id);
+  if (!task) throw new Error(`No task ${cleanText(id)} on ${hostname()}`);
+  let session;
+  try { session = surfaceTarget(task.surface).session; } catch {}
+  const live = JSON.parse(callRex(['ls', '--json'])).sessions.some((entry) => entry.session_id === session);
+  await ensureCoordinator(live ? { session } : { cwd: task.worktree ?? task.originCwd });
+  return run();
 }
 
 function memoryAvailable() {
@@ -145,14 +185,14 @@ export const agent = {
     const cwd = resolveRepository(repo);
     const origin = remoteUrl(cwd);
     if (origin) git(cwd, ['fetch', '--quiet', 'origin']);
-    await ensureCoordinator();
+    await ensureCoordinator({ cwd });
     const worktree = branch ? { branch, base: base ?? (origin ? 'origin/HEAD' : 'HEAD') } : null;
     return { host: hostname(), cwd, ...(await submitAndWait('launch', { name, task, cwd, worktree }, 15 * 60_000)) };
   },
-  send: async ({ id, message }) => submitAndWait('send', { id, message }, 5 * 60_000),
-  stop: async ({ id }) => submitAndWait('stop', { id }, 5 * 60_000),
-  resume: async ({ id }) => submitAndWait('resume', { id }, 5 * 60_000),
-  stash: async ({ id }) => submitAndWait('stash', { id }, 5 * 60_000),
+  send: async ({ id, message }) => forTask(id, () => submitAndWait('send', { id, message }, 5 * 60_000)),
+  stop: async ({ id }) => forTask(id, () => submitAndWait('stop', { id }, 5 * 60_000)),
+  resume: async ({ id }) => forTask(id, () => submitAndWait('resume', { id }, 5 * 60_000)),
+  stash: async ({ id }) => forTask(id, () => submitAndWait('stash', { id }, 5 * 60_000)),
 };
 
 const readStdin = async () => {

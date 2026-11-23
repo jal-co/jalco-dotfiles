@@ -41,6 +41,7 @@ const record = () => fs.appendFileSync(${JSON.stringify(log)}, args.join(' ') + 
 let result;
 if (args[0] === 'ls') result = { sessions: ${JSON.stringify(sessions)} };
 else if (args[0] === 'session' && args[1] === 'inspect') result = { windows: windows[args[2]] };
+else if (args[0] === 'block' && args[1] === 'ls') result = { blocks: (windows[args[3]] ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks)) };
 else if (args[0] === 'block' && args[1] === 'call') result = { foreground: { argv0: args[5] === 'block:coordinator' && ${running} ? 'pi' : args[5] === 'block:center' && ${centerRunning} ? '/usr/bin/node' : '-zsh', cwd: ${JSON.stringify(cwd)} }, ...(${exited} && args[5] === 'block:coordinator' ? { last_exit: { code: 1 } } : {}) };
 else if (args[0] === 'actions') result = { actions: [{ name: 'pin_session' }] };
 else if (args[0] === 'new') { record(); result = { session_id: 'session:created', initial_windows: [{ block_ids: ['block:created'] }] }; }

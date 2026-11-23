@@ -123,4 +123,9 @@ export function forwardOrSend(send, message, options, { connected = workerConnec
   return send(message, { triggerTurn: false });
 }
 
+export function workerIdle({ origin, tasks, requests }) {
+  if (tasks.some((task) => task.originCwd === origin && !task.stopConfirmed)) return false;
+  return !existsSync(requests) || !readdirSync(requests).some((name) => /\.(json|claimed)$/.test(name) && !name.endsWith('.result.json'));
+}
+
 export const remoteEventText = (event) => `From ${event.host} (${event.customType || 'event'}): ${event.content}`;

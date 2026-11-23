@@ -14,7 +14,8 @@ import { processBirth, TaskStore } from './tasks.ts';
 import { registerPullRequests } from './pull-requests.ts';
 import { TaskHistory } from './history.ts';
 import { RexRecovery } from './recovery.ts';
-import { RequestInbox } from './requests.ts';
+import { RequestInbox, requestRoot } from './requests.ts';
+import { workerIdle } from './hosts.ts';
 import { cleanupTask, forceCleanupTask } from './cleanup.ts';
 import { registerWork } from './work-tool.ts';
 import rexTask from './task.ts';
@@ -431,7 +432,16 @@ export default async function rexAgents(pi: ExtensionAPI) {
   pi.on('session_start', (_event, ctx) => {
     latestContext = ctx;
     clearInterval(remoteEvents);
-    remoteEvents = setInterval(() => { deliverRemoteEvents(); watchLink(); }, 2000);
+    let idleSince = Date.now();
+    remoteEvents = setInterval(() => {
+      deliverRemoteEvents();
+      watchLink();
+      if (process.env.REX_WORKER !== '1') return;
+      try {
+        if (!workerIdle({ origin: ctx.cwd, tasks: new TaskStore().list(), requests: requestRoot() })) { idleSince = Date.now(); return; }
+        if (Date.now() - idleSince > 120_000) ctx.shutdown();
+      } catch (error) { reportModuleError(error); }
+    }, 2000);
     remoteEvents.unref();
     deliverRemoteEvents();
     watchLink();

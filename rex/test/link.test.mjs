@@ -190,3 +190,20 @@ test('a worker coordinator says once when it takes over from the primary and onc
   assert.equal(up.options.triggerTurn, false);
   for (const handler of extension.handlers.get('session_shutdown') ?? []) await handler({ reason: 'quit' }, ctx);
 });
+
+test('a hidden worker coordinator counts as idle only with no live tasks and no pending requests', async (context) => {
+  const { workerIdle } = await import('../src/hosts.ts');
+  const { isWorker } = await import('../src/remote.mjs');
+  const env = environment(context);
+  const requests = join(env.directory, 'requests');
+  const tasks = [{ originCwd: '/c', stopConfirmed: true }, { originCwd: '/other' }];
+  assert.equal(workerIdle({ origin: '/c', tasks, requests }), true);
+  assert.equal(workerIdle({ origin: '/c', tasks: [...tasks, { originCwd: '/c' }], requests }), false);
+  mkdirSync(requests);
+  writeFileSync(join(requests, 'a.result.json'), '{}');
+  assert.equal(workerIdle({ origin: '/c', tasks, requests }), true);
+  writeFileSync(join(requests, 'b.claimed'), '{}');
+  assert.equal(workerIdle({ origin: '/c', tasks, requests }), false);
+  const config = { order: ['b1', 'mac'], hosts: { b1: {}, mac: {} } };
+  assert.deepEqual([isWorker(config, 'mac'), isWorker(config, 'b1'), isWorker(config, undefined)], [true, false, false]);
+});

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callRex } from './provider.ts';
 import { findCoordinator } from './coordinator-session.mjs';
+import { brainName, loadHosts, selfName, workerConnected } from './hosts.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const configDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'agent');
@@ -13,6 +14,11 @@ const label = 'Command';
 if (process.argv.length > 2) {
   console.log('Usage: pinned');
   process.exit(process.argv.includes('--help') ? 0 : 2);
+}
+const hosts = loadHosts();
+if (selfName(hosts) && selfName(hosts) !== brainName(hosts) && workerConnected()) {
+  console.log(`This machine works for ${brainName(hosts)}. Open ${brainName(hosts)}'s Command session in Rex to talk to the coordinator; tasks here start their own hidden coordinator when they need one.`);
+  process.exit(0);
 }
 const settings = join(cwd, '.pi/settings.json');
 const instructions = join(cwd, 'AGENTS.md');
@@ -24,12 +30,9 @@ for (const [target, source] of [[settings, join(root, 'coordinator/settings.json
 const commandCenter = join(root, 'src/linear-tui.mjs');
 const centerLabel = '\u{f0516} linear';
 const centerFile = join(homedir(), '.rex', 'command-center-session.json');
-const terminals = (id) => {
-  const view = JSON.parse(callRex(['session', 'inspect', id, '--json']));
-  return (view.windows ?? []).flatMap((window) => window.layers.flatMap((layer) => layer.blocks))
-    .filter((block) => block.creator_name === 'com.superlogical.terminal')
-    .map((block) => ({ ...JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])), block_id: block.block_id, label: block.label }));
-};
+const terminals = (id) => JSON.parse(callRex(['block', 'ls', '-s', id, '--json'])).blocks
+  .filter((block) => block.creator_name === 'com.superlogical.terminal')
+  .map((block) => ({ ...JSON.parse(callRex(['block', 'call', '-s', id, '-b', block.block_id, 'process'])), block_id: block.block_id, label: block.label }));
 const piCommand = () => {
   const config = JSON.parse(readFileSync(join(configDir, 'rex-agents/config.json'), 'utf8'));
   const model = config.models?.default;
