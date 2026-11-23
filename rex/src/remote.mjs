@@ -111,7 +111,7 @@ export function startWorker({ cwd, session }) {
   const target = session ?? repositorySession(cwd);
   callRex(['api', 'call', '-s', target, 'session.new_block', JSON.stringify({
     flavor: 'com.superlogical.terminal.shell', label: 'coordinator',
-    options: { shell: 'none', command: workerCommand(), cwd: coordinatorCwd() },
+    options: { command: workerCommand(), cwd: coordinatorCwd(), interactive: true },
   })]);
   return target;
 }
