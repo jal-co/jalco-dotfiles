@@ -10,19 +10,6 @@
       "description": "Granola meeting notes, transcripts and action items",
       "enabled": false
     },
-    "figma": {
-      "url": "http://127.0.0.1:3845/mcp",
-      "enabled": false,
-      "description": "Figma design files, frames and variables"
-    },
-    "figma-bridge": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@gethopp/figma-mcp-bridge"
-      ],
-      "description": "Figma bridge for reading and editing the open design file"
-    },
     "exa": {
       "command": "npx",
       "args": [
