@@ -15,7 +15,7 @@ It composes `pi-claude-bridge@0.10.0`; it does not patch that package, impersona
 
 State lives in `<agent-dir>/state/claude-pool.sqlite`. Transactions coordinate Pi processes on the same machine. Only account IDs, token fingerprints, cooldowns and session assignments are stored. Assignments unused for 30 days are discarded.
 
-Each machine has its own state. A Mac and Boat VM can use the same references, but they do not share live cooldowns or a global quota counter. Provider limits remain account-wide. Do not place the SQLite file on a shared network filesystem.
+Each machine has its own state. Machines can use the same references, but they do not share live cooldowns or a global quota counter. Provider limits remain account-wide. Do not place the SQLite file on a shared network filesystem.
 
 ## Cache-miss log
 
@@ -74,24 +74,6 @@ The SDK child receives the selected token as `CLAUDE_CODE_OAUTH_TOKEN`. Pool tok
 
 Keep Claude Code's user settings free of conflicting auth helpers or provider overrides. `CLAUDE_BRIDGE_TRACE_PROXY` is rejected for pooled requests.
 
-## Boat
-
-Use an existing private sandbox with Node 24.19+, Pi 1.4+ and Linux `op`. No Rex changes or connection to the home proxy are needed for Claude.
-
-From the Mac, copy this package's source, excluding ignored dependencies:
-
-```sh
-boat push "$SANDBOX_ID" "$HOME/dotfiles/pi/agent/packages/pi-claude-pool" --to /home/user/pi-claude-pool
-boat exec "$SANDBOX_ID" --cwd /home/user/pi-claude-pool -- npm ci --ignore-scripts --legacy-peer-deps
-boat exec "$SANDBOX_ID" -- pi install /home/user/pi-claude-pool
-```
-
-Create the reference-only `~/.pi/agent/claude-pool.json` for the Linux user running Pi. Provision the 1Password service-account credential through the VM's approved secret-injection mechanism, not a literal `boat exec` command. Boat retains command history. Do not copy Mac Keychain data, Pi auth files or login sessions to the VM, and do not share or snapshot a sandbox containing personal credentials.
-
-Then start Pi normally from Rex or SSH and choose a `claude-bridge` model. Closing the phone connection does not itself manage VM lifetime: keeping Boat and Rex running is a separate orchestration concern.
-
-No Boat sandbox was created or modified by this change.
-
 ## Verification
 
 ```sh
@@ -100,6 +82,6 @@ npm test
 
 The tests cover account affinity, eight concurrent Pi processes, cooldowns, token rotation, secret references and redaction, aborted and partial streams, tool-result continuations, and bounded failover. The bridge smoke test runs the real Pi loader and bridge with a simulated SDK, including Claude Code's synthetic quota notice. It makes no model request and has an isolated home directory.
 
-Verified on macOS and a Linux Node 24 container. Two separate, tool-free live Sonnet probes also returned the expected response using the two 1Password-backed accounts locally. Live quota exhaustion and a real Boat deployment have not been exercised.
+Verified on macOS and a Linux Node 24 container. Two separate, tool-free live Sonnet probes also returned the expected response using the two 1Password-backed accounts locally. Live quota exhaustion has not been exercised.
 
 Config and routing-state boundaries are validated with TypeBox schemas. No type assertions or lint-suppression comments are used.

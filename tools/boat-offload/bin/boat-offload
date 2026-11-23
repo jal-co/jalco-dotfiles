@@ -1,2 +1,0 @@
-#!/bin/sh
-exec node --disable-warning=ExperimentalWarning "$HOME/dotfiles/tools/boat-offload/src/cli.mjs" "$@"

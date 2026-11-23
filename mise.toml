@@ -17,7 +17,6 @@ dotfiles.relative_symlinks = true
 "~/.local/bin/pinned-rex" = "rex/bin/pinned"
 "~/.local/bin/rex-linear" = "rex/bin/rex-linear"
 "~/.local/bin/rex-remote" = "rex/bin/rex-remote"
-"~/.local/bin/boat-offload" = "tools/boat-offload/bin/boat-offload"
 "~/rex-coord/AGENTS.md" = "rex/coordinator/AGENTS.md"
 "~/rex-coord/.pi/settings.json" = "rex/coordinator/settings.json"
 
