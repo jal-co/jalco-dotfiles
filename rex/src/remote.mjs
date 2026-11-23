@@ -253,16 +253,19 @@ export async function unnameOnDesk(config, options) {
   return { host: target, removed: `https://${options.name}.localhost` };
 }
 
+const forwardDir = (session) => `"$HOME/.cache/rex-remote/forwards/${session}"`;
+const validSession = (session) => /^[\w:.-]{1,120}$/.test(String(session ?? ''));
+
 export function forwardCommand(config, { ports, session, desk, name, self = selfName(config) }) {
   const list = String(ports ?? '').split(',').map((port) => Number(port.trim()));
   if (!list.length || list.some((port) => !Number.isInteger(port) || port < 1 || port > 65535)) throw new Error('forward needs --ports, such as 3300,3301');
-  if (!/^[\w:.-]{1,120}$/.test(String(session ?? ''))) throw new Error('forward needs --session, or run it inside a Rex tab');
+  if (!validSession(session)) throw new Error('forward needs --session, or run it inside a Rex tab');
   if (name !== undefined && !validName(name)) throw new Error('--name takes lowercase letters, digits, dots and dashes, such as studio.pltfrm-3925');
   const target = deskFor(config, desk, self);
   const mine = config.hosts[self]?.ssh;
   if (!mine) throw new Error('This machine has no ssh name in hosts.json');
-  const rex = `"$HOME/.local/bin/rex" -S ssh://${mine} forward new -s ${session}`;
-  const script = `for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || nohup ${rex} -L $port:127.0.0.1:$port >/dev/null 2>&1 </dev/null & done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done${name ? `; ${PORTLESS} proxy start --unprivileged --https >/dev/null 2>&1; ${PORTLESS} alias ${name} ${list[0]} --force >/dev/null 2>&1 || exit 4` : ''}`;
+  const ssh = `ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:$port:127.0.0.1:$port ${mine}`;
+  const script = `dir=${forwardDir(session)}; mkdir -p "$dir"; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || { nohup ${ssh} >/dev/null 2>&1 </dev/null & echo $! > "$dir/$port.pid"; }; done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done${name ? `; ${PORTLESS} proxy start --unprivileged --https >/dev/null 2>&1; ${PORTLESS} alias ${name} ${list[0]} --force >/dev/null 2>&1 || exit 4` : ''}`;
   return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
 }
 
@@ -271,12 +274,25 @@ export async function forwardToDesk(config, options) {
   try {
     await promisify(execFile)('ssh', args, { encoding: 'utf8', timeout: 30_000 });
   } catch (error) {
-    if (error.code === 3) throw new Error(`The forward started on ${target} but a port is not listening there yet; check rex forward ls -s ${options.session}`);
+    if (error.code === 3) throw new Error(`The forward started on ${target} but a port is not listening there yet; check that ${target} can ssh to this machine`);
     if (error.code === 4) throw new Error(`The ports are open on ${target}, but portless could not name ${options.name}; use http://localhost:${list[0]}`);
     throw new Error(`Could not reach ${target}: ${cleanText(error.stderr || error.message).slice(0, 200)}`);
   }
   const urls = list.map((port) => `http://localhost:${port}`);
-  return { host: target, urls: options.name ? [`https://${options.name}.localhost`, ...urls] : urls, close: `rex forward close --all -s ${options.session}` };
+  return { host: target, urls: options.name ? [`https://${options.name}.localhost`, ...urls] : urls, close: `rex-remote unforward --session ${options.session}` };
+}
+
+export function unforwardCommand(config, { session, desk, self = selfName(config) }) {
+  if (!validSession(session)) throw new Error('unforward needs --session, or run it inside a Rex tab');
+  const target = deskFor(config, desk, self);
+  const script = `dir=${forwardDir(session)}; for file in "$dir"/*.pid; do [ -f "$file" ] && kill "$(cat "$file")" 2>/dev/null; rm -f "$file"; done; rmdir "$dir" 2>/dev/null; true`;
+  return { target, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
+}
+
+export async function unforwardOnDesk(config, options) {
+  const { target, args } = unforwardCommand(config, options);
+  await promisify(execFile)('ssh', args, { encoding: 'utf8', timeout: 30_000 });
+  return { host: target, closed: options.session };
 }
 
 export async function statuses(config, { self = selfName(config) } = {}) {
@@ -302,7 +318,9 @@ const usage = `Usage:
   rex-remote forward --ports 3300,3301 [--name N] [--session S] [--host mac]
                                          make these ports on this machine open as http://localhost:PORT
                                          on the Mac, and the first as https://N.localhost with --name;
-                                         close them with rex forward close --all -s S
+                                         close them with rex-remote unforward
+  rex-remote unforward [--session S] [--host mac]
+                                         close the forwards that session opened on the Mac
   rex-remote unname --name N [--host mac] remove the https://N.localhost name from the Mac
 
 The primary host (first in hosts.json) reaches the others only through the link
@@ -330,6 +348,7 @@ async function main(argv) {
     })));
   }
   if (command === 'forward') return forwardToDesk(config, { ports: values.ports, name: values.name, session: values.session ?? process.env.REX_SESSION, desk: values.host });
+  if (command === 'unforward') return unforwardOnDesk(config, { session: values.session ?? process.env.REX_SESSION, desk: values.host });
   if (command === 'unname') return unnameOnDesk(config, { name: values.name, desk: values.host });
   if (command === 'pick') return { host: chooseHost({ requested: values.host, order: config.order, statuses: await statuses(config) }) };
   if (command === 'launch') {

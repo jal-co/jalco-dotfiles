@@ -59,10 +59,23 @@ test('forward opens the ports on the other machine through this one, and refuses
   const { target, list, args } = forwardCommand(config, { ports: '3300, 3301', session: 'session:abc-1', self: 'b1' });
   assert.deepEqual([target, list], ['mac', [3300, 3301]]);
   assert.equal(args.at(-2), 'me@mac.ts.net');
-  assert.match(args.at(-1), /^for port in 3300 3301; do nc -z 127\.0\.0\.1 \$port \|\| nohup "\$HOME\/\.local\/bin\/rex" -S ssh:\/\/b1 forward new -s session:abc-1 -L \$port:127\.0\.0\.1:\$port /);
+  const script = args.at(-1);
+  assert.match(script, /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; mkdir -p "\$dir"; for port in 3300 3301; do nc -z 127\.0\.0\.1 \$port \|\| \{ nohup ssh -N /);
+  assert.match(script, / -L 127\.0\.0\.1:\$port:127\.0\.0\.1:\$port b1 >\/dev\/null 2>&1 <\/dev\/null & echo \$! > "\$dir\/\$port\.pid"; \}/);
+  assert.doesNotMatch(script, /forward new/);
   assert.throws(() => forwardCommand(config, { ports: '99999', session: 's', self: 'b1' }), /needs --ports/);
   assert.throws(() => forwardCommand(config, { ports: '3300', session: 'x; rm -rf ~', self: 'b1' }), /needs --session/);
   assert.throws(() => forwardCommand({ order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, { ports: '3300', session: 's', self: 'b1' }), /No other machine/);
+});
+
+test('unforward stops only the ssh forwards its session started on the Mac', async () => {
+  const { unforwardCommand } = await import('../src/remote.mjs');
+  const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1' }, mac: { ssh: 'me@mac.ts.net' } } };
+  const { target, args } = unforwardCommand(config, { session: 'session:abc-1', self: 'b1' });
+  assert.deepEqual([target, args.at(-2)], ['mac', 'me@mac.ts.net']);
+  assert.match(args.at(-1), /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; for file in "\$dir"\/\*\.pid; do .*kill "\$\(cat "\$file"\)"/);
+  assert.throws(() => unforwardCommand(config, { session: 'x; rm -rf ~', self: 'b1' }), /unforward needs --session/);
+  assert.throws(() => unforwardCommand(config, { session: undefined, self: 'b1' }), /unforward needs --session/);
 });
 
 test('forward can name its first port on the Mac with portless, and unname removes it', async () => {
