@@ -1243,11 +1243,14 @@ export function readCoordinatorAsk(origin, root = join(homedir(), '.pi', 'agent'
   }
 }
 
-export function opener(url, { platform = process.platform, config = { order: [], hosts: {} }, self } = {}) {
+export const inApp = (url) => url.replace(/^https:\/\/linear\.app\//, 'linear://');
+
+export function opener(link, { platform = process.platform, config = { order: [], hosts: {} }, self } = {}) {
+  const url = inApp(link);
   if (platform === 'darwin') return ['open', [url]];
   const desk = Object.entries(config.hosts).find(([name]) => name !== self && name !== config.order?.[0])
     ?? Object.entries(config.hosts).find(([name]) => name !== self);
-  if (!desk) return ['xdg-open', [url]];
+  if (!desk) return ['xdg-open', [link]];
   const [name, host] = desk;
   return ['ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh, `open '${url.replaceAll("'", "'\\''")}'`], name];
 }

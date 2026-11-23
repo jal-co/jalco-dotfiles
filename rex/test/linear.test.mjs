@@ -640,4 +640,7 @@ test('links open on the Mac when the command center runs on b1, quoted for the r
   assert.deepEqual(opener('https://x.y/a', { platform: 'darwin', config, self: 'mac' }), ['open', ['https://x.y/a']]);
   assert.deepEqual(opener("https://x.y/it's?a=1&b=2", { platform: 'linux', config, self: 'b1' }), ['ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', 'me@mac.ts.net', "open 'https://x.y/it'\\''s?a=1&b=2'"], 'mac']);
   assert.deepEqual(opener('https://x.y', { platform: 'linux', config: { order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, self: 'b1' }), ['xdg-open', ['https://x.y']]);
+  assert.deepEqual(opener('https://linear.app/acme/issue/ENG-1/fix-it', { platform: 'darwin', config, self: 'mac' }), ['open', ['linear://acme/issue/ENG-1/fix-it']]);
+  assert.equal(opener('https://linear.app/acme/issue/ENG-1', { platform: 'linux', config, self: 'b1' })[1].at(-1), "open 'linear://acme/issue/ENG-1'");
+  assert.deepEqual(opener('https://github.com/a/b/pull/1', { platform: 'darwin', config, self: 'mac' }), ['open', ['https://github.com/a/b/pull/1']]);
 });
