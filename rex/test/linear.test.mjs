@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mock, test } from 'node:test';
 import {
-  SEARCH_TAB, applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
+  MACHINE_TAB, SEARCH_TAB, applyProgramStatus, archiveView, buildView, capacityOf, coordinatorAsk, checkoutOf, findIssues, hiddenView, inbox, withoutHidden, issueBrief, issueQuery, issueReference, launchParams, linkedTask, loadLinear, moveCursor,
   createProject, defaultBase, directCheckout, readLinearConfig, readToken, saveRepository, slugFor, taskBrief,
 } from '../src/linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories, terms, workspaceRepositories } from '../src/repositories.mjs';
@@ -174,14 +174,14 @@ test('the screen fills the terminal exactly, measures wide characters and strips
     assert.ok(screen.every((line) => columns(line) === width && !/[\u0000-\u001f\u007f]/.test(line)), String(width));
   }
   const screen = renderScreen(state, 120, 24).map(plain);
-  assert.match(screen[1], /^ {2}Inbox {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive +● 1 working {3}8\/8 agents {2}$/);
+  assert.match(screen[1], /^ {2}Inbox {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive {4}Machine +● 1 working {3}8\/8 agents {2}$/);
   assert.match(screen[2], /^ {44}▔{5} +$/);
-  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[1]), /^ {2}Inbox 3 {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive +● 1 working/);
+  assert.match(plain(renderScreen({ ...state, counts: [3, 12, 22, 5, 7], tab: 1 }, 140, 24)[1]), /^ {2}Inbox 3 {4}Issues {4}Backlog {4}Sessions {4}Today {4}Work {4}Archive {4}Machine +● 1 working/);
   assert.match(plain(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[2]), /^ {13}▔{6} +$/);
   assert.match(plain(renderScreen({ ...state, working: 0, counts: [0] }, 140, 24)[1]), /^ {2}Inbox {4}Issues.* {2,}8\/8 agents {2}$/);
   assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[1], /\u001b\[1mIssues\u001b\[0m {4}\u001b\[2mBacklog/);
   assert.match(renderScreen({ ...state, counts: [3, 12], tab: 1 }, 140, 24)[1], /\u001b\[2mInbox\u001b\[0m\u001b\[33m 3/);
-  assert.match(plain(renderScreen({ ...state, tab: 6, search: { query: 'x' } }, 160, 24)[1]), /Archive {4}Search /);
+  assert.match(plain(renderScreen({ ...state, tab: 6, search: { query: 'x' } }, 160, 24)[1]), /Archive {4}Machine {4}Search /);
   assert.match(screen[4], /^ {2}Brief {3}List/);
   assert.match(screen[6], /^ {2}IN PROGRESS {2}1/);
   assert.match(screen[8], /^▌ ● Title 🙂 y+… {2}Billing {2}A-1 {2}$/);
@@ -595,7 +595,7 @@ test('working agents show Pi\'s spinner in their row and the header; other state
   assert.match(screen[7], /^ {4}working +$/);
   assert.match(screen[8], /^ {2}● B +p {2}b {2}$/);
   assert.match(screen[9], /^ {4}done +$/);
-  assert.match(renderScreen({ ...state, working: 0, spinner: undefined }, 140, 24).map(plain)[1], /Archive {2,}2\/8 agents {2}$/);
+  assert.match(renderScreen({ ...state, working: 0, spinner: undefined }, 140, 24).map(plain)[1], /Machine {2,}2\/8 agents {2}$/);
   assert.equal(applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working', msg: 'bash' }]).state, 'working');
   assert.equal(items(buildView(3, { tasks: [applyProgramStatus(task('x', 'unknown'), [{ id: 'rex-task', state: 'working' }])], prs: [], records: [], linear: { status: 'ok', open: [], done: [] } }))[0].agent.spin, true);
 });
@@ -650,4 +650,32 @@ test('a started issue with no agent or PR is colored by its Linear state', async
   assert.deepEqual(agentLabel({ issue: { state: { name: 'In Review', type: 'started' } } }), { text: 'in review', tone: 'blue' });
   assert.deepEqual(agentLabel({ issue: { state: { name: 'In Progress', type: 'started' } } }), { text: 'in progress', tone: 'yellow' });
   assert.deepEqual(agentLabel({ issue: { state: { name: 'Todo', type: 'unstarted' } } }), { text: '', tone: 'dim' });
+});
+
+test('the Machine tab leads with CPU and memory, lists stale and unsure processes apart, and stops only after a confirmation', () => {
+  const process = (pid, status, reason) => ({ pid, start: 9, name: `server ${pid}`, comm: 'node', rss: 2 ** 30, cpu: 50, command: 'node server.js', cwd: '~/dev/app', ports: [3000], startedAt: Date.now() - 3600e3, status, reason });
+  const machine = {
+    at: Date.now(), cpu: { cores: 16, busy: 12, load: [1, 2, 3] },
+    memory: { total: 30766690304, available: 20 * 2 ** 30, swapTotal: 8 * 2 ** 30, swapUsed: 0, pressure: { some60: 0, full60: 0 }, tone: 'green' },
+    attention: [process(1, 'stale', 'its Rex tab was closed'), process(2, 'unsure', 'no Rex tab or service owns it')],
+    memoryTop: [process(3, 'protected', 'the Rex server')], cpuTop: [],
+  };
+  assert.deepEqual(buildView(MACHINE_TAB, {}).map((row) => row.text), ['Reading this machine…']);
+  assert.match(buildView(MACHINE_TAB, { machine: { error: 'boom' } })[0].text, /Could not read this machine: boom/);
+  const rows = withoutHidden(buildView(MACHINE_TAB, { machine }), new Set());
+  assert.equal(rows[0].text, 'CPU     ██░░░░░░░░░░░░░░░░░░ 12% busy   load 1.0 2.0 3.0 on 16 cores');
+  assert.equal(rows[1].text, 'Memory  ██████░░░░░░░░░░░░░░ 8.7 GiB used of 28.7 GiB   20.0 GiB available');
+  assert.equal(rows[2].text, 'Swap    ░░░░░░░░░░░░░░░░░░░░ 0.0 GiB used of 8.0 GiB');
+  const withHistory = withoutHidden(buildView(MACHINE_TAB, { machine: { ...machine, history: { cpu: [0, 50, 100], available: [30766690304, 0] } } }), new Set());
+  assert.equal(withHistory[1].text, '        last 3 min ▁▅█  peak 100%');
+  assert.equal(withHistory[3].text, '        last 2 min ▁█  peak 28.7 GiB');
+  const items = rows.filter((row) => row.kind === 'item');
+  assert.deepEqual(items.map((item) => [item.process.pid, item.agent.text]), [[1, '! stale'], [2, '? unsure'], [3, '']]);
+  assert.deepEqual(actionsFor(items[0], []), [['enter', 'full command'], ['d', 'stop'], ['h', 'hide']]);
+  assert.deepEqual(actionsFor(items[2], []), [['enter', 'full command'], ['h', 'hide']]);
+  assert.deepEqual(meta(items[0], Date.now()), ['its Rex tab was closed', '1.0 GiB', '50% CPU', 'started 1h ago', '~/dev/app']);
+  const screen = renderScreen({ tab: MACHINE_TAB, rows, cursor: rows.indexOf(items[0]), counts: [0, 0, 0, 0, 0, 0, 0, 2], confirm: { kind: 'process-stop', process: items[0].process }, capacity: { used: 1, max: 8 }, now: Date.now() }, 120, 40).map(plain);
+  assert.match(screen[1], /Machine 2/);
+  assert.ok(screen.some((line) => /Stop server 1 \(pid 1\)\?/.test(line)));
+  assert.ok(screen.some((line) => /kills it only if it is still running 6s later/.test(line)));
 });

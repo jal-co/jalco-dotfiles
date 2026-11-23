@@ -34,8 +34,8 @@ const land = () => updateWork((doc) => {
   recordRelease(doc, 'w3', { version: '1.4.0', evidence: 'changelog lists both', included: ['w1', 'w2'] });
 }).doc;
 
-test('Work sits before Archive so the other tab keys keep their numbers', () => {
-  assert.deepEqual(TABS, ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Work', 'Archive']);
+test('Work sits before Archive and Machine comes last, so the other tab keys keep their numbers', () => {
+  assert.deepEqual(TABS, ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Work', 'Archive', 'Machine']);
   assert.equal(TABS[WORK_TAB], 'Work');
 });
 

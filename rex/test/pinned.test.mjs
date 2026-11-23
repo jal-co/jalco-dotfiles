@@ -6,10 +6,11 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const CENTER = '\u{f0516} linear';
+const CENTER = '\u{f0ae} tasks';
+const OLD_CENTER = '\u{f0516} linear';
 const terminal = (block_id, label) => ({ block_id, label, creator_name: 'com.superlogical.terminal' });
 
-function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, centerRunning = true, exited = false, oldPane = false, legacy = false, windowLabel = 'coordinator' } = {}) {
+function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, centerLabel = CENTER, centerRunning = true, exited = false, oldPane = false, legacy = false, windowLabel = 'coordinator' } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'rex-pinned-test-'));
   const binary = join(directory, 'rex');
   const cwd = join(directory, 'rex-coord');
@@ -28,7 +29,7 @@ function runPinned({ label = 'inbox', running = true, coordinator = true, center
     'session:other': [{ label: 'work', layers: [{ blocks: [terminal('block:other'), ...(oldPane ? [terminal('block:old', 'command-center')] : [])] }] }],
     'session:coordinator': [
       { window_id: 'window:coordinator', label: windowLabel, layers: [{ blocks: [terminal('block:coordinator')] }] },
-      ...(centerTab ? [{ window_id: 'window:center', label: CENTER, layers: [{ blocks: [terminal('block:center')] }] }] : []),
+      ...(centerTab ? [{ window_id: 'window:center', label: centerLabel, layers: [{ blocks: [terminal('block:center')] }] }] : []),
     ],
     'session:legacy': [{ label: 'command center', layers: [{ blocks: [terminal('block:legacy')] }] }],
     'session:created': [{ label: 'coordinator', layers: [{ blocks: [terminal('block:created')] }] }],
@@ -36,7 +37,13 @@ function runPinned({ label = 'inbox', running = true, coordinator = true, center
   writeFileSync(binary, `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(3);
-const windows = ${JSON.stringify(windows)};
+const state = ${JSON.stringify(join(directory, 'windows.json'))};
+if (!fs.existsSync(state)) fs.writeFileSync(state, ${JSON.stringify(JSON.stringify(windows))});
+const windows = JSON.parse(fs.readFileSync(state, 'utf8'));
+if (args[0] === 'window' && args[1] === 'rename') {
+  for (const window of windows[args[3]] ?? []) if (window.window_id === args[4]) window.label = args[5];
+  fs.writeFileSync(state, JSON.stringify(windows));
+}
 const record = () => fs.appendFileSync(${JSON.stringify(log)}, args.join(' ') + '\\n');
 let result;
 if (args[0] === 'ls') result = { sessions: ${JSON.stringify(sessions)} };
@@ -110,6 +117,12 @@ test('after a reboot pinned replaces restored tabs that hold only a shell', () =
   assert.match(calls[1], /^window new -s session:coordinator coordinator -c .* --shell=none -- .*\/\.pi\/agent\/bin\/pi --approve/);
   assert.equal(calls[2], 'window close -s session:coordinator window:center');
   assert.match(calls[3], centerTab('session:coordinator'));
+});
+
+test('pinned renames the old linear command center tab to tasks instead of opening a second one', () => {
+  const { output, calls } = runPinned({ label: 'Command', centerTab: true, centerLabel: OLD_CENTER });
+  assert.match(output, /Renamed the ".* linear" tab to ".* tasks"/);
+  assert.deepEqual(calls, [`window rename -s session:coordinator window:center ${CENTER}`, 'do -s session:coordinator pin_session']);
 });
 
 test('pinned names a coordinator tab that still has its default name', () => {

@@ -28,7 +28,8 @@ for (const [target, source] of [[settings, join(root, 'coordinator/settings.json
   }
 }
 const commandCenter = join(root, 'src/linear-tui.mjs');
-const centerLabel = '\u{f0516} linear';
+const centerLabel = '\u{f0ae} tasks';
+const oldCenterLabel = '\u{f0516} linear';
 const centerFile = join(homedir(), '.rex', 'command-center-session.json');
 const terminals = (id) => JSON.parse(callRex(['block', 'ls', '-s', id, '--json'])).blocks
   .filter((block) => block.creator_name === 'com.superlogical.terminal')
@@ -88,6 +89,11 @@ if (sessions.some((entry) => entry.session_id === legacy && entry.label === cent
 }
 if (legacy) unlinkSync(centerFile);
 
+for (const window of JSON.parse(callRex(['session', 'inspect', session.session_id, '--json'])).windows ?? []) {
+  if (window.label !== oldCenterLabel) continue;
+  callRex(['window', 'rename', '-s', session.session_id, window.window_id, centerLabel]);
+  console.log(`Renamed the ${JSON.stringify(oldCenterLabel)} tab to ${JSON.stringify(centerLabel)}.`);
+}
 const view = JSON.parse(callRex(['session', 'inspect', session.session_id, '--json']));
 const installed = existsSync(join(root, 'node_modules/@earendil-works/pi-tui'));
 const coordinatorWindow = existing && !existing.stopped && (view.windows ?? []).find((window) => /^Window [0-9a-f]{8}$/.test(window.label ?? '')

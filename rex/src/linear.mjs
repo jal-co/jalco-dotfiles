@@ -5,12 +5,15 @@ import { basename, dirname, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { cleanText, sessionCwd } from './tasks.ts';
 import { batchOf, blockers, findWork, isClosed, workStatus } from './work.ts';
+import { meter, sparkline } from './machine.mjs';
 
 const run = promisify(execFile);
 const reference = /^op:\/\/[^/\r\n]+\/[^/\r\n]+\/([^/\r\n]+\/)?[^/\r\n]+$/;
 
-export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Work', 'Archive'];
+export const TABS = ['Inbox', 'Issues', 'Backlog', 'Sessions', 'Today', 'Work', 'Archive', 'Machine'];
 export const WORK_TAB = 5;
+export const ARCHIVE_TAB = 6;
+export const MACHINE_TAB = 7;
 export const SEARCH_TAB = TABS.length;
 const AGENT = {
   blocked: ['! blocked', 'red'],
@@ -363,7 +366,8 @@ export function remoteSections(remote = {}, showStopped = false) {
 }
 
 export function buildView(tab, data, { mode = 'brief', showStopped = false, now = Date.now(), search, filter } = {}) {
-  if (tab === TABS.length - 1) return archiveView(data, { filter, now });
+  if (tab === ARCHIVE_TAB) return archiveView(data, { filter, now });
+  if (tab === MACHINE_TAB) return machineView(data.machine);
   if (tab === 0) {
     const { coordinator, asked, broken, review, merged, landing, flagged, count } = inbox(data);
     if (!count) return [note('Nothing needs you right now.')];
@@ -411,13 +415,48 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
   ];
 }
 
+export const gib = (bytes) => `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
+export const size = (bytes) => (bytes >= 1024 ** 3 ? gib(bytes) : `${Math.round(bytes / 1024 ** 2)} MiB`);
+const PROCESS_LABEL = { stale: ['! stale', 'red'], unsure: ['? unsure', 'yellow'], owned: ['', 'dim'], protected: ['', 'dim'] };
+
+export function processItem(row, group) {
+  const [text, tone] = PROCESS_LABEL[row.status];
+  return {
+    kind: 'item', key: `p:${group}:${row.pid}:${row.start}`, id: `pid ${row.pid}`, project: row.ports.length ? `:${row.ports.join(' :')}` : '',
+    title: cleanText(row.name), agent: { text, tone }, process: row,
+  };
+}
+
+export function machineGraphs({ cpu, memory, history }) {
+  const used = memory.total - memory.available;
+  const hour = (values, max, peak) => (values?.length ? [[`        last ${values.length} min ${sparkline(values, max)}  peak ${peak(Math.max(...values))}`, 'dim']] : []);
+  return [
+    [`CPU     ${meter((cpu.busy ?? 0) / 100)} ${cpu.busy === undefined ? '' : `${Math.round(cpu.busy)}% busy   `}load ${cpu.load.map((value) => value.toFixed(1)).join(' ')} on ${cpu.cores} cores`, 'dim'],
+    ...hour(history?.cpu, 100, (peak) => `${Math.round(peak)}%`),
+    [`Memory  ${meter(used / memory.total)} ${gib(used)} used of ${gib(memory.total)}   ${gib(memory.available)} available`, memory.tone === 'green' ? 'dim' : memory.tone],
+    ...hour(history?.available?.map((available) => memory.total - available), memory.total, (peak) => gib(peak)),
+    [`Swap    ${meter(memory.swapTotal ? memory.swapUsed / memory.swapTotal : 0)} ${gib(memory.swapUsed)} used of ${gib(memory.swapTotal)}`, 'dim'],
+  ];
+}
+
+export function machineView(machine) {
+  if (!machine) return [note('Reading this machine…')];
+  if (machine.error) return [note(`Could not read this machine: ${cleanText(machine.error).slice(0, 200)}`, 'red')];
+  return [...machineGraphs(machine).map(([text, tone]) => note(text, tone)),
+    { kind: 'blank' },
+    ...section('Needs attention', machine.attention.map((row) => processItem(row, 'a')), 'Nothing stale. Every dev server and browser has a living owner.'),
+    ...section('Most memory', machine.memoryTop.map((row) => processItem(row, 'm'))),
+    ...section('Most CPU right now', machine.cpuTop.map((row) => processItem(row, 'c'))),
+  ];
+}
+
 export function withoutHidden(rows, hidden) {
   const out = [];
   let section;
   for (const row of rows) {
-    if (row.kind === 'section') { section = { ...row, count: 0 }; out.push(section); continue; }
+    if (row.kind === 'section') { section = { ...row, count: row.count === undefined ? undefined : 0 }; out.push(section); continue; }
     if (row.kind === 'item' && (hidden.has(row.key) || hidden.has(row.parent))) continue;
-    if (row.kind === 'item' && section && !row.parent) section.count += 1;
+    if (row.kind === 'item' && section && !row.parent && section.count !== undefined) section.count += 1;
     out.push(row);
   }
   return out.filter((row, index) => row.kind !== 'section' || row.count > 0 || out[index + 1]?.kind === 'note')

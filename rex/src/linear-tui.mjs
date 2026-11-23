@@ -15,11 +15,12 @@ import { RexWorktrees } from './worktrees.ts';
 import { loadPersistentConfig } from '../host/maestro/core/config/persistent-config.ts';
 import { getSubagentsConfigDir, getSubagentsConfigExamplePath } from '../host/pi-extension/subagents/config-path.ts';
 import {
-  SEARCH_TAB, TABS, WORK_TAB, applyProgramStatus, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
+  ARCHIVE_TAB, MACHINE_TAB, SEARCH_TAB, TABS, WORK_TAB, applyProgramStatus, size, coordinatorAsk, brief, buildView, capacityOf, checkoutOf, defaultBase, findIssues, hiddenView, inbox, issueBrief, issueReference, launchParams, linkedTask, live,
   createProject, directCheckout, loadLinear, moveCursor, partlyCleaned, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories } from './repositories.mjs';
 import { busy, call, chooseHost, loadHosts, selfName, statuses, tasksOf } from './remote.mjs';
+import { readMachineAsync, stopProcess } from './machine.mjs';
 
 export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36' };
@@ -86,6 +87,10 @@ function workMeta(item, now) {
 
 export function meta(item, now) {
   if (item.work) return workMeta(item, now);
+  if (item.process) {
+    const row = item.process;
+    return [row.reason, row.tab && !row.reason.includes(row.tab) ? row.tab : '', size(row.rss), row.cpu >= 1 ? `${Math.round(row.cpu)}% CPU` : '', `started ${ago(row.startedAt, now)}`, row.cwd && !row.reason.includes(row.cwd) ? row.cwd : ''].filter(Boolean);
+  }
   if (item.coordinator) return [item.coordinator.dialog ? 'waiting on a confirmation in its tab' : 'waiting for your answer'];
   if (item.archive) return [`archived ${ago(item.archive.archivedAt, now)}`, cleanText(item.archive.branch ?? ''), item.archive.pullRequests?.[0] ? pullNumber(item.archive.pullRequests[0]) : ''].filter(Boolean);
   const { task, pr, issue } = item;
@@ -121,7 +126,7 @@ export function fitKeys(pairs, width) {
 }
 const HELP = [
   ['↑ ↓  j k', 'move'],
-  ['tab  1-8', 'switch tabs'],
+  ['tab  1-9', 'switch tabs'],
   ['← →', 'brief or list on Today'],
   ['enter', 'focus, open PR or launch'],
   ['n', 'new task from a goal'],
@@ -132,7 +137,7 @@ const HELP = [
   ['s', 'message the selected agent'],
   ['u', 'resume a crashed or stashed agent'],
   ['z', 'stash: stop the agent, keep everything to resume later'],
-  ['d', 'stop or retire the agent'],
+  ['d', 'stop or retire the agent; on Machine, stop a stale process'],
   ['D', 'stop, remove checkout'],
   ['F', 'force clean up a stuck task, best effort'],
   ['a', 'clean up all merged'],
@@ -164,7 +169,7 @@ export function legend(state) {
   const item = selected?.kind === 'item' ? selected : undefined;
   if (state.hiddenView) return [...(item ? [['h', 'unhide']] : []), ['H', 'back'], ['?', 'keys'], ['q', 'quit']];
   const actions = item ? actionsFor(item, state.records ?? [], state.cleanupFailed) : [];
-  const globals = [['n', 'new'], ['w', 'queue fix'], ...(state.tab === WORK_TAB ? [['b', 'new batch']] : []), ['/', state.tab === TABS.length - 1 ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
+  const globals = [['n', 'new'], ['w', 'queue fix'], ...(state.tab === WORK_TAB ? [['b', 'new batch']] : []), ['/', state.tab === ARCHIVE_TAB ? 'filter' : 'search'], ['c', 'coordinator'], ['H', 'hidden'], ['r', 'refresh'], ['?', 'keys'], ['q', 'quit']];
   return [...actions, ...globals.filter(([key]) => !actions.some(([taken]) => taken === key))];
 }
 
@@ -210,6 +215,7 @@ export function workDraft(item) {
 
 export function actionsFor(item, records, cleanupFailed = new Set()) {
   if (item.work) return workActions(item);
+  if (item.process) return [['enter', 'full command'], ...(['stale', 'unsure'].includes(item.process.status) ? [['d', 'stop']] : []), ['h', 'hide']];
   if (item.coordinator) return [['enter', enterAction(item)], ...(item.coordinator.ask ? [['y', 'yes']] : []), ['h', 'hide']];
   if (item.remote) return [...(item.remote.state === 'stopped' ? [] : [['s', 'send'], ['d', 'stop']]), ['h', 'hide']];
   if (item.approval) return [['enter', 'approve cleanup'], ['K', 'keep, no cleanup'], ['F', 'force clean up'], ['o', 'PR'], ...(item.issue ? [['l', 'Linear']] : []), ['h', 'hide']];
@@ -243,6 +249,14 @@ export function machineCells(machines = {}) {
 }
 
 function confirmLines(confirm) {
+  if (confirm.kind === 'process-stop') {
+    const row = confirm.process;
+    return [
+      [[`Stop ${row.name} (pid ${row.pid})?`, 'bold']],
+      [[`${row.status === 'stale' ? 'Stale' : 'Owner unsure'}: ${row.reason}. ${size(row.rss)}.`, 'dim']],
+      [['b1 checks it is still the same process, sends SIGTERM, and kills it only if it is still running 6s later.', 'dim']],
+    ];
+  }
   if (confirm.kind === 'remote-stop') {
     return [
       [[`Stop ${confirm.remote.name} on ${confirm.remote.host}?`, 'bold']],
@@ -288,7 +302,7 @@ export function tabCells(state) {
   const names = [...TABS, ...(state.search ? ['Search'] : [])];
   return [[MARGIN], ...names.flatMap((name, index) => {
     const active = index === state.tab && !state.hiddenView;
-    const count = index === 0 && state.counts?.[0] ? ` ${state.counts[0]}` : '';
+    const count = (index === 0 || index === MACHINE_TAB) && state.counts?.[index] ? ` ${state.counts[index]}` : '';
     return [[name, active ? 'bold' : 'dim'], [count, 'yellow'], [index === names.length - 1 ? '' : '    ']];
   })];
 }
@@ -304,13 +318,13 @@ function context(state) {
   if (state.hiddenView) return [['Hidden', 'bold'], [`${GAP}h unhides${GAP}H goes back`, 'dim']];
   if (state.tab === 4) return [['Brief', state.mode === 'brief' ? 'bold' : 'dim'], [GAP], ['List', state.mode === 'list' ? 'bold' : 'dim']];
   if (state.tab === 3) return [[`agent slots ${state.capacity.used}/${state.capacity.max}${GAP}${slotSummary(state.slots)}`, state.slots?.dead ? 'yellow' : 'dim']];
-  if (state.tab === TABS.length - 1 && state.archiveFilter) return [[`filtered by “${state.archiveFilter}”${GAP}/ changes it`, 'dim']];
+  if (state.tab === ARCHIVE_TAB && state.archiveFilter) return [[`filtered by “${state.archiveFilter}”${GAP}/ changes it`, 'dim']];
   return undefined;
 }
 
 function rowLines(row, width, selected, state, group) {
   if (row.kind === 'item') return itemLines(group === row.project ? { ...row, project: '' } : row, width, selected, state.spinner, state.now);
-  if (row.kind === 'section') return [line([[MARGIN], [row.title.toUpperCase(), 'bold', 'dim'], [`  ${row.count}`, 'dim']], width), line([], width)];
+  if (row.kind === 'section') return [line([[MARGIN], [row.title.toUpperCase(), 'bold', 'dim'], [row.count === undefined ? '' : `  ${row.count}`, 'dim']], width), line([], width)];
   if (row.kind === 'note') return [line([[MARGIN], [row.text, row.tone]], width)];
   return [line([], width)];
 }
@@ -402,7 +416,7 @@ export class LinearApp {
   }
 
   view() {
-    return { ...this.data, coordinator: this.coordinatorState(), tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear, remote: this.remote };
+    return { ...this.data, machine: this.machine, coordinator: this.coordinatorState(), tasks: this.data.tasks.map((task) => applyProgramStatus(task, this.programStatus.get(task.id))), linear: this.linear, remote: this.remote };
   }
 
   async pollMachines() {
@@ -422,6 +436,19 @@ export class LinearApp {
     } finally {
       this.machinePolling = false;
     }
+  }
+
+  async pollMachine() {
+    if (this.machineReading) return;
+    this.machineReading = true;
+    try {
+      this.machine = await readMachineAsync();
+    } catch (error) {
+      this.machine = { error: cleanText(error.stderr || error.message), at: Date.now() };
+    } finally {
+      this.machineReading = false;
+    }
+    this.draw();
   }
 
   hostChoice() {
@@ -631,7 +658,7 @@ export class LinearApp {
     state.doneCount = brief(data).done.length;
     state.inboxCount = this.inboxCount();
     const count = (tab) => withoutHidden(buildView(tab, data, { showStopped: false }), this.hidden).filter((row) => row.kind === 'item').length;
-    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, count(WORK_TAB), data.archive.length, state.search?.issues?.length];
+    state.counts = [state.inboxCount, count(1), count(2), data.tasks.filter(live).length, state.doneCount, count(WORK_TAB), data.archive.length, this.machine?.attention?.length, state.search?.issues?.length];
     state.working = data.tasks.filter((task) => live(task) && task.state === 'working').length;
     state.capacity = capacityOf(this.data.tasks, this.origin, [], readMaxAgents());
     state.slots = slotsOf(data.tasks, this.hidden);
@@ -709,6 +736,8 @@ export class LinearApp {
     void this.pollStatus();
     this.machineTimer = setInterval(() => { void this.pollMachines(); }, 20_000);
     void this.pollMachines();
+    this.ownMachineTimer = setInterval(() => { if (this.state.tab === MACHINE_TAB || Date.now() - (this.machine?.at ?? 0) > 60_000) void this.pollMachine(); }, 5_000);
+    void this.pollMachine();
     this.reload = setInterval(() => { void this.refreshLinear(); }, 5 * 60_000);
     for (const signal of ['SIGTERM', 'SIGHUP']) process.once(signal, () => { this.stop(); process.exit(0); });
     const missed = orphanResults();
@@ -723,6 +752,7 @@ export class LinearApp {
     clearInterval(this.statusTimer);
     clearInterval(this.spinTimer);
     clearInterval(this.machineTimer);
+    clearInterval(this.ownMachineTimer);
     clearInterval(this.reload);
     clearTimeout(this.fade);
     clearTimeout(this.timer);
@@ -778,6 +808,14 @@ export class LinearApp {
       return this.request('force-cleanup', { id: confirm.id, checkout: confirm.checkout, preserve: name === 'p' },
         `Force cleaning up ${confirm.label}…`, { label: confirm.label, checkout: confirm.checkout, key: confirm.key });
     }
+    if (confirm.kind === 'process-stop') {
+      if (name !== 'enter') return;
+      this.state.confirm = undefined;
+      const { pid, start, name: label } = confirm.process;
+      this.status('dim', `Stopping ${label} (${pid})…`);
+      return void stopProcess({ pid, start }).then((result) => { this.status('green', result.text); void this.pollMachine(); },
+        (error) => this.status('red', cleanText(error.message).slice(0, 200)));
+    }
     if (confirm.kind === 'remote-stop') {
       if (name !== 'enter') return;
       this.state.confirm = undefined;
@@ -823,10 +861,11 @@ export class LinearApp {
       this.remember();
       return this.draw();
     }
-    if ((/^[1-8]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
-      state.tab = /^[1-8]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
+    if ((/^[1-9]$/.test(name) && Number(name) <= count) || name === 'tab' || name === 'shift-tab') {
+      state.tab = /^[1-9]$/.test(name) ? Number(name) - 1 : (state.tab + (name === 'tab' ? 1 : count - 1)) % count;
       state.hiddenView = false;
       state.status = undefined;
+      if (state.tab === MACHINE_TAB) void this.pollMachine();
       return this.draw();
     }
     if ((name === 'left' || name === 'right') && state.tab === 4) { state.mode = state.mode === 'brief' ? 'list' : 'brief'; return this.draw(); }
@@ -841,7 +880,7 @@ export class LinearApp {
     if (name === 'n') return this.ask('new task, what should it do?', (goal) => this.newTask(goal));
     if (name === 'w') return this.queueFix();
     if (name === 'b' && state.tab === WORK_TAB) return this.newBatch();
-    if (name === '/' && state.tab === TABS.length - 1) return this.ask('filter the archive', (text) => { state.archiveFilter = text; state.selected[state.tab] = undefined; this.draw(); }, state.archiveFilter ?? '', { verb: 'filter' });
+    if (name === '/' && state.tab === ARCHIVE_TAB) return this.ask('filter the archive', (text) => { state.archiveFilter = text; state.selected[state.tab] = undefined; this.draw(); }, state.archiveFilter ?? '', { verb: 'filter' });
     if (name === '/') return this.ask('search Linear or paste an issue link', (text) => this.search(text));
     if (name === 'c') {
       const cleanup = item?.pr?.state === 'MERGED' && item.pr.cleanup === 'pending' ? `Clean up ${item.task?.name ?? 'the task'} now that ${item.pr.url} is merged.` : '';
@@ -849,6 +888,12 @@ export class LinearApp {
     }
     if (!item) return;
     if (item.work) return this.workKey(item, name);
+    if (item.process) {
+      if (name === 'enter') return this.status('dim', `${item.process.pid}: ${item.process.command}`);
+      if (name === 'd' && ['stale', 'unsure'].includes(item.process.status)) { this.state.confirm = { kind: 'process-stop', process: item.process }; return this.draw(); }
+      if (name === 'h') return this.toggleHidden(item);
+      return undefined;
+    }
     if (item.coordinator && name === 'enter') return item.coordinator.dialog ? this.focusSurface(this.coordinatorSurface, 'the coordinator') : this.answerCoordinator();
     if (item.coordinator && name === 'y' && item.coordinator.ask) return this.request('message', { message: 'Yes.' }, 'Answered the coordinator: yes.');
     if (item.approval && name === 'enter') return this.cleanup([item]);
