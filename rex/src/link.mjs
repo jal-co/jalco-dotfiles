@@ -1,6 +1,7 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync, watch } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -144,6 +145,26 @@ export function connectOnce({ brain, transport, agent, root = linkRoot(), now = 
   }));
 }
 
+export const PAGE = { name: 'tasks', port: 47870, target: 8788 };
+
+export function linkArgs(config, self, brain) {
+  return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=3',
+    '-L', `127.0.0.1:${PAGE.port}:127.0.0.1:${PAGE.target}`, config.hosts[brain].ssh,
+    `~/.local/share/mise/shims/node ~/dotfiles/rex/src/link.mjs serve --host ${self}`];
+}
+
+export function namePage(run = (command, args) => execFileSync(command, args, { encoding: 'utf8', timeout: 30_000, stdio: ['ignore', 'pipe', 'pipe'] })) {
+  const portless = join(homedir(), '.local/share/mise/shims/portless');
+  try {
+    run(portless, ['proxy', 'start', '--unprivileged', '--https']);
+    run(portless, ['alias', PAGE.name, String(PAGE.port), '--force']);
+    return `https://${PAGE.name}.localhost`;
+  } catch (error) {
+    console.error(`portless could not name the page; it still opens at http://127.0.0.1:${PAGE.port} (${cleanText(error.stderr || error.message).split('\n')[0]})`);
+    return `http://127.0.0.1:${PAGE.port}`;
+  }
+}
+
 export async function work({ config = loadHosts(), agent, transport, snapshots, once = false } = {}) {
   const self = selfName(config);
   const brain = brainName(config);
@@ -152,8 +173,7 @@ export async function work({ config = loadHosts(), agent, transport, snapshots, 
   const command = process.env.REX_LINK_COMMAND;
   const open = transport ?? (() => (command
     ? spawn('sh', ['-c', command], { stdio: ['pipe', 'pipe', 'inherit'] })
-    : spawn('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=3', config.hosts[brain].ssh,
-      `~/.local/share/mise/shims/node ~/dotfiles/rex/src/link.mjs serve --host ${self}`], { stdio: ['pipe', 'pipe', 'inherit'] })));
+    : spawn('ssh', linkArgs(config, self, brain), { stdio: ['pipe', 'pipe', 'inherit'] })));
   let wait = 5_000;
   for (;;) {
     const { everConnected } = await connectOnce({ brain, transport: open, agent, snapshots });
@@ -174,6 +194,7 @@ async function main(argv) {
     const { agent } = await import('./remote.mjs');
     const { blockedTabs, labeler, scan } = await import('./alerts.mjs');
     const labelOf = labeler();
+    console.error(`Asks and Machine page: ${namePage()}`);
     return work({
       agent,
       snapshots: {

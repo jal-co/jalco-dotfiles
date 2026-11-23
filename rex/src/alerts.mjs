@@ -1,15 +1,16 @@
-import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { execFile, execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { rexBinary } from './provider.ts';
 import { generateVapidKeys, sendPush } from './webpush.mjs';
 import { remoteWaiting } from './hosts.ts';
+import { readMachineAsync, stopProcess } from './machine.mjs';
 
 const assets = join(dirname(fileURLToPath(import.meta.url)), '..', 'alerts');
 export const alertsRoot = () => process.env.REX_ALERTS_ROOT ?? join(homedir(), '.rex', 'phone');
@@ -48,10 +49,48 @@ export function payloadFor(entry, open) {
   const permission = record.kind === 'permission' || /needs approval/i.test(record.msg ?? '');
   const message = clean(record.msg, 120);
   const what = message && message !== 'Waiting for user' ? (/[.?!]$/.test(message) ? message : `${message}.`) : '';
+  const title = permission ? `${tab} wants approval` : `${tab} needs you`;
   return {
-    title: permission ? `${tab} wants approval` : `${tab} needs you`,
-    body: [place && `In ${place}.`, what, 'Open Rex to answer.'].filter(Boolean).join(' '),
+    title, body: [place && `In ${place}.`, what, 'Open Rex to answer.'].filter(Boolean).join(' '),
+    brief: `${title}${place ? ` in ${place}` : ''}.`, event: `${entry.key}:${entry.since}`,
     tag: entry.key, url: '/', count: open,
+  };
+}
+
+const opBinary = () => [process.env.OP_BIN, join(homedir(), '.local', 'bin', 'op')].find((path) => path && existsSync(path)) ?? 'op';
+
+export async function harkWebhook(ref = process.env.REX_HARK_REF, read = (args) => promisify(execFile)(opBinary(), args, { encoding: 'utf8', timeout: 15_000 })) {
+  if (!ref) return undefined;
+  if (!/^op:\/\/[^\r\n]+$/.test(ref)) throw new Error('REX_HARK_REF must be an op:// reference');
+  const { stdout } = await read(['read', '--no-newline', ref]);
+  const url = stdout.trim();
+  if (!/^https:\/\/hark\.fyi\/hooks\/[\w-]{8,200}$/.test(url)) throw new Error(`${ref} does not hold a Hark webhook URL`);
+  return url;
+}
+
+export function harkSender({ url, fallback, fetch = globalThis.fetch, log = console.error }) {
+  const events = new Map();
+  const post = (path, body, headers = {}) => fetch(`${url}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body ?? {}), signal: AbortSignal.timeout(10_000),
+  });
+  return {
+    async send(payload) {
+      try {
+        const response = await post('', { body: payload.brief }, { 'Idempotency-Key': clean(payload.event, 200) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.delivered) throw new Error(result.error ?? result.message ?? `Hark answered ${response.status}`);
+        events.set(payload.tag, result.eventId);
+      } catch (error) {
+        log(`Hark did not deliver, so web push is used: ${clean(error.message, 200)}`);
+        await fallback(payload);
+      }
+    },
+    async clear(tag) {
+      const id = events.get(tag);
+      if (!id) return;
+      events.delete(tag);
+      await post(`/events/${encodeURIComponent(id)}/withdraw`).catch((error) => log(`Hark withdraw failed: ${clean(error.message, 200)}`));
+    },
   };
 }
 
@@ -73,8 +112,8 @@ export function blockedTabs(changes, labelOf) {
 }
 
 export class Watcher {
-  constructor({ send, labelOf, now = Date.now, quiet = QUIET_MS }) {
-    Object.assign(this, { send, labelOf, now, quiet });
+  constructor({ send, clear = async () => {}, labelOf, now = Date.now, quiet = QUIET_MS }) {
+    Object.assign(this, { send, clear, labelOf, now, quiet });
     this.tabs = new Map();
     this.waiting = new Map();
     this.alerted = new Set();
@@ -106,7 +145,7 @@ export class Watcher {
     const record = waitingRecord([...(tab?.records.values() ?? [])]);
     if (!record) {
       this.waiting.delete(block);
-      this.alerted.delete(block);
+      this.settle(block);
       return;
     }
     const current = this.waiting.get(block);
@@ -115,12 +154,16 @@ export class Watcher {
 
   remote(entries) {
     const keys = new Set(entries.map((entry) => `${entry.host}:${entry.key}`));
-    for (const key of this.waiting.keys()) if (this.waiting.get(key).labels && !keys.has(key)) { this.waiting.delete(key); this.alerted.delete(key); }
+    for (const key of this.waiting.keys()) if (this.waiting.get(key).labels && !keys.has(key)) { this.waiting.delete(key); this.settle(key); }
     for (const entry of entries) {
       const key = `${entry.host}:${entry.key}`;
       const labels = { tab: entry.tab, place: entry.place ? `${entry.place} on ${entry.host}` : `${entry.host}` };
       this.waiting.set(key, { key, labels, record: { msg: entry.message, kind: entry.kind }, since: this.waiting.get(key)?.since ?? this.now() });
     }
+  }
+
+  settle(key) {
+    if (this.alerted.delete(key)) this.clear(key).catch(() => {});
   }
 
   labelsOf(entry) {
@@ -221,11 +264,14 @@ function send(response, status, body, type) {
 }
 const json = (response, status, value) => send(response, status, JSON.stringify(value), 'application/json');
 
-export function handler({ login, dev = false, root = alertsRoot(), waiting = () => [], push = (payload) => pushAll(payload, { root }) }) {
+export const loopbackName = (host) => /^(localhost|[a-z0-9.-]+\.localhost)(:\d+)?$/i.test(String(host ?? ''));
+
+export function handler({ login, local = false, dev = false, root = alertsRoot(), waiting = () => [], push = (payload) => pushAll(payload, { root }), machine = readMachineAsync, stop = stopProcess }) {
+  const allowed = (request) => dev || (local ? loopbackName(request.headers.host) : request.headers['tailscale-user-login'] === login);
   return async (request, response) => {
     try {
       const url = new URL(request.url, 'http://alerts.local');
-      if (!dev && request.headers['tailscale-user-login'] !== login) return send(response, 403, 'Open this from your own tailnet login.', 'text/plain; charset=utf-8');
+      if (!allowed(request)) return send(response, 403, local ? 'Open this as tasks.localhost.' : 'Open this from your own tailnet login.', 'text/plain; charset=utf-8');
       if (request.method === 'GET' && STATIC[url.pathname]) {
         const [file, type] = STATIC[url.pathname];
         return send(response, 200, readFileSync(join(assets, file)), type);
@@ -235,12 +281,17 @@ export function handler({ login, dev = false, root = alertsRoot(), waiting = () 
       if (request.method === 'GET' && url.pathname === '/api/waiting') return json(response, 200, { waiting: waiting(), at: Date.now() });
       if (request.method === 'GET' && url.pathname === '/api/push') return json(response, 200, { publicKey: vapidKeys(root).publicKey });
       if (request.method === 'GET' && url.pathname === '/api/push/seen') return json(response, 200, read(join(root, 'last-push.json')) ?? {});
+      if (request.method === 'GET' && url.pathname === '/api/machine') return json(response, 200, await machine());
       if (request.method !== 'POST') return json(response, 405, { ok: false, text: 'Method not allowed' });
       const body = await readBody(request);
       if (url.pathname === '/api/push') return json(response, 200, { ok: true, devices: saveSubscription(body.subscription, root) });
       if (url.pathname === '/api/push/seen') {
         write(join(root, 'last-push.json'), { tag: clean(body.tag, 120), stage: clean(body.stage, 20), problem: clean(body.problem, 300), at: Date.now() });
         return json(response, 200, { ok: true });
+      }
+      if (url.pathname === '/api/machine/stop') {
+        if (!Number.isSafeInteger(body.pid) || body.pid < 2 || !Number.isSafeInteger(body.start)) return json(response, 400, { ok: false, text: 'Refresh and pick the process again.' });
+        return json(response, 200, await stop({ pid: body.pid, start: body.start }));
       }
       if (url.pathname === '/api/push/test') {
         const tag = `test-${Date.now()}`;
@@ -288,21 +339,29 @@ function follow(watcher, log) {
 }
 
 async function main(argv) {
-  const { values } = parseArgs({ args: argv, options: { port: { type: 'string', default: '8787' }, dev: { type: 'boolean', default: false } } });
+  const { values } = parseArgs({ args: argv, options: { port: { type: 'string', default: '8787' }, 'local-port': { type: 'string', default: '8788' }, dev: { type: 'boolean', default: false } } });
   const root = alertsRoot();
   const login = values.dev ? undefined : ownerLogin();
   const subject = `mailto:${login ?? 'nobody@example.com'}`;
+  const web = (payload) => pushAll(payload, { root, subject });
+  const hark = values.dev ? undefined : await harkWebhook().catch((error) => console.error(`Hark is off: ${clean(error.stderr || error.message, 200)}`));
+  const sender = hark ? harkSender({ url: hark, fallback: web }) : { send: web };
+  console.log(hark ? 'Alerts go to Hark, with web push as the fallback' : 'Alerts go to web push; set REX_HARK_REF to a 1Password reference to use Hark');
   const watcher = new Watcher({
     labelOf: labeler(),
-    send: (payload) => (values.dev ? console.log('would push', payload) : pushAll(payload, { root, subject })),
+    send: values.dev ? (payload) => console.log('would push', payload) : sender.send,
+    clear: sender.clear,
   });
   follow(watcher, console.error);
   setInterval(() => {
     try { watcher.remote(remoteWaiting()); } catch (error) { console.error(`remote tabs unreadable: ${error.message}`); }
     watcher.tick().catch((error) => console.error(`push failed: ${error.message}`));
   }, 2000).unref();
-  createServer(handler({ login, dev: values.dev, root, waiting: () => watcher.list(), push: (payload) => pushAll(payload, { root, subject }) }))
+  const options = { login, dev: values.dev, root, waiting: () => watcher.list(), push: (payload) => pushAll(payload, { root, subject }) };
+  createServer(handler(options))
     .listen(Number(values.port), '127.0.0.1', () => console.log(`Rex alerts on http://127.0.0.1:${values.port}${login ? ` for ${login}` : ' (dev)'}`));
+  createServer(handler({ ...options, local: true }))
+    .listen(Number(values['local-port']), '127.0.0.1', () => console.log(`Rex alerts for .localhost names on http://127.0.0.1:${values['local-port']}`));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -207,3 +207,20 @@ test('a hidden worker coordinator counts as idle only with no live tasks and no 
   const config = { order: ['b1', 'mac'], hosts: { b1: {}, mac: {} } };
   assert.deepEqual([isWorker(config, 'mac'), isWorker(config, 'b1'), isWorker(config, undefined)], [true, false, false]);
 });
+
+test('the worker link carries the primary host\'s page to a loopback port that portless names tasks.localhost', async () => {
+  const { PAGE, linkArgs, namePage } = await import('../src/link.mjs');
+  const args = linkArgs({ hosts: { b1: { ssh: 'b1.example.ts.net' } } }, 'mac', 'b1');
+  assert.deepEqual(args.slice(args.indexOf('-L'), args.indexOf('-L') + 3), ['-L', `127.0.0.1:${PAGE.port}:127.0.0.1:8788`, 'b1.example.ts.net']);
+  assert.match(args.at(-1), /link\.mjs serve --host mac$/);
+  const calls = [];
+  assert.equal(namePage((command, list) => calls.push([command.split('/').at(-1), ...list])), 'https://tasks.localhost');
+  assert.deepEqual(calls, [['portless', 'proxy', 'start', '--unprivileged', '--https'], ['portless', 'alias', 'tasks', String(PAGE.port), '--force']]);
+  const original = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(namePage(() => { throw Object.assign(new Error('x'), { stderr: 'not installed' }); }), `http://127.0.0.1:${PAGE.port}`);
+  } finally {
+    console.error = original;
+  }
+});

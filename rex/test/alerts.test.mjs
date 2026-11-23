@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -29,7 +29,7 @@ test('a tab alerts once after the quiet period, not when answered quickly, and a
   clock = 21_000;
   await watcher.tick();
   await watcher.tick();
-  assert.deepEqual(sent, [{ title: 'fix-toast needs you', body: 'In platform. Save button. Open Rex to answer.', tag: 'b1', url: '/', count: 1 }]);
+  assert.deepEqual(sent, [{ title: 'fix-toast needs you', body: 'In platform. Save button. Open Rex to answer.', brief: 'fix-toast needs you in platform.', event: 'b1:0', tag: 'b1', url: '/', count: 1 }]);
   watcher.apply(changed('b2', 'rex-task', 'blocked', 'Pick one', 'question'));
   clock = 25_000;
   watcher.apply(changed('b2', 'rex-task', 'working', 'bash'));
@@ -68,8 +68,8 @@ test('a rescan keeps waiting tabs, drops closed ones and adds ones blocked while
 });
 
 test('payloads say who and where, and skip the generic wait text', () => {
-  const entry = { key: 'b1', tab: 'pltfrm-12', place: 'platform', record: { msg: 'Waiting for user', kind: 'question' } };
-  assert.deepEqual(payloadFor(entry, 2), { title: 'pltfrm-12 needs you', body: 'In platform. Open Rex to answer.', tag: 'b1', url: '/', count: 2 });
+  const entry = { key: 'b1', since: 5, tab: 'pltfrm-12', place: 'platform', record: { msg: 'Waiting for user', kind: 'question' } };
+  assert.deepEqual(payloadFor(entry, 2), { title: 'pltfrm-12 needs you', body: 'In platform. Open Rex to answer.', brief: 'pltfrm-12 needs you in platform.', event: 'b1:5', tag: 'b1', url: '/', count: 2 });
   assert.equal(payloadFor({ ...entry, record: { msg: 'x', kind: 'permission' } }, 1).title, 'pltfrm-12 wants approval');
 });
 
@@ -140,4 +140,85 @@ test('blocked tabs are summarized per tab for the link', async () => {
     changed('b2', 'rex-task', 'working', 'bash'), changed('b3', 'rex-task', 'blocked', 'Needs coordinator help', 'question'),
   ], (_session, block) => ({ tab: block, place: 'p' }));
   assert.deepEqual(rows, [{ key: 'b1', tab: 'b1', place: 'p', message: 'Save button', kind: 'question' }]);
+});
+
+test('the tailnet port trusts only the owner login, the local port only .localhost names, and stop takes a whole pid and start', async (context) => {
+  const { handler: make, loopbackName } = await import('../src/alerts.mjs');
+  const stops = [];
+  const tailnet = createServer(make({ login: 'me@example.com', root: mkdtempSync(join(tmpdir(), 'rex-alerts-')), machine: async () => ({ attention: [] }) }));
+  await new Promise((resolve) => tailnet.listen(0, '127.0.0.1', resolve));
+  context.after(() => new Promise((resolve) => tailnet.close(resolve)));
+  const server = createServer(make({
+    login: 'me@example.com', local: true, root: mkdtempSync(join(tmpdir(), 'rex-alerts-')),
+    machine: async () => ({ attention: [{ pid: 7 }] }),
+    stop: async (target) => { stops.push(target); if (target.pid === 8) throw new Error('That process ID now belongs to a different process; refresh and look again'); return { ok: true, text: 'Stopped vite (7).' }; },
+  }));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  context.after(() => new Promise((resolve) => server.close(resolve)));
+  const call = (path, { host, body, login, port = server.address().port } = {}) => new Promise((resolve, reject) => {
+    const headers = { 'x-rex-phone': '1' };
+    if (host) headers.host = host;
+    if (login) headers['tailscale-user-login'] = login;
+    if (body) headers['content-type'] = 'application/json';
+    const request = httpRequest({ host: '127.0.0.1', port, path, method: body ? 'POST' : 'GET', headers }, (response) => {
+      let text = '';
+      response.on('data', (chunk) => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, text }));
+    });
+    request.on('error', reject);
+    request.end(body ? JSON.stringify(body) : undefined);
+  });
+  assert.deepEqual([loopbackName('tasks.localhost'), loopbackName('localhost:8787'), loopbackName('evil.com'), loopbackName('tasks.localhost.evil.com'), loopbackName(undefined)], [true, true, false, false, false]);
+  assert.equal((await call('/api/machine', { host: 'evil.example' })).status, 403);
+  assert.equal((await call('/api/machine', { host: '127.0.0.1:8787' })).status, 403);
+  assert.deepEqual(JSON.parse((await call('/api/machine', { host: 'tasks.localhost' })).text), { attention: [{ pid: 7 }] });
+  assert.equal((await call('/api/machine', { host: 'b1.example.ts.net', login: 'me@example.com' })).status, 403);
+  const viaTailnet = { port: tailnet.address().port };
+  assert.equal((await call('/api/machine', { ...viaTailnet, host: 'tasks.localhost' })).status, 403);
+  assert.equal((await call('/api/machine', { ...viaTailnet, host: 'b1.example.ts.net', login: 'other@example.com' })).status, 403);
+  assert.equal((await call('/api/machine', { ...viaTailnet, host: 'b1.example.ts.net', login: 'me@example.com' })).status, 200);
+  for (const bad of [{ pid: '7', start: 1 }, { pid: 1, start: 1 }, { pid: 7.5, start: 1 }, { pid: 7 }]) {
+    assert.equal((await call('/api/machine/stop', { host: 'tasks.localhost', body: bad })).status, 400, JSON.stringify(bad));
+  }
+  assert.deepEqual(stops, []);
+  assert.deepEqual(JSON.parse((await call('/api/machine/stop', { host: 'tasks.localhost', body: { pid: 7, start: 12 } })).text), { ok: true, text: 'Stopped vite (7).' });
+  const refused = await call('/api/machine/stop', { host: 'tasks.localhost', body: { pid: 8, start: 12 } });
+  assert.deepEqual([refused.status, JSON.parse(refused.text).text], [400, 'That process ID now belongs to a different process; refresh and look again']);
+  assert.deepEqual(stops, [{ pid: 7, start: 12 }, { pid: 8, start: 12 }]);
+});
+
+test('Hark gets names only, is withdrawn once the tab stops waiting, falls back to web push, and its URL comes only from 1Password', async () => {
+  const { harkSender, harkWebhook } = await import('../src/alerts.mjs');
+  const calls = [];
+  const answers = [{ ok: true, eventId: 'evt_1', delivered: 1 }, { ok: true, eventId: 'evt_2', delivered: 0, message: 'No device' }];
+  const fetch = async (url, init) => {
+    calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+    const answer = url.endsWith('/withdraw') ? { ok: true } : answers.shift() ?? { ok: false, error: 'Unknown webhook' };
+    return { ok: answer.ok, status: answer.ok ? 200 : 404, json: async () => answer };
+  };
+  const fallen = [];
+  const hark = harkSender({ url: 'https://hark.fyi/hooks/whk_test', fetch, fallback: async (payload) => fallen.push(payload.tag), log: () => {} });
+  let clock = 0;
+  const watcher = new Watcher({ now: () => clock, quiet: 1000, labelOf: () => ({ tab: 'PLTFRM-3376', place: 'platform' }), send: hark.send, clear: hark.clear });
+  watcher.apply(changed('b1', 'rex-task', 'blocked', 'Ship the secret plan to prod?', 'question'));
+  clock = 2000;
+  await watcher.tick();
+  assert.deepEqual(calls[0].body, { body: 'PLTFRM-3376 needs you in platform.' });
+  assert.equal(calls[0].headers['Idempotency-Key'], 'b1:0');
+  assert.doesNotMatch(JSON.stringify(calls[0]), /secret plan/);
+  watcher.apply({ session: 's', block: 'b1', removed: [] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls[1].url, 'https://hark.fyi/hooks/whk_test/events/evt_1/withdraw');
+  watcher.apply(changed('b2', 'rex-task', 'blocked', 'x', 'question'));
+  watcher.apply(changed('b3', 'rex-task', 'blocked', 'y', 'question'));
+  clock = 4000;
+  await watcher.tick();
+  assert.deepEqual(fallen, ['b2', 'b3']);
+  const reads = [];
+  const read = (url) => async (args) => { reads.push(args); return { stdout: `${url}\n` }; };
+  assert.equal(await harkWebhook(undefined, read('x')), undefined);
+  assert.equal(await harkWebhook('op://vault/Hark Rex alerts/credential', read('https://hark.fyi/hooks/whk_abc123def')), 'https://hark.fyi/hooks/whk_abc123def');
+  assert.deepEqual(reads[0], ['read', '--no-newline', 'op://vault/Hark Rex alerts/credential']);
+  await assert.rejects(harkWebhook('op://vault/item/credential', read('https://evil.example/hooks/whk_abc123def')), /does not hold a Hark webhook URL/);
+  await assert.rejects(harkWebhook('/home/me/url.txt', read('x')), /op:\/\/ reference/);
 });
