@@ -174,6 +174,7 @@ export function agentLabel({ task, pr, issue }) {
   if (pr?.state === 'OPEN') return { text: 'in review', tone: 'blue' };
   if (task?.completed || task?.state === 'done') return { text: '✓ done', tone: 'green' };
   if (live(task)) return { text: '○ idle', tone: 'dim' };
+  if (issue?.state.type === 'started') return /review/i.test(issue.state.name) ? { text: 'in review', tone: 'blue' } : { text: cleanText(issue.state.name).toLowerCase(), tone: 'yellow' };
   return { text: '', tone: 'dim' };
 }
 

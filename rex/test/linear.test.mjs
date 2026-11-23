@@ -644,3 +644,10 @@ test('links open on the Mac when the command center runs on b1, quoted for the r
   assert.equal(opener('https://linear.app/acme/issue/ENG-1', { platform: 'linux', config, self: 'b1' })[1].at(-1), "open 'linear://acme/issue/ENG-1'");
   assert.deepEqual(opener('https://github.com/a/b/pull/1', { platform: 'darwin', config, self: 'mac' }), ['open', ['https://github.com/a/b/pull/1']]);
 });
+
+test('a started issue with no agent or PR is colored by its Linear state', async () => {
+  const { agentLabel } = await import('../src/linear.mjs');
+  assert.deepEqual(agentLabel({ issue: { state: { name: 'In Review', type: 'started' } } }), { text: 'in review', tone: 'blue' });
+  assert.deepEqual(agentLabel({ issue: { state: { name: 'In Progress', type: 'started' } } }), { text: 'in progress', tone: 'yellow' });
+  assert.deepEqual(agentLabel({ issue: { state: { name: 'Todo', type: 'unstarted' } } }), { text: '', tone: 'dim' });
+});
