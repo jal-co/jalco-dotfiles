@@ -151,6 +151,18 @@ test('the brief separates in progress, up next and done since yesterday without 
   assert.equal(items(buildView(4, data, { now })).find((row) => row.id === 'shipped').agent.text, 'merged');
 });
 
+test('a started issue whose task stopped after its PR merged moves from in progress to done', () => {
+  const now = new Date('2026-11-08T15:00:00').getTime();
+  const tasks = [task('plt-5', 'stopped', { branch: 'jal/plt-5-fix', stopConfirmed: true }), task('plt-6', 'stopped', { branch: 'jal/plt-6-fix', stopConfirmed: true })];
+  const prs = [
+    { taskId: 'plt-5-id', url: 'https://github.com/a/b/pull/5', state: 'MERGED', mergedAt: new Date(now).toISOString(), name: 'fix', repositoryPath: '/r/platform' },
+    { taskId: 'plt-6-id', url: 'https://github.com/a/b/pull/6', state: 'OPEN', name: 'wip', repositoryPath: '/r/platform' },
+  ];
+  const linear = { status: 'ok', open: [issue('PLT-5', 'started'), issue('PLT-6', 'started')], done: [] };
+  assert.deepEqual(sections(buildView(4, { tasks, prs, records: [], linear }, { now })), { 'In progress': ['PLT-6'], 'Up next': [], 'Done since yesterday': ['PLT-5'] });
+  assert.deepEqual(sections(buildView(1, { tasks, prs, records: [], linear }, { now })), { 'In progress': ['PLT-6'], Todo: [] });
+});
+
 test('cursor skips headers, notes and blanks', () => {
   const rows = [{ kind: 'section' }, { kind: 'item' }, { kind: 'blank' }, { kind: 'note' }, { kind: 'item' }];
   assert.equal(moveCursor(rows, -1, 0), 1);

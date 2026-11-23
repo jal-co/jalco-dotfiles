@@ -181,6 +181,8 @@ export function agentLabel({ task, pr, issue }) {
   return { text: '', tone: 'dim' };
 }
 
+const landed = (item) => Boolean(item.task) && !live(item.task) && item.pr?.state === 'MERGED';
+
 function issueItem(issue, data) {
   const task = linkedTask(issue, data.tasks);
   const pr = task && pullRequestFor(task, data.prs);
@@ -266,13 +268,14 @@ function grouped(items, key) {
 
 export function brief(data, now = Date.now()) {
   const since = startOfYesterday(now).getTime();
-  const started = data.linear.open.filter((issue) => issue.state.type === 'started').sort(byPriority).map((issue) => issueItem(issue, data));
+  const startedItems = data.linear.open.filter((issue) => issue.state.type === 'started').sort(byPriority).map((issue) => issueItem(issue, data));
+  const started = startedItems.filter((item) => !landed(item));
   const claimed = new Set(started.flatMap((item) => (item.task ? [item.task.id] : [])));
   const active = data.tasks.filter((task) => live(task) && !['done', 'idle'].includes(task.state) && !claimed.has(task.id))
     .sort((a, b) => rank(a.state) - rank(b.state)).map((task) => taskItem(task, data));
   const next = data.linear.open.filter((issue) => issue.state.type === 'unstarted' && !live(linkedTask(issue, data.tasks)))
     .sort(byPriority).slice(0, 10).map((issue) => issueItem(issue, data));
-  const finished = data.linear.done.map((issue) => issueItem(issue, data));
+  const finished = [...data.linear.done.map((issue) => issueItem(issue, data)), ...startedItems.filter(landed)];
   const shown = new Set(finished.flatMap((item) => (item.task ? [item.task.id] : [])));
   const tasks = data.tasks.filter((task) => !shown.has(task.id) && (task.state === 'done' || task.completed) && task.updatedAt >= since)
     .map((task) => taskItem(task, data));
@@ -385,7 +388,7 @@ export function buildView(tab, data, { mode = 'brief', showStopped = false, now 
     if (unavailable) return unavailable;
     if (tab === 0) {
       const of = (type) => data.linear.open.filter((issue) => issue.state.type === type).sort(byPriority).map((issue) => issueItem(issue, data));
-      return [...section('In progress', of('started'), 'Nothing started.'), ...section('Todo', of('unstarted'), 'No todo issues.')];
+      return [...section('In progress', of('started').filter((item) => !landed(item)), 'Nothing started.'), ...section('Todo', of('unstarted'), 'No todo issues.')];
     }
     const backlog = data.linear.open.filter((issue) => ['backlog', 'triage'].includes(issue.state.type)).sort(byPriority).map((issue) => issueItem(issue, data));
     return backlog.length ? grouped(backlog, (item) => item.project) : [note('Your backlog is empty.')];
