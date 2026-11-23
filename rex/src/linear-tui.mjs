@@ -19,7 +19,7 @@ import {
   createProject, directCheckout, loadLinear, moveCursor, partlyCleaned, readLinearConfig, saveRepository, slugFor, stashed, taskBrief, withoutHidden,
 } from './linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories } from './repositories.mjs';
-import { busy, call, chooseHost, loadHosts, selfName, statuses } from './remote.mjs';
+import { busy, call, chooseHost, loadHosts, selfName, statuses, tasksOf } from './remote.mjs';
 
 export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const SGR = { bold: '1', dim: '2', red: '31', green: '32', yellow: '33', blue: '34', magenta: '35', cyan: '36' };
@@ -413,7 +413,7 @@ export class LinearApp {
       const others = this.hosts.order.filter((name) => name !== this.self);
       const remote = Object.fromEntries(await Promise.all(others.map(async (name) => {
         if (!machines[name]?.reachable) return [name, { error: machines[name]?.error ?? 'not reachable' }];
-        try { return [name, { tasks: await call(this.hosts, name, 'tasks') }]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message) }]; }
+        try { return [name, { tasks: await tasksOf(this.hosts, name) }]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message) }]; }
       })));
       const changed = JSON.stringify([machines, remote]) !== JSON.stringify([this.machines, this.remote]);
       this.machines = machines;

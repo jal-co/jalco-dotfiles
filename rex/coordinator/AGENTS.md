@@ -17,7 +17,7 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 1. Name the goal, source repository, acceptance criteria and allowed files. Read applicable task guidance before dispatch. Choose the intended base from the repository's default remote branch, not a stale local main.
 2. Inspect `worktree_list`. For an existing task, use its idle persistent owner through `subagent_send`. A mid-turn owner accepts one queued follow-up; wait for its result before sending another. MUST NOT create another writer or use raw terminal input to bypass the host.
 3. For a new repository task, call `subagent` from its principal checkout with `worktree:{branch,base}`, `persistent:true`, `interactive:true`, an explicit task model category and thinking level. Justin prefers Claude for task agents: use the task category, which routes to Claude first, and MUST NOT pass an explicit OpenAI model unless he asks. Use one Rex session per repository, with one tab, Pi conversation and worktree per task. Preserve the repository session label; task names belong on tabs. Dotfiles and local-only repositories retain their direct-checkout exceptions.
-4. Use a short task-role name. The brief must include the goal, permitted files, verification, whether to commit, the required final report, and this line: "Ask Justin questions and decisions in this session with ask_user_question and wait for his answer. Use caller_ping only when the coordinator must act." Children are leaves and cannot dispatch others without explicit authorization.
+4. Use a short task-role name. The brief must include the goal, permitted files, verification, whether to commit, the required final report, and these lines: "Ask Justin questions and decisions in this session with ask_user_question and wait for his answer. Use caller_ping only when the coordinator must act." and "Every URL or path in your replies must open from Justin's Mac: a tailnet URL from portless run --tailscale first, otherwise the rex forward command plus the localhost URL, and GitHub links for code." Children are leaves and cannot dispatch others without explicit authorization.
 5. When a help request is really a question for Justin, MUST NOT answer it for him. Tell him in one line which task tab needs him; answer only what his earlier instructions already settle.
 6. Report the returned Rex task surface ID, branch and checkout path. A launch timeout is not proof of failure. Inspect once before retrying and never start a duplicate while the first agent might be alive.
 7. Results arrive automatically. MUST NOT poll logs or repeatedly inspect sessions to wait for completion. Relay the result when delivered. A task agent should summarize its work and call `subagent_done`; persistent mode keeps it available for follow-up.
@@ -28,12 +28,24 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 ## Hosts
 
 <rules>
-- Two machines run coordinators: `b1`, always on, and `mac`, only while the laptop is awake. Each coordinator owns the tasks it launched, with their worktrees, leases and recovery on that machine. `rex-remote status` shows both machines' health, load, memory, battery and coordinator; `rex-remote tasks [host]` lists their tasks.
-- Pick the host before dispatch. Justin's words decide first: "on b1", "on the Mac", "offload" or "here". A task he must review on localhost in a browser runs on the Mac unless he says otherwise. Otherwise run `rex-remote pick`, which prefers b1 and skips a busy or unreachable machine.
-- When the host is this machine, dispatch with `subagent` as below. Otherwise run `rex-remote launch --host <host> --name <name> --repo <owner/name> --branch <branch> --base origin/<default>` with the full brief on stdin. It hands the launch to that machine's coordinator, starting it if needed, and returns its result. Report the host with the surface ID, branch and checkout.
-- A task on the other machine belongs to that machine's coordinator. Send follow-ups with `rex-remote send --host <host> --id <id> --message <text>` and stop it with `rex-remote stop --host <host> --id <id>`. Its results do not arrive here automatically; check `rex-remote tasks <host>` when Justin asks about it.
-- If the chosen machine is unreachable, tell Justin in one line and ask before using the other one. MUST NOT launch the same task on both machines.
+- One coordinator talks to Justin: the one on `b1`, the first host in `hosts.json`. `mac` runs a worker coordinator that supervises its own tasks and keeps a link open to b1 (`com.jalco.rex-link`). Its task results and help requests arrive here automatically as `rex_remote_event` messages, named `mac/<task>`; relay them like local results. Its tabs waiting on Justin also alert his phone through b1's alert service.
+- When b1 is unreachable, the Mac coordinator takes over: it delivers its own tasks' results and talks to Justin until b1 is back, then hands back without moving any task. A worker coordinator that still has its link MUST NOT hold the conversation; it tells Justin in one line that b1 does.
+- Pick the host before dispatch. Justin's words decide first: "on b1", "on the Mac", "offload" or "here". Otherwise run tasks on b1; use the Mac only for Mac-only work (Pencil, the personal Resend tools, Mac apps) or a busy b1 (`rex-remote pick`).
+- When the host is this machine, dispatch with `subagent` as below. Otherwise run `rex-remote launch --host <host> --name <name> --repo <owner/name> --branch <branch> --base origin/<default>` with the full brief on stdin. It goes through that machine's link and starts its coordinator if needed. Report the host with the surface ID, branch and checkout.
+- Act on a task on the other machine with `rex-remote send|stop|resume|stash --host <host> --id <id>`. These go through its link. An offline host refuses at once and nothing is queued; tell Justin in one line instead of retrying. A reply that says the link dropped while the command ran means it may have run there; check `rex-remote tasks <host>` before repeating it.
+- Cleanup and force cleanup of another machine's task MUST run on that machine; the link refuses them. Justin answers a Mac task's own questions in its tab on the Mac, never through `send`.
+- MUST NOT launch the same task on both machines.
 - "Offload X to <host>" authorizes pushing only that task's branch, not a PR. Ask the task through `subagent_send` to commit its work and push its branch, stash it with `rex_task_stash` once the push is confirmed, then `rex-remote launch` on the other host with `--branch <same branch> --base origin/<same branch>` and a brief that restates the goal and says to continue from that branch.
+</rules>
+
+## Links Justin can open
+
+<rules>
+- Justin reads b1's replies on his Mac or phone, where `localhost` and `/home/justin/...` mean something else. Every URL or path in a reply MUST open from his Mac.
+- A dev server on b1: start it with `portless run --tailscale` and give its `https://b1.tail95e906.ts.net` URL. It also opens on his phone.
+- An app that only works on localhost (Platform and its WorkOS callback): give the one command he runs on the Mac, `rex -S ssh://b1 forward new -s <session> -L <port>:localhost:<port>` with every port it needs, then the `http://localhost:<port>` URL. Name ports in use on the Mac as a clash instead of picking new ones silently.
+- Code and files: link the PR, commit or file on GitHub. For unpushed work, say it is on b1 and quote the lines that matter instead of a bare path.
+- `task-browser review` opens on the machine that runs it. On b1, give Justin the link instead.
 </rules>
 
 ## Stashed tasks

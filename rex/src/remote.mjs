@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { cpus, freemem, homedir, hostname, loadavg, platform, totalmem } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,18 +8,14 @@ import { findCoordinator } from './coordinator-session.mjs';
 import { callRex } from './provider.ts';
 import { githubRepository, knownRepositories, workspaceRepositories } from './repositories.mjs';
 import { requestState, submitRequest } from './requests.ts';
+import { brainName, linkStatus, loadHosts, remoteSnapshot, selfName, sendCommand } from './hosts.ts';
 import { TaskStore, cleanText } from './tasks.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const coordinatorCwd = () => join(homedir(), 'rex-coord');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const loadHosts = (file = join(root, 'config/hosts.json')) => JSON.parse(readFileSync(file, 'utf8'));
-
-export function selfName(config, name = hostname()) {
-  const short = name.toLowerCase().split('.')[0];
-  return Object.keys(config.hosts).find((key) => config.hosts[key].hostname === short);
-}
+export { loadHosts, selfName };
 
 export function parseBattery(output) {
   const percent = /(\d+)%/.exec(output ?? '')?.[1];
@@ -155,6 +151,8 @@ export const agent = {
   },
   send: async ({ id, message }) => submitAndWait('send', { id, message }, 5 * 60_000),
   stop: async ({ id }) => submitAndWait('stop', { id }, 5 * 60_000),
+  resume: async ({ id }) => submitAndWait('resume', { id }, 5 * 60_000),
+  stash: async ({ id }) => submitAndWait('stash', { id }, 5 * 60_000),
 };
 
 const readStdin = async () => {
@@ -167,6 +165,11 @@ export async function call(config, name, command, payload = {}, { self = selfNam
   if (name === self) return agent[command](payload);
   const host = config.hosts[name];
   if (!host) throw new Error(`Unknown host ${name}`);
+  if (name !== brainName(config)) {
+    const result = await sendCommand(name, command, payload, { timeoutMs: command === 'launch' ? 16 * 60_000 : 6 * 60_000 });
+    if (result?.offline && ['status', 'tasks'].includes(command)) throw new Error(result.text);
+    return result;
+  }
   const timeout = command === 'launch' ? 16 * 60_000 : command === 'status' ? 15_000 : 6 * 60_000;
   const child = promisify(execFile)('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh,
     '~/.local/share/mise/shims/node ~/dotfiles/rex/src/remote.mjs agent', command], { encoding: 'utf8', timeout, maxBuffer: 16 * 1024 * 1024 });
@@ -174,8 +177,24 @@ export async function call(config, name, command, payload = {}, { self = selfNam
   return JSON.parse((await child).stdout);
 }
 
-export async function statuses(config) {
+export function linkedStatus(name) {
+  const link = linkStatus(name);
+  if (!link.online) return { reachable: false, error: link.reason };
+  const snapshot = remoteSnapshot(name, 'status');
+  return snapshot?.error ? { reachable: false, error: snapshot.error } : { ...snapshot, reachable: true };
+}
+
+export async function tasksOf(config, name, { self = selfName(config) } = {}) {
+  if (name === self || name === brainName(config)) return call(config, name, 'tasks');
+  const link = linkStatus(name);
+  const snapshot = remoteSnapshot(name, 'tasks');
+  if (!snapshot) throw new Error(link.reason);
+  return snapshot.tasks ?? [];
+}
+
+export async function statuses(config, { self = selfName(config) } = {}) {
   const entries = await Promise.all(config.order.map(async (name) => {
+    if (name !== self && name !== brainName(config)) return [name, linkedStatus(name)];
     try { return [name, await call(config, name, 'status')]; } catch (error) {
       return [name, { reachable: false, error: cleanText(error.stderr || error.message).slice(0, 200) }];
     }
@@ -190,7 +209,12 @@ const usage = `Usage:
   rex-remote launch --name N --repo R [--host name|auto] [--branch B] [--base REF] [--task T]
                                          launch a task through that host's coordinator (task text from --task or stdin)
   rex-remote send --host H --id ID --message M
-  rex-remote stop --host H --id ID`;
+  rex-remote stop --host H --id ID
+  rex-remote resume --host H --id ID     resume a crashed or stashed task there
+  rex-remote stash --host H --id ID      stash a task there
+
+The primary host (first in hosts.json) reaches the others only through the link
+each of them keeps open to it; a host that is offline refuses at once.`;
 
 async function main(argv) {
   const [command, ...rest] = argv;
@@ -209,7 +233,7 @@ async function main(argv) {
   if (command === 'tasks') {
     const names = positionals[0] ? [positionals[0]] : config.order;
     return Object.fromEntries(await Promise.all(names.map(async (name) => {
-      try { return [name, await call(config, name, 'tasks')]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message).slice(0, 200) }]; }
+      try { return [name, await tasksOf(config, name)]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message).slice(0, 200) }]; }
     })));
   }
   if (command === 'pick') return { host: chooseHost({ requested: values.host, order: config.order, statuses: await statuses(config) }) };
@@ -219,6 +243,10 @@ async function main(argv) {
     if (!task.trim()) throw new Error('launch needs the task text in --task or on stdin');
     const host = chooseHost({ requested: values.host, order: config.order, statuses: await statuses(config) });
     return { host, ...(await call(config, host, 'launch', { name: values.name, repo: values.repo, task, branch: values.branch, base: values.base })) };
+  }
+  if (['resume', 'stash'].includes(command)) {
+    if (!values.host || !values.id) throw new Error(`${command} needs --host and --id`);
+    return call(config, values.host, command, { id: values.id });
   }
   if (command === 'send' || command === 'stop') {
     if (!values.host || !values.id) throw new Error(`${command} needs --host and --id`);

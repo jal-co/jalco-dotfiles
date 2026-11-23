@@ -118,3 +118,26 @@ test('the page only answers the owning tailnet login and stores subscriptions', 
   await call('/api/push/seen', { body: { tag: tested.tag, stage: 'shown' } });
   assert.equal((await (await call('/api/push/seen')).json()).stage, 'shown');
 });
+
+test('waiting tabs from another machine alert with its name and leave when it stops listing them', async () => {
+  let clock = 0;
+  const sent = [];
+  const watcher = new Watcher({ now: () => clock, quiet: 1000, labelOf: () => ({ tab: 'local', place: '' }), send: async (payload) => sent.push(payload) });
+  watcher.remote([{ host: 'mac', key: 'b9', tab: 'pencil-export', place: 'design', message: 'Export 3x too?', kind: 'question' }]);
+  clock = 2000;
+  await watcher.tick();
+  assert.deepEqual([sent[0].title, sent[0].body, sent[0].tag], ['pencil-export needs you', 'In design on mac. Export 3x too? Open Rex to answer.', 'mac:b9']);
+  assert.equal(watcher.list()[0].place, 'design on mac');
+  watcher.apply(changed('b1', 'rex-task', 'blocked', 'local one', 'question'));
+  watcher.remote([]);
+  assert.deepEqual(watcher.list().map((row) => row.tab), ['local']);
+});
+
+test('blocked tabs are summarized per tab for the link', async () => {
+  const { blockedTabs } = await import('../src/alerts.mjs');
+  const rows = blockedTabs([
+    changed('b1', '', 'blocked', 'Pi dialog', 'question'), changed('b1', 'rex-task', 'blocked', 'Save button', 'question'),
+    changed('b2', 'rex-task', 'working', 'bash'), changed('b3', 'rex-task', 'blocked', 'Needs coordinator help', 'question'),
+  ], (_session, block) => ({ tab: block, place: 'p' }));
+  assert.deepEqual(rows, [{ key: 'b1', tab: 'b1', place: 'p', message: 'Save button', kind: 'question' }]);
+});

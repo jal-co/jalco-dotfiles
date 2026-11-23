@@ -345,7 +345,7 @@ const REMOTE_TONE = { working: 'yellow', running: 'yellow', done: 'green', idle:
 
 export function remoteItem(host, task) {
   return {
-    kind: 'item', key: `r:${host}:${task.id}`, id: cleanText(task.name), title: cleanText(task.branch ?? task.name),
+    kind: 'item', key: `r:${host}:${task.id}`, id: `${host}/${cleanText(task.name)}`, title: cleanText(task.branch ?? task.name),
     project: host, remote: { host, id: task.id, name: cleanText(task.name), state: task.state, updatedAt: task.updatedAt },
     agent: { text: cleanText(task.state ?? 'unknown'), tone: REMOTE_TONE[task.state] ?? 'dim' },
   };
@@ -455,6 +455,7 @@ export function taskBrief({ goal, context = [], branch, linear = false }) {
     'Verification: Run the repository checks relevant to the changed code. Report the exact commands and their results.',
     `Commit: Commit on ${branch} with a conventional message. Do not push${linear ? ', open a PR or change the Linear issue' : ' or open a PR'}.`,
     'Questions: Ask Justin questions and decisions in this session with ask_user_question and wait for his answer. Use caller_ping only when the coordinator must act.',
+    'Links: Every URL or path in your replies must open from Justin\'s Mac: a tailnet URL from portless run --tailscale first, otherwise the rex forward command plus the localhost URL, and GitHub links for code.',
     'Report: Summarize what changed, the files touched, the commit SHA, check results and anything you could not verify. Then call subagent_done.',
   ].join('\n');
 }

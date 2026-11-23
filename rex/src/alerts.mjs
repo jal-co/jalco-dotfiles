@@ -9,6 +9,7 @@ import { parseArgs } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { rexBinary } from './provider.ts';
 import { generateVapidKeys, sendPush } from './webpush.mjs';
+import { remoteWaiting } from './hosts.ts';
 
 const assets = join(dirname(fileURLToPath(import.meta.url)), '..', 'alerts');
 export const alertsRoot = () => process.env.REX_ALERTS_ROOT ?? join(homedir(), '.rex', 'phone');
@@ -54,6 +55,23 @@ export function payloadFor(entry, open) {
   };
 }
 
+const waitingRecord = (records) => {
+  const blocked = records.filter((record) => record?.state === 'blocked' && !NOT_FOR_JUSTIN.has(record.msg));
+  return blocked.find((entry) => entry.id === 'rex-task') ?? blocked[0];
+};
+
+export function blockedTabs(changes, labelOf) {
+  const byBlock = new Map();
+  for (const change of changes) {
+    if (!byBlock.has(change.block)) byBlock.set(change.block, { session: change.session, records: [] });
+    byBlock.get(change.block).records.push(change.record);
+  }
+  return [...byBlock].flatMap(([block, tab]) => {
+    const record = waitingRecord(tab.records);
+    return record ? [{ key: block, ...labelOf(tab.session, block), message: clean(record.msg, 300), kind: record.kind }] : [];
+  });
+}
+
 export class Watcher {
   constructor({ send, labelOf, now = Date.now, quiet = QUIET_MS }) {
     Object.assign(this, { send, labelOf, now, quiet });
@@ -85,28 +103,40 @@ export class Watcher {
 
   refresh(block) {
     const tab = this.tabs.get(block);
-    const blocked = [...(tab?.records.values() ?? [])].filter((record) => record?.state === 'blocked' && !NOT_FOR_JUSTIN.has(record.msg));
-    if (!blocked.length) {
+    const record = waitingRecord([...(tab?.records.values() ?? [])]);
+    if (!record) {
       this.waiting.delete(block);
       this.alerted.delete(block);
       return;
     }
-    const record = blocked.find((entry) => entry.id === 'rex-task') ?? blocked[0];
     const current = this.waiting.get(block);
     this.waiting.set(block, { key: block, session: tab.session, block, record, since: current?.since ?? this.now() });
+  }
+
+  remote(entries) {
+    const keys = new Set(entries.map((entry) => `${entry.host}:${entry.key}`));
+    for (const key of this.waiting.keys()) if (this.waiting.get(key).labels && !keys.has(key)) { this.waiting.delete(key); this.alerted.delete(key); }
+    for (const entry of entries) {
+      const key = `${entry.host}:${entry.key}`;
+      const labels = { tab: entry.tab, place: entry.place ? `${entry.place} on ${entry.host}` : `${entry.host}` };
+      this.waiting.set(key, { key, labels, record: { msg: entry.message, kind: entry.kind }, since: this.waiting.get(key)?.since ?? this.now() });
+    }
+  }
+
+  labelsOf(entry) {
+    return entry.labels ?? this.labelOf(entry.session, entry.block);
   }
 
   async tick() {
     for (const entry of this.waiting.values()) {
       if (this.alerted.has(entry.key) || this.now() - entry.since < this.quiet) continue;
       this.alerted.add(entry.key);
-      const labels = this.labelOf(entry.session, entry.block);
-      await this.send(payloadFor({ ...entry, ...labels }, this.waiting.size));
+      await this.send(payloadFor({ ...entry, ...this.labelsOf(entry) }, this.waiting.size));
     }
   }
 
   list() {
-    return [...this.waiting.values()].map((entry) => ({ ...this.labelOf(entry.session, entry.block), message: clean(entry.record.msg, 300), kind: entry.record.kind, app: entry.record.effective_app ?? entry.record.app, since: entry.since }))
+    return [...this.waiting.values()].map((entry) => ({ ...this.labelsOf(entry), message: clean(entry.record.msg, 300), kind: entry.record.kind, app: entry.record.effective_app ?? entry.record.app, since: entry.since }))
       .sort((a, b) => a.since - b.since);
   }
 }
@@ -267,7 +297,10 @@ async function main(argv) {
     send: (payload) => (values.dev ? console.log('would push', payload) : pushAll(payload, { root, subject })),
   });
   follow(watcher, console.error);
-  setInterval(() => { watcher.tick().catch((error) => console.error(`push failed: ${error.message}`)); }, 2000).unref();
+  setInterval(() => {
+    try { watcher.remote(remoteWaiting()); } catch (error) { console.error(`remote tabs unreadable: ${error.message}`); }
+    watcher.tick().catch((error) => console.error(`push failed: ${error.message}`));
+  }, 2000).unref();
   createServer(handler({ login, dev: values.dev, root, waiting: () => watcher.list(), push: (payload) => pushAll(payload, { root, subject }) }))
     .listen(Number(values.port), '127.0.0.1', () => console.log(`Rex alerts on http://127.0.0.1:${values.port}${login ? ` for ${login}` : ' (dev)'}`));
 }

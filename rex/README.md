@@ -49,6 +49,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/work.ts`, `src/work-tool.ts`, `src/work-heartbeat.ts` | Durable work queue of fixes and delivery batches, the coordinator's `rex_work` tool and the heartbeat that checks it |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `src/alerts.mjs`, `src/webpush.mjs`, `alerts/`, `systemd/rex-alerts.service` | Phone alerts when a Rex tab waits on Justin |
+| `src/hosts.ts`, `src/link.mjs`, `launchd/com.jalco.rex-link.plist` | The link the Mac keeps open to b1 so one coordinator serves both machines |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
@@ -215,6 +216,31 @@ Linear access uses a personal API key in the `Agents / Dev` vault. `~/.rex/linea
 ```
 
 The key is read with `op read` at startup and kept in memory only. Without a reference, or when 1Password or Linear is unavailable, the issue tabs explain why and Sessions still works. Set `REX_COORDINATOR_CWD` to target a coordinator outside `~/rex-coord`.
+
+## One coordinator for both machines
+
+The first host in `config/hosts.json` (b1) is the primary. Its coordinator is the only one Justin talks to. Every other host keeps a link open to it: `link.mjs work`, run by the `com.jalco.rex-link` LaunchAgent on the Mac, opens `ssh b1 … link.mjs serve --host mac` and keeps it open, reconnecting after sleep or a network change. Only the worker opens connections, so b1 needs no way into the Mac.
+
+Over the link:
+
+1. **Up:** every 10 seconds the Mac sends its tabs that are waiting on Justin, its tasks and its health, which b1 keeps under `~/.rex/hosts/mac/`. b1's phone alerts include those tabs, named with the Mac. Task results, help requests and crash notices are sent as they happen.
+2. **Down:** b1 sends commands from `rex-remote` and the command center: `launch`, `send`, `stop`, `resume` and `stash`. Cleanup is not on the list; it runs on the machine that owns the checkout.
+
+While the link is up, the Mac coordinator is a worker. It still supervises its own agents, because process identity, tabs and file events can only be checked on their own machine, but it records task results without starting a turn and leaves them in `~/.rex/link/outbox` until b1 acknowledges them. b1's coordinator delivers them as `rex_remote_event` messages named `mac/<task>`, claiming each file first so two coordinators cannot deliver it twice; one interrupted by a restart is delivered again with a note that it may repeat.
+
+A Mac that has not been heard from in 30 seconds, or whose link closed, is offline. Commands to it are refused at once and nothing is queued. A command that was running when the link dropped comes back as uncertain, because it may have run. Its waiting tabs drop out of b1's alerts until it is back.
+
+When b1 is unreachable, the Mac coordinator takes over: results are delivered to it directly and it tells Justin in one line. When the link returns, it says so once and goes back to being a worker. No task moves between machines either way.
+
+To set up a Mac after merging:
+
+```sh
+mise dot apply
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jalco.rex-link.plist"
+tail -f ~/.rex/link.log
+```
+
+The LaunchAgent uses the same `ssh b1` as everything else on the Mac, so the key it needs must load without a prompt.
 
 ## Phone alerts
 

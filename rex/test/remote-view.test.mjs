@@ -8,7 +8,7 @@ const task = (name, state, extra = {}) => ({ id: `${name}-id`, name, state, bran
 test('the other machine gets its own Sessions section with live tasks, or says why it cannot', () => {
   const rows = remoteSections({ mac: { tasks: [task('ui-fix', 'working'), task('old', 'stopped')] } });
   assert.deepEqual(rows.filter((row) => row.kind === 'section').map((row) => [row.title, row.count]), [['On mac', 1]]);
-  assert.deepEqual(rows.filter((row) => row.kind === 'item').map((row) => [row.id, row.project, row.agent.tone]), [['ui-fix', 'mac', 'yellow']]);
+  assert.deepEqual(rows.filter((row) => row.kind === 'item').map((row) => [row.id, row.project, row.agent.tone]), [['mac/ui-fix', 'mac', 'yellow']]);
   assert.equal(remoteSections({ mac: { tasks: [task('old', 'stopped')] } }, true).filter((row) => row.kind === 'item').length, 1);
   assert.match(remoteSections({ mac: { tasks: [] } }).find((row) => row.kind === 'note').text, /Nothing running on mac/);
   const down = remoteSections({ mac: { error: 'ssh: connect to host port 22: Operation timed out' } });
