@@ -192,6 +192,29 @@ export async function tasksOf(config, name, { self = selfName(config) } = {}) {
   return snapshot.tasks ?? [];
 }
 
+export function forwardCommand(config, { ports, session, desk, self = selfName(config) }) {
+  const list = String(ports ?? '').split(',').map((port) => Number(port.trim()));
+  if (!list.length || list.some((port) => !Number.isInteger(port) || port < 1 || port > 65535)) throw new Error('forward needs --ports, such as 3300,3301');
+  if (!/^[\w:.-]{1,120}$/.test(String(session ?? ''))) throw new Error('forward needs --session, or run it inside a Rex tab');
+  const target = desk ?? Object.keys(config.hosts).find((name) => name !== self);
+  if (!target || target === self || !config.hosts[target]) throw new Error('No other machine to open the ports on');
+  const mine = config.hosts[self]?.ssh;
+  if (!mine) throw new Error('This machine has no ssh name in hosts.json');
+  const rex = `"$HOME/.local/bin/rex" -S ssh://${mine} forward new -s ${session} ${list.map((port) => `-L ${port}:127.0.0.1:${port}`).join(' ')}`;
+  return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh,
+    `nohup ${rex} >/dev/null 2>&1 </dev/null & sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done`] };
+}
+
+export async function forwardToDesk(config, options) {
+  const { target, list, args } = forwardCommand(config, options);
+  try {
+    await promisify(execFile)('ssh', args, { encoding: 'utf8', timeout: 30_000 });
+  } catch (error) {
+    throw new Error(error.code === 3 ? `The forward started on ${target} but a port is not listening there yet; check rex forward ls -s ${options.session}` : `Could not reach ${target}: ${cleanText(error.stderr || error.message).slice(0, 200)}`);
+  }
+  return { host: target, urls: list.map((port) => `http://localhost:${port}`), close: `rex forward close --all -s ${options.session}` };
+}
+
 export async function statuses(config, { self = selfName(config) } = {}) {
   const entries = await Promise.all(config.order.map(async (name) => {
     if (name !== self && name !== brainName(config)) return [name, linkedStatus(name)];
@@ -212,6 +235,9 @@ const usage = `Usage:
   rex-remote stop --host H --id ID
   rex-remote resume --host H --id ID     resume a crashed or stashed task there
   rex-remote stash --host H --id ID      stash a task there
+  rex-remote forward --ports 3300,3301 [--session S] [--host mac]
+                                         make these ports on this machine open as http://localhost:PORT
+                                         on the Mac; close them with rex forward close --all -s S
 
 The primary host (first in hosts.json) reaches the others only through the link
 each of them keeps open to it; a host that is offline refuses at once.`;
@@ -227,6 +253,7 @@ async function main(argv) {
   const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
     host: { type: 'string' }, name: { type: 'string' }, repo: { type: 'string' }, branch: { type: 'string' },
     base: { type: 'string' }, task: { type: 'string' }, id: { type: 'string' }, message: { type: 'string' },
+    ports: { type: 'string' }, session: { type: 'string' },
   } });
   const config = loadHosts();
   if (command === 'status') return statuses(config);
@@ -236,6 +263,7 @@ async function main(argv) {
       try { return [name, await tasksOf(config, name)]; } catch (error) { return [name, { error: cleanText(error.stderr || error.message).slice(0, 200) }]; }
     })));
   }
+  if (command === 'forward') return forwardToDesk(config, { ports: values.ports, session: values.session ?? process.env.REX_SESSION, desk: values.host });
   if (command === 'pick') return { host: chooseHost({ requested: values.host, order: config.order, statuses: await statuses(config) }) };
   if (command === 'launch') {
     if (!values.name || !values.repo) throw new Error('launch needs --name and --repo');

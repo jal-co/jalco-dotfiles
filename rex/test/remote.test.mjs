@@ -52,3 +52,15 @@ test('matchRepository finds a checkout by GitHub remote, then by a unique folder
   assert.throws(() => matchRepository(candidates, 'mastra-ai/mastra'), /No checkout of mastra-ai\/mastra/);
   assert.throws(() => matchRepository([...candidates, { path: '/x/platform', remote: 'other/platform' }], 'platform'), /Several checkouts are named platform/);
 });
+
+test('forward opens the ports on the other machine through this one, and refuses bad input', async () => {
+  const { forwardCommand } = await import('../src/remote.mjs');
+  const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1', hostname: 'b1' }, mac: { ssh: 'me@mac.ts.net', hostname: 'mac' } } };
+  const { target, list, args } = forwardCommand(config, { ports: '3300, 3301', session: 'session:abc-1', self: 'b1' });
+  assert.deepEqual([target, list], ['mac', [3300, 3301]]);
+  assert.equal(args.at(-2), 'me@mac.ts.net');
+  assert.match(args.at(-1), /^nohup "\$HOME\/\.local\/bin\/rex" -S ssh:\/\/b1 forward new -s session:abc-1 -L 3300:127\.0\.0\.1:3300 -L 3301:127\.0\.0\.1:3301 /);
+  assert.throws(() => forwardCommand(config, { ports: '99999', session: 's', self: 'b1' }), /needs --ports/);
+  assert.throws(() => forwardCommand(config, { ports: '3300', session: 'x; rm -rf ~', self: 'b1' }), /needs --session/);
+  assert.throws(() => forwardCommand({ order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, { ports: '3300', session: 's', self: 'b1' }), /No other machine/);
+});
