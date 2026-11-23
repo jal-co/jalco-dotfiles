@@ -633,3 +633,11 @@ test('the base falls back from origin/HEAD to origin/main, then to the local bra
   assert.deepEqual(await defaultBase('/r', fake({ 'rev-parse --abbrev-ref HEAD': 'main' })), { base: 'main', warning: 'No remote default branch; branching from local main.' });
   assert.deepEqual(await defaultBase('/r', fake({ 'rev-parse --verify -q refs/remotes/origin/main': 'abc' })), { base: 'origin/main', warning: 'Could not fetch origin/main; using the local copy.' });
 });
+
+test('links open on the Mac when the command center runs on b1, quoted for the remote shell', async () => {
+  const { opener } = await import('../src/linear-tui.mjs');
+  const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1' }, mac: { ssh: 'me@mac.ts.net' } } };
+  assert.deepEqual(opener('https://x.y/a', { platform: 'darwin', config, self: 'mac' }), ['open', ['https://x.y/a']]);
+  assert.deepEqual(opener("https://x.y/it's?a=1&b=2", { platform: 'linux', config, self: 'b1' }), ['ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', 'me@mac.ts.net', "open 'https://x.y/it'\\''s?a=1&b=2'"], 'mac']);
+  assert.deepEqual(opener('https://x.y', { platform: 'linux', config: { order: ['b1'], hosts: { b1: { ssh: 'b1' } } }, self: 'b1' }), ['xdg-open', ['https://x.y']]);
+});

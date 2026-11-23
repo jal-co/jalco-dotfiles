@@ -931,8 +931,9 @@ export class LinearApp {
 
   open(url, label) {
     if (!/^https:\/\/\S+$/.test(url ?? '')) return this.status('yellow', `${label} has no link to open.`);
-    execFile('open', [url], (error) => { if (error) this.status('red', `Could not open ${url}`); });
-    this.status('green', `Opened ${url}`);
+    const [command, args, where] = opener(url, { config: this.hosts, self: this.self });
+    execFile(command, args, { timeout: 15_000 }, (error) => { if (error) this.status('red', `Could not open ${url}${where ? ` on ${where}` : ''}`); });
+    this.status('green', `Opened ${url}${where ? ` on ${where}` : ''}`);
   }
 
   send(item) {
@@ -1240,6 +1241,15 @@ export function readCoordinatorAsk(origin, root = join(homedir(), '.pi', 'agent'
   } catch {
     return undefined;
   }
+}
+
+export function opener(url, { platform = process.platform, config = { order: [], hosts: {} }, self } = {}) {
+  if (platform === 'darwin') return ['open', [url]];
+  const desk = Object.entries(config.hosts).find(([name]) => name !== self && name !== config.order?.[0])
+    ?? Object.entries(config.hosts).find(([name]) => name !== self);
+  if (!desk) return ['xdg-open', [url]];
+  const [name, host] = desk;
+  return ['ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh, `open '${url.replaceAll("'", "'\\''")}'`], name];
 }
 
 export function readArchive(history = new TaskHistory()) {
