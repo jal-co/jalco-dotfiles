@@ -37,7 +37,22 @@ agent-browser set media dark
 agent-browser diff screenshot --baseline ./before-dark.png --output ./pair-check-dark.png
 ```
 
-A dimension-mismatch result means the viewport, device pixel ratio, or crop drifted; recapture rather than resizing an image. Inspect the reported mismatch regions: changes outside the edited surface are unintended regressions to fix or report, not evidence to upload. The generated red-highlight diff image is a validation artifact; do not attach it to the pull request unless it illustrates a finding. Use `--selector <sel>` on `screenshot` capture and `diff screenshot` for element-scoped pairs, including Storybook's `#storybook-root`.
+A dimension-mismatch result means the viewport, device pixel ratio, or crop drifted; recapture rather than resizing an image. Inspect the reported mismatch regions: changes outside the edited surface are unintended regressions to fix or report, not evidence to upload. The generated red-highlight diff image is a validation artifact only. Never attach it; reviewers can't tell old positions from new ones in it. Show what moved with the ghost and flip below. Use `--selector <sel>` on `screenshot` capture and `diff screenshot` for element-scoped pairs, including Storybook's `#storybook-root`.
+
+### Show what moved: ghost and flip
+
+For every changed pair, run `scripts/ghost-diff.mjs` on the before and after PNGs:
+
+```bash
+node ~/.agents/skills/pr-screenshots/scripts/ghost-diff.mjs ./before-light.png ./after-light.png --out ./settings-light
+```
+
+It writes two files, both cropped to the area that changed:
+
+- `<prefix>-ghost.png`: one image with the new layout in blue and the old one in faint red, with a small New and Old legend in the corner. Dark pages are drawn light so the colours stay readable.
+- `<prefix>-flip.gif`: Before and after flipping every 0.9 seconds, each frame tagged Old or New. GitHub plays it inline.
+
+It writes nothing and prints `No visible difference` when the pair is identical; then the row needs no ghost or flip. It refuses pairs of different sizes, so recapture instead of resizing. Put both files in the row after Before and After, in columns titled "What moved" and "Old ⇄ New", with alt text that names the page and theme.
 
 ### Full-page captures
 
@@ -187,6 +202,7 @@ Use `HttpClient` for binary uploads. Use a new filename when replacing an attach
 - Each comparison pair has identical CSS viewport, device pixel ratio, zoom, visual scale, crop, output dimensions, and capture method.
 - Playground UI captures contain only `#storybook-root`, with no Storybook or browser chrome.
 - Every image has specific alt text.
+- Every changed pair has its ghost and flip from `ghost-diff.mjs`, and no red-highlight diff image is attached.
 - Uploaded media comes from the locally verified state.
 - Motion and timing changes include a focused MP4 plus a resulting-state screenshot.
 - The published body keeps images visible.
