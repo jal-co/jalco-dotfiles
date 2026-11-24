@@ -1,6 +1,6 @@
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { connect } from 'node:net';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -17,6 +17,10 @@ const START_TIMEOUT_MS = 10 * 60_000;
 const PROTECTED = new Set(['pi', 'claude', 'codex', 'systemd', 'sshd', 'rex']);
 const STATUS = '/_rex/status';
 const START = '/_rex/start';
+const LOGIN_REUSE_MS = 4 * 60_000;
+const NO_LOGIN = 'rex-nologin';
+const PRELOAD_WINDOW_MS = 20_000;
+const PRELOAD_MAX = 1500;
 
 export const runsDir = () => process.env.REX_RUNS_DIR ?? join(homedir(), '.local/state/rex-runs');
 export const validId = (id) => /^[\w.-]{1,200}$/.test(String(id ?? ''));
@@ -180,12 +184,14 @@ async function waitListening(ports, child, timeoutMs) {
   return `not listening after ${Math.round(timeoutMs / 1000)}s`;
 }
 
-export function register({ id, cwd, ports, start, pids = [], name }) {
+export function register({ id, cwd, ports, start, pids = [], name, front, cookie, login }) {
   if (!validId(id)) throw new Error('the id takes letters, digits, dots, dashes and underscores');
+  if (front !== undefined && (!Number.isInteger(front) || front < 1 || front > 65535 || ports.includes(front))) throw new Error('--front takes one port that is not in --ports');
+  if ((cookie === undefined) !== (login === undefined) || (cookie !== undefined && (front === undefined || !/^[\w-]{1,64}$/.test(cookie)))) throw new Error('--cookie and --login go together, with --front');
   if (name !== undefined && !validName(name)) throw new Error('--name takes lowercase letters, digits, dots and dashes');
   if (!start?.length) throw new Error('give the command that starts it after --');
   const now = Date.now();
-  return save({ id, name, cwd, ports, start, groups: pids.map((pid) => ({ pid, start: processStart(pid) })).filter((group) => group.start !== undefined), state: 'up', startedAt: now, lastUse: now });
+  return save({ id, name, cwd, ports, front, cookie, login, start, groups: pids.map((pid) => ({ pid, start: processStart(pid) })).filter((group) => group.start !== undefined), state: 'up', startedAt: now, lastUse: now });
 }
 
 function forwardToMac(ports, name) {
@@ -254,7 +260,11 @@ setTimeout(poll,1000);}poll();
 }
 
 export function createWaker(id, { onStart }) {
-  return createServer((request, response) => {
+  return createServer(wakerHandler(id, { onStart }));
+}
+
+function wakerHandler(id, { onStart }) {
+  return (request, response) => {
     if (!localHost(request.headers.host)) { response.writeHead(421).end(); return; }
     const record = load(id);
     if (!record) { response.writeHead(404).end(); return; }
@@ -277,13 +287,123 @@ export function createWaker(id, { onStart }) {
     }
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(page(record, action === 'start' ? 'starting' : 'start-visible'));
     if (action === 'start') onStart(id);
+  };
+}
+
+export const cookieOf = (header = '', name) => header.split(';').map((part) => part.trim().split('=')).find(([key]) => key === name)?.slice(1).join('=') || undefined;
+export const validCookieValue = (value) => /^[\w.~+/=%*-]{1,8192}$/.test(String(value ?? ''));
+
+export function needsLogin(record, request) {
+  if (!record.login || wakeAction(request.method, request.headers) === 'refuse') return false;
+  return !cookieOf(request.headers.cookie, record.cookie) && !cookieOf(request.headers.cookie, NO_LOGIN);
+}
+
+const escapeAttribute = (text) => text.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+
+export class Preloads {
+  constructor(now = Date.now) {
+    this.now = now;
+    this.paths = new Set();
+    this.since = -Infinity;
+  }
+
+  page() {
+    this.since = this.now();
+  }
+
+  seen(request, status) {
+    const url = request.url;
+    if (request.method !== 'GET' || request.headers['sec-fetch-dest'] !== 'script' || !url.startsWith('/') || url.startsWith('//') || /[?&]t=\d/.test(url)) return;
+    if (status >= 400) this.paths.delete(url);
+    else if (this.now() - this.since <= PRELOAD_WINDOW_MS && this.paths.size < PRELOAD_MAX) this.paths.add(url);
+  }
+
+  inject(html) {
+    if (!this.paths.size) return html;
+    const links = Array.from(this.paths, (path) => `<link rel="modulepreload" href="${escapeAttribute(path)}">`).join('');
+    return html.replace(/<head(\s[^>]*)?>/i, (tag) => `${tag}${links}`);
+  }
+}
+
+function proxy(port, request, response, { inject, seen } = {}) {
+  const headers = { ...request.headers };
+  if (inject) for (const name of ['if-none-match', 'if-modified-since']) delete headers[name];
+  const upstream = httpRequest({ host: '127.0.0.1', port, method: request.method, path: request.url, headers }, (reply) => {
+    seen?.(reply.statusCode);
+    const html = inject && /text\/html/.test(reply.headers['content-type'] ?? '') && !reply.headers['content-encoding'];
+    if (!html) {
+      response.writeHead(reply.statusCode, reply.rawHeaders);
+      reply.pipe(response);
+      return;
+    }
+    const chunks = [];
+    reply.on('data', (chunk) => chunks.push(chunk));
+    reply.on('end', () => {
+      const body = Buffer.from(inject(Buffer.concat(chunks).toString('utf8')));
+      const sent = { ...reply.headers, 'content-length': body.length, 'cache-control': 'no-cache' };
+      delete sent.etag;
+      delete sent['transfer-encoding'];
+      response.writeHead(reply.statusCode, sent).end(body);
+    });
   });
+  upstream.on('error', () => { if (!response.headersSent) response.writeHead(502, { 'content-type': 'text/plain' }); response.end('the app did not answer\n'); });
+  request.pipe(upstream);
+}
+
+function proxyUpgrade(port, request, socket, head) {
+  const upstream = connect(port, '127.0.0.1', () => {
+    const lines = [`${request.method} ${request.url} HTTP/1.1`];
+    for (let index = 0; index < request.rawHeaders.length; index += 2) lines.push(`${request.rawHeaders[index]}: ${request.rawHeaders[index + 1]}`);
+    upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
+    if (head.length) upstream.write(head);
+    upstream.pipe(socket).pipe(upstream);
+  });
+  const close = () => { upstream.destroy(); socket.destroy(); };
+  upstream.on('error', close);
+  socket.on('error', close);
+}
+
+export function createFront(id, { onStart, login, preloads = new Preloads() }) {
+  const waker = wakerHandler(id, { onStart });
+  const server = createServer(async (request, response) => {
+    if (!localHost(request.headers.host)) { response.writeHead(421).end(); return; }
+    const record = load(id);
+    if (!record) { response.writeHead(404).end(); return; }
+    if (record.state !== 'up') { waker(request, response); return; }
+    const path = new URL(request.url, 'http://localhost').pathname;
+    if (record.login && path === '/_rex/logout') {
+      response.writeHead(302, { location: '/', 'set-cookie': [`${record.cookie}=; Path=/; Max-Age=0`, `${NO_LOGIN}=1; Path=/; Max-Age=31536000; SameSite=Lax`] }).end();
+      return;
+    }
+    if (record.login && path === '/_rex/login') {
+      response.writeHead(302, { location: '/', 'set-cookie': `${NO_LOGIN}=; Path=/; Max-Age=0` }).end();
+      return;
+    }
+    if (needsLogin(record, request)) {
+      const value = await login(record).catch(() => undefined);
+      if (value) {
+        response.writeHead(302, { location: request.url, 'cache-control': 'no-store', 'set-cookie': `${record.cookie}=${value}; Path=/; HttpOnly; SameSite=Lax` }).end();
+        return;
+      }
+    }
+    const page = request.method === 'GET' && request.headers['sec-fetch-mode'] === 'navigate' && request.headers['sec-fetch-dest'] === 'document';
+    if (page) preloads.page();
+    proxy(record.ports[0], request, response, page ? { inject: (html) => preloads.inject(html) } : { seen: (status) => preloads.seen(request, status) });
+  });
+  server.on('upgrade', (request, socket, head) => {
+    const record = load(id);
+    if (!localHost(request.headers.host) || record?.state !== 'up') { socket.destroy(); return; }
+    proxyUpgrade(record.ports[0], request, socket, head);
+  });
+  return server;
 }
 
 export class Supervisor {
   constructor({ now = Date.now, peers = () => execFileSync('ss', ['-tnH', 'state', 'established'], { encoding: 'utf8' }), memory = () => parseMeminfo(readFileSync('/proc/meminfo', 'utf8')), log = console.log } = {}) {
     Object.assign(this, { now, peers, memory, log });
     this.wakers = new Map();
+    this.fronts = new Map();
+    this.sessions = new Map();
     this.seen = new Map();
     this.starting = new Set();
   }
@@ -326,6 +446,7 @@ export class Supervisor {
 
   async reconcile() {
     const records = all();
+    await this.reconcileFronts(records);
     const wanted = new Set(records.filter((record) => ['stopped', 'failed'].includes(record.state) && !this.starting.has(record.id)).map((record) => record.id));
     for (const id of this.wakers.keys()) if (!wanted.has(id)) await this.closeWaker(id);
     for (const record of records.filter((entry) => wanted.has(entry.id) && !this.wakers.has(entry.id))) {
@@ -340,6 +461,42 @@ export class Supervisor {
       }
       if (servers.length) this.wakers.set(record.id, servers);
     }
+  }
+
+  async reconcileFronts(records) {
+    const wanted = new Map(records.filter((record) => record.front).map((record) => [record.id, record.front]));
+    for (const [id, { port, server }] of this.fronts) {
+      if (wanted.get(id) === port) continue;
+      this.fronts.delete(id);
+      server.closeAllConnections();
+      server.close();
+    }
+    for (const [id, port] of wanted) {
+      if (this.fronts.has(id)) continue;
+      const server = createFront(id, { onStart: (target) => void this.coldStart(target), login: (record) => this.login(record) });
+      const bound = await new Promise((resolve) => {
+        server.once('error', () => resolve(false));
+        server.listen(port, '127.0.0.1', () => resolve(true));
+      });
+      if (bound) this.fronts.set(id, { port, server });
+    }
+  }
+
+  login(record) {
+    const cached = this.sessions.get(record.id);
+    if (cached && this.now() - cached.at < LOGIN_REUSE_MS) return cached.value;
+    const value = new Promise((resolve, reject) => {
+      execFile(process.env.SHELL || '/bin/sh', ['-lc', record.login], { cwd: record.cwd, timeout: 60_000, encoding: 'utf8', maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
+        const line = stdout.trim().split('\n').at(-1)?.trim();
+        if (error || !validCookieValue(line)) {
+          this.sessions.delete(record.id);
+          this.log(`signing in to ${record.id} failed: ${(stderr || error?.message || 'no cookie printed').trim().split('\n').at(-1)}`);
+          reject(new Error('login failed'));
+        } else resolve(line);
+      });
+    });
+    this.sessions.set(record.id, { at: this.now(), value });
+    return value;
   }
 
   async closeWaker(id) {
@@ -414,7 +571,10 @@ const USAGE = `Usage: rex-run <command>
   run <id> --ports P[,P] [--name N] -- <command>   Start a dev server in the background, wait until it listens, and register it.
                                                    With --name and a Rex tab, it also opens on the Mac as https://N.localhost
   watch <id> --ports P[,P] [--pids A,B] -- <command>
-                                                   Register a server that is already running; <command> starts it again
+  [--front P [--cookie NAME --login CMD]]          Register a server that is already running; <command> starts it again.
+                                                   --front: a port that proxies to the first port while it is up and wakes it
+                                                   while it is stopped. --login: a command printing a session cookie value,
+                                                   set as NAME on page loads that lack it (/_rex/logout turns that off)
   release <id>      Hand a stopped server's ports back before starting it by hand (mdev up does this)
   wake <id>         Start a stopped server now, as opening its page would
   stop <id>         Stop it; opening its URL starts it again
@@ -427,7 +587,7 @@ async function main(argv) {
   const split = argv.indexOf('--');
   const head = split < 0 ? argv : argv.slice(0, split);
   const command = split < 0 ? [] : argv.slice(split + 1);
-  const { values, positionals } = parseArgs({ args: head, allowPositionals: true, options: { ports: { type: 'string' }, name: { type: 'string' }, pids: { type: 'string' }, json: { type: 'boolean' } } });
+  const { values, positionals } = parseArgs({ args: head, allowPositionals: true, options: { ports: { type: 'string' }, name: { type: 'string' }, pids: { type: 'string' }, front: { type: 'string' }, cookie: { type: 'string' }, login: { type: 'string' }, json: { type: 'boolean' } } });
   const [verb, id] = positionals;
   if (verb === 'serve') return new Supervisor().serve();
   if (verb === 'ls') return console.log(list(values.json));
@@ -438,7 +598,7 @@ async function main(argv) {
     return;
   }
   if (verb === 'watch') {
-    register({ id, cwd: process.cwd(), ports: parsePorts(values.ports), start: command, name: values.name, pids: values.pids ? values.pids.split(',').map(Number).filter(Number.isInteger) : [] });
+    register({ id, cwd: process.cwd(), ports: parsePorts(values.ports), start: command, name: values.name, front: values.front === undefined ? undefined : Number(values.front), cookie: values.cookie, login: values.login, pids: values.pids ? values.pids.split(',').map(Number).filter(Number.isInteger) : [] });
     return;
   }
   if (verb === 'release') return release(id);

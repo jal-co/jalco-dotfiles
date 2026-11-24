@@ -142,3 +142,82 @@ test('release hands a stopped server\'s ports back so it can be started by hand'
   assert.equal(supervisor.wakers.has(id), false);
   await new Promise((resolve, reject) => { const server = createServer().once('error', reject).listen(port, '127.0.0.1', () => server.close(resolve)); });
 });
+
+test('a front port signs page loads in, proxies the app and its sockets, and wakes it when stopped', async (t) => {
+  const [port, front] = [await freePort(), await freePort()];
+  const id = `front-${port}`;
+  const wsServer = `require('http').createServer((q,s)=>s.end('app '+(q.headers.cookie||'none'))).on('upgrade',(q,sock)=>{sock.write('HTTP/1.1 101 Switching Protocols\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\n\\r\\n');sock.on('data',(d)=>sock.write('echo:'+d))}).listen(Number(process.env.PORT),'127.0.0.1')`;
+  await runs.run({ id, ports: [port], command: [process.execPath, '-e', wsServer] });
+  runs.register({ ...runs.load(id), front, cookie: 'wos-session', login: 'echo starting; echo sealed-abc', pids: runs.load(id).groups.map((group) => group.pid) });
+  const lines = [];
+  const supervisor = new runs.Supervisor({ log: (line) => lines.push(line) });
+  t.after(async () => {
+    for (const { server } of supervisor.fronts.values()) { server.closeAllConnections(); server.close(); }
+    await Promise.all(Array.from(supervisor.wakers.keys(), (key) => supervisor.closeWaker(key)));
+    await runs.stop(id, 'manual');
+    runs.forget(id);
+  });
+  await supervisor.reconcile();
+  assert.ok(supervisor.fronts.has(id));
+
+  const page = await get(front, nav);
+  assert.equal(page.status, 302);
+  const signedIn = await new Promise((resolve) => request({ port: front, host: '127.0.0.1', path: '/x', headers: nav }, (response) => { response.resume(); resolve(response.headers); }).end());
+  assert.match(signedIn['set-cookie'][0], /^wos-session=sealed-abc; Path=\/; HttpOnly; SameSite=Lax$/);
+  assert.equal(signedIn.location, '/x');
+
+  assert.equal((await get(front, { ...nav, cookie: 'wos-session=sealed-abc' })).body, 'app wos-session=sealed-abc');
+  assert.equal((await get(front, { 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'empty' }, '/v1/x')).body, 'app none');
+  assert.equal((await get(front, { ...nav, cookie: 'rex-nologin=1' })).body, 'app rex-nologin=1');
+  assert.equal((await get(front, { ...nav, host: 'evil.example' })).status, 421);
+
+  const { connect: tcp } = await import('node:net');
+  const echoed = await new Promise((resolve, reject) => {
+    const socket = tcp(front, '127.0.0.1', () => socket.write(`GET /hmr HTTP/1.1\r\nHost: localhost:${front}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n`));
+    let text = '';
+    socket.on('data', (chunk) => { text += chunk; if (text.includes('\r\n\r\n') && !text.includes('echo:')) socket.write('ping'); if (text.includes('echo:ping')) { socket.destroy(); resolve(text); } });
+    socket.on('error', reject);
+    setTimeout(() => reject(new Error('no echo')), 5000);
+  });
+  assert.match(echoed, /^HTTP\/1.1 101/);
+
+  await runs.stop(id, 'idle');
+  const stopped = await get(front, { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' });
+  assert.equal(stopped.status, 200);
+  assert.match(stopped.body, /is stopped/);
+});
+
+test('the front learns the modules a page loads and lists them as preloads on the next load', async (t) => {
+  const [port, front] = [await freePort(), await freePort()];
+  const id = `preload-${port}`;
+  const html = `require('http').createServer((q,s)=>{if(q.url==='/')return s.writeHead(200,{'content-type':'text/html','etag':'"v1"'}).end('<!doctype html><html><head><title>x</title></head><body></body></html>');if(q.url.startsWith('/gone'))return s.writeHead(404).end();s.end('export{}')}).listen(Number(process.env.PORT),'127.0.0.1')`;
+  await runs.run({ id, ports: [port], command: [process.execPath, '-e', html] });
+  runs.register({ ...runs.load(id), front, pids: runs.load(id).groups.map((group) => group.pid) });
+  const supervisor = new runs.Supervisor({ log: () => {} });
+  t.after(async () => {
+    for (const { server } of supervisor.fronts.values()) { server.closeAllConnections(); server.close(); }
+    await runs.stop(id, 'manual');
+    runs.forget(id);
+  });
+  await supervisor.reconcile();
+  const page = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' };
+  const script = { 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'script' };
+
+  const first = await get(front, page);
+  assert.doesNotMatch(first.body, /modulepreload/);
+  for (const path of ['/src/main.tsx', '/node_modules/.vite/deps/react.js?v=ab12', '/src/app.tsx?t=1700000000', '/gone.ts']) await get(front, script, path);
+  await get(front, { 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'empty' }, '/v1/data');
+
+  const second = await get(front, { ...page, 'if-none-match': '"v1"' });
+  assert.equal(second.status, 200);
+  assert.match(second.body, /^<!doctype html><html><head><link rel="modulepreload" href="\/src\/main\.tsx"><link rel="modulepreload" href="\/node_modules\/\.vite\/deps\/react\.js\?v=ab12"><title>/);
+  assert.doesNotMatch(second.body, /app\.tsx|gone|\/v1/);
+
+  const preloads = new runs.Preloads(() => 0);
+  preloads.page();
+  preloads.seen({ method: 'GET', url: '/a"<b.ts', headers: script }, 200);
+  preloads.seen({ method: 'GET', url: '//evil.example/x.js', headers: script }, 200);
+  assert.equal(preloads.inject('<head>'), '<head><link rel="modulepreload" href="/a&quot;&lt;b.ts">');
+  preloads.seen({ method: 'GET', url: '/a"<b.ts', headers: script }, 404);
+  assert.equal(preloads.inject('<head>'), '<head>');
+});
