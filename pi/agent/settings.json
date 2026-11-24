@@ -3,11 +3,21 @@
   "compaction": {
     "keepRecentTokens": 48000,
     "modelOverrides": {
-      "claude-bridge/claude-fable-5-2": { "reserveTokens": 100000 },
-      "claude-bridge/claude-fable-5-1": { "reserveTokens": 100000 },
-      "claude-bridge/claude-opus-5-5": { "reserveTokens": 100000 },
-      "claude-bridge/claude-sonnet-5-5": { "reserveTokens": 100000 },
-      "claude-bridge/claude-haiku-5-5": { "reserveTokens": 100000 }
+      "claude-bridge/claude-fable-5-2": {
+        "reserveTokens": 100000
+      },
+      "claude-bridge/claude-fable-5-1": {
+        "reserveTokens": 100000
+      },
+      "claude-bridge/claude-opus-5-5": {
+        "reserveTokens": 100000
+      },
+      "claude-bridge/claude-sonnet-5-5": {
+        "reserveTokens": 100000
+      },
+      "claude-bridge/claude-haiku-5-5": {
+        "reserveTokens": 100000
+      }
     }
   },
   "defaultModel": "gpt-6.1-sol",
@@ -30,7 +40,7 @@
   "skills": [],
   "followUpMode": "all",
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "1.5.0",
+  "lastChangelogVersion": "1.6.0",
   "packages": [
     "npm:@juanibiapina/pi-extension-settings",
     "./packages/rpiv-ask-user-question",
@@ -83,8 +93,8 @@
   "extensionChangelogVersions": {
     "{\"source\":\"npm:pi-tool-display\",\"scope\":\"user\"}": "0.5.0",
     "{\"source\":\"git:github.com/jal-co/pi-agentation\",\"scope\":\"user\"}": "0.1.1",
-    "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.47.0",
-    "{\"source\":\"npm:@narumitw/pi-btw\",\"scope\":\"user\"}": "0.63.5",
+    "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.48.0",
+    "{\"source\":\"npm:@narumitw/pi-btw\",\"scope\":\"user\"}": "0.63.8",
     "{\"source\":\"npm:pi-herdr-pstack\",\"scope\":\"user\"}": "0.6.0"
   }
 }
