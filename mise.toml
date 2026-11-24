@@ -14,14 +14,13 @@ dotfiles.relative_symlinks = true
 "~/.config/starship.toml" = "starship/starship.toml"
 "~/.agents" = "agents"
 "~/.local/bin/pinned" = "rex/bin/pinned"
-"~/.local/bin/pinned-rex" = "rex/bin/pinned"
 "~/.local/bin/rex-linear" = "rex/bin/rex-linear"
 "~/.local/bin/rex-remote" = "rex/bin/rex-remote"
 "~/rex-coord/AGENTS.md" = "rex/coordinator/AGENTS.md"
 "~/rex-coord/.pi/settings.json" = "rex/coordinator/settings.json"
 
 [tasks.bootstrap]
-run = "npm install -g agent-browser@0.43.0 corepack superset vercel && mise run hooks"
+run = "npm install -g agent-browser@0.43.0 corepack vercel && mise run hooks"
 
 [tasks.hooks]
 description = "Install the gitleaks pre-commit hook in the dotfiles repos, and on macOS a hook that has b1 pull right after a push"

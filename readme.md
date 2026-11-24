@@ -42,7 +42,7 @@ Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private
 
 Mastra work setup lives in the private repo `jal-co/dotfiles-work`: the Pi skills in `pi/agent/skills/work` and `mdev`, which runs Mastra apps per worktree. Clone it to `~/dotfiles-work` and run `mise trust && mise dot apply` there. Until then `pi/agent/skills/work` is missing, and the Mastra rows in `pi/agent/AGENTS.md` and `mdev` in `pi/agent/workflows/frontend.md` point at nothing.
 
-Credentials live in Proton Pass, not in any of these repos.
+Credentials live in 1Password, not in any of these repos. [`docs/agent-secrets.md`](docs/agent-secrets.md) covers agent access.
 
 ## Layout
 

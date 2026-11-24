@@ -2,11 +2,11 @@
 
 A Rex-native fork of [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents), based on version **3.3.1**, with Justin's existing Rex session, recovery and worktree integration. This is a fork, not a clean-room implementation. The upstream MIT license and source attribution are retained in [`host/LICENSE`](host/LICENSE) and [`host/PROVENANCE.md`](host/PROVENANCE.md).
 
-The local Pi package owns its host source under `host/`; it does not import or patch the installed Herdr package. Herdr remains installed separately for fallback use.
+The local Pi package owns its host source under `host/`; it does not import or patch the installed `pi-herdr-agents` package. That package stays installed, with its extensions and skills disabled in `pi/agent/settings.json`, because `pi-herdr-pstack` depends on it.
 
 `pinned` starts or finds the coordinator in Rex. New sessions are named **Command**, with the coordinator in one tab and the command center in another. The launcher finds a running coordinator by its process and directory, even after a label change. It renames only a session still called `pinned`, the old default, to `Command`. It never steals focus or starts a second writer when inspection is uncertain.
 
-`pinned-rex` is the same launcher. The Herdr setup was removed; the pre-migration snapshot is commit `efdcf6f`.
+The Herdr setup was removed; the pre-migration snapshot is commit `efdcf6f`.
 
 ## Pin sessions
 
