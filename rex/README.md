@@ -49,6 +49,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/work.ts`, `src/work-tool.ts`, `src/work-heartbeat.ts` | Durable work queue of fixes and delivery batches, the coordinator's `rex_work` tool and the heartbeat that checks it |
 | `src/task.ts` | Package-owned child process attestation and native status indicators |
 | `src/alerts.mjs`, `src/webpush.mjs`, `alerts/`, `systemd/rex-alerts.service` | Phone alerts when a Rex tab waits on Justin |
+| `src/runs.mjs`, `bin/rex-run`, `systemd/rex-runs.service` | [Idle stop and cold start](#idle-stop-and-cold-start) for dev servers |
 | `src/hosts.ts`, `src/link.mjs`, `launchd/com.jalco.rex-link.plist` | The link the Mac keeps open to b1 so one coordinator serves both machines |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
@@ -241,6 +242,22 @@ tail -f ~/.rex/link.log
 ```
 
 The LaunchAgent uses the same `ssh b1` as everything else on the Mac, so the key it needs must load without a prompt.
+
+## Idle stop and cold start
+
+`rex-runs.service` on b1 (`src/runs.mjs`) keeps dev servers from piling up and brings them back when they are needed. It tracks servers registered with `rex-run`:
+
+- `rex-run run <id> --ports P [--name N] -- <command>` starts a server in the background, waits until it listens and registers it. With `--name` inside a Rex tab it also opens on the Mac as `https://N.localhost`.
+- `mdev up` registers each app it starts with `rex-run watch`, hands a stopped app's ports back with `rex-run release` before starting it, and `mdev down` ends tracking with `rex-run forget`.
+
+A server stops after 2 hours without a new connection (`REX_RUN_IDLE_HOURS`). Only new connections count, so a forgotten tab's open HMR socket does not keep it alive. When available memory is under 15%, the least recently used server not used in the last 15 minutes stops, one per minute. A server whose folder is gone is stopped and forgotten.
+
+A stopped, crashed or failed server's ports are held by a waker on `127.0.0.1`, so the Mac's ssh forward and its portless name keep working. Opening the page from a browser shows a loading page with the log, starts the server again with its own command in a login shell in its folder, starts the other apps in that folder that stopped with it, and reloads once the server answers. Only a page a person opens starts it: fetches, iframes, WebSockets and requests without browser headers get a 503, and requests for hosts other than `localhost` names are refused. A failed start shows its error and a Start again button. `rex-run wake <id>` starts one from the terminal, `rex-run ls` lists them, and `journalctl --user -u rex-runs` says what was stopped and started and why. Records and logs live in `~/.local/state/rex-runs`; the environment a server was started with is never stored.
+
+```sh
+systemctl --user link ~/dotfiles/rex/systemd/rex-runs.service
+systemctl --user enable --now rex-runs
+```
 
 ## Phone alerts
 

@@ -43,6 +43,7 @@ This session is the inbox. Rex is the terminal. Task execution belongs in persis
 <rules>
 - Justin reads b1's replies on his Mac or phone, where `localhost` and `/home/justin/...` mean something else. Every URL or path in a reply MUST open from his Mac.
 - A dev server on b1: start it with `portless run --tailscale` and give its `https://b1.tail95e906.ts.net` URL. It also opens on his phone.
+- A dev server that should stop when nobody uses it and start again when its URL is opened: `rex-run run <id> --ports <port> --name <name> -- <command>`, which also opens it on the Mac as `https://<name>.localhost`. `mdev up` registers its apps this way by itself.
 - An app that only works on localhost (Platform and its WorkOS callback): run `rex-remote forward --ports <ui>,<api>` yourself, then give the `http://localhost:<ui>` URL. It opens the ports on the Mac from b1, in your Rex session; close them with `rex-remote unforward` when the review is done. MUST NOT hand Justin a forward command to run. If the Mac is asleep, say so in one line and give the URL to open once it is awake.
 - Code and files: link the PR, commit or file on GitHub. For unpushed work, say it is on b1 and quote the lines that matter instead of a bare path.
 - `task-browser review` opens on the machine that runs it. On b1, give Justin the link instead.

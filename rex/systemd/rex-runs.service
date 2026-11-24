@@ -1,0 +1,14 @@
+[Unit]
+Description=Rex runs: stop idle dev servers and start them again when their URL is opened
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/b1/env
+Environment=SHELL=/usr/bin/zsh
+ExecStart=%h/.local/share/mise/shims/node %h/dotfiles/rex/src/runs.mjs serve
+KillMode=process
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
