@@ -102,7 +102,3 @@ export function forgetOpenedPrimaryWorkspaceClaims(
 			),
 	);
 }
-
-export function clearOpenedPrimaryWorkspaceClaims(): void {
-	store().claims = [];
-}

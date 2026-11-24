@@ -8,4 +8,4 @@ Local changes expose the runtime state used by the Rex coordinator, require an e
 
 The existing `pi-herdr-subagent` sidecar filenames, environment variables, shared `~/.pi/agent/herdr-agents/config.json` preferences, and pstack event names remain protocol compatibility contracts. Keeping them allows existing task sessions and saved recovery records to continue without rewriting their identity or policy. They do not require the installed Herdr host at runtime.
 
-Herdr transport source retained in the fork is not the coordinator's placement implementation. `index.ts` supplies the Rex provider, launch operations, supervision and worktree manager. Transport extraction can be narrowed later without changing task ownership or on-disk protocols.
+The Herdr surface provider, its terminal transport, the fake test adapters and the status functions nothing called were removed from the fork on 2026-11-23. `index.ts` supplies the Rex provider, launch operations, supervision and worktree manager. `surfaces/herdr/herdr-socket.ts` stays because the sidebar marker code still imports it.

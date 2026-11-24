@@ -318,12 +318,6 @@ export function isConfigRevision(value: any): value is string {
 	);
 }
 
-/** Read the exact-byte revision of a config file, or `missing` when absent. */
-export function readConfigRevision(configPath: string): string {
-	const bytes = readBytesIfExists(configPath);
-	return bytes == null ? MISSING_CONFIG_REVISION : computeConfigRevision(bytes);
-}
-
 export type TaskModelConfigWriteErrorCode =
 	| "invalid-revision"
 	| "stale-revision"

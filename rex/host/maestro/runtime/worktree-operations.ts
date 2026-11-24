@@ -540,11 +540,6 @@ function processHolders(
 	return { blockers, warnings };
 }
 
-export const __worktreeCleanupTest__ = {
-	processHolders,
-	realpathWithoutOpening,
-};
-
 export function createWorktreeCleanupOperations(
 	provider: SurfaceProvider,
 	input: {

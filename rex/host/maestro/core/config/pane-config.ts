@@ -11,19 +11,6 @@ export interface PaneConfig {
 	maxPerTab: number;
 }
 
-type PaneCreator = (name: string, cwd?: string) => string;
-type SplitPaneCreator = (
-	name: string,
-	direction: PaneDirection,
-	cwd?: string,
-) => string;
-type GroupedPaneCreator = (
-	name: string,
-	cwd: string,
-	maxPerTab: number,
-	direction: PaneDirection,
-) => string;
-
 function invalidPaneConfig(source: string, message: string): never {
 	throw new Error(`Invalid subagent pane config in ${source}: ${message}`);
 }
@@ -143,22 +130,4 @@ export function loadPaneConfig(
 		throw new Error(`Invalid JSON in subagent config ${sourcePath}: ${detail}`);
 	}
 	return parsePaneConfig(parsed, sourcePath);
-}
-
-export function createSubagentPaneFactory(
-	config: PaneConfig,
-	createTab: PaneCreator,
-	createSplit: SplitPaneCreator,
-	createGrouped?: GroupedPaneCreator,
-): PaneCreator {
-	if (config.mode === "grouped") {
-		return (name, cwd = process.cwd()) => {
-			if (!createGrouped)
-				throw new Error("Grouped pane creation is unavailable");
-			return createGrouped(name, cwd, config.maxPerTab, config.direction);
-		};
-	}
-	return config.mode === "split"
-		? (name, cwd) => createSplit(name, config.direction, cwd)
-		: createTab;
 }

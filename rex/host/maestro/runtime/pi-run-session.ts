@@ -1,5 +1,4 @@
 import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { SpawnOptions } from "../core/harness-adapter.ts";
 import type {
@@ -771,7 +770,7 @@ export function createDefaultRunSession(
 		return {
 			...(state.options.infrastructure?.launchOperations ??
 				launchOperationsFromSurface(
-					new HerdrSurfaceProvider({ paneConfig: snapshot.paneConfig }),
+					state.infrastructure.surfaceProvider,
 					snapshot.paneConfig,
 				)),
 			worktree: state.worktreeOperations,

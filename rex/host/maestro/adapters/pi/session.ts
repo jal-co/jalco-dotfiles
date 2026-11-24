@@ -2,7 +2,6 @@ import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
 	appendFileSync,
 	closeSync,
-	copyFileSync,
 	existsSync,
 	fstatSync,
 	mkdirSync,
@@ -14,7 +13,7 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import {
 	isBoolean,
@@ -906,54 +905,4 @@ export function findLastAssistantMessage(
 		}
 	}
 	return null;
-}
-
-/**
- * Append a branch_summary entry to the session file.
- * Returns the new entry's id.
- */
-export function appendBranchSummary(
-	sessionFile: string,
-	branchPointId: string,
-	fromId: string | null,
-	summary: string,
-): string {
-	const id = randomBytes(4).toString("hex");
-	const entry = {
-		type: "branch_summary",
-		id,
-		parentId: branchPointId,
-		timestamp: new Date().toISOString(),
-		fromId: fromId ?? branchPointId,
-		summary,
-	};
-	appendFileSync(sessionFile, JSON.stringify(entry) + "\n", "utf8");
-	return id;
-}
-
-/**
- * Copy the session file to destDir for parallel worker isolation.
- * Returns the path of the copy.
- */
-export function copySessionFile(sessionFile: string, destDir: string): string {
-	const id = randomBytes(4).toString("hex");
-	const dest = join(destDir, `subagent-${id}.jsonl`);
-	copyFileSync(sessionFile, dest);
-	return dest;
-}
-
-/**
- * Read new entries from sourceFile (after afterLine), append them to targetFile.
- * Returns the appended entries.
- */
-export function mergeNewEntries(
-	sourceFile: string,
-	targetFile: string,
-	afterLine: number,
-): SessionEntry[] {
-	const entries = getNewEntries(sourceFile, afterLine);
-	for (const entry of entries) {
-		appendFileSync(targetFile, JSON.stringify(entry) + "\n", "utf8");
-	}
-	return entries;
 }
