@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +10,7 @@ import {
 } from '../src/linear.mjs';
 import { confident, githubRepository, knownRepositories, rankRepositories, terms, workspaceRepositories } from '../src/repositories.mjs';
 import { Input } from '@earendil-works/pi-tui';
-import { LinearApp, STATUS_FADE, SPINNER, actionsFor, ago, archiveGoal, meta, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
+import { LinearApp, STATUS_FADE, SPINNER, actionsFor, ago, archiveGoal, meta, batchSummary, slotSummary, slotsOf, summarizeMissed, columns, explain, fit, keyName, readPreferences, readProgramStatus, registryStamp, renderScreen, tabLabel, tabsToName, writePreferences } from '../src/linear-tui.mjs';
 
 const issue = (identifier, type, extra = {}) => ({
   identifier, title: `Title ${identifier}`, url: `https://linear.app/x/issue/${identifier}`, branchName: `jal/${identifier.toLowerCase()}-fix`,
@@ -690,4 +690,26 @@ test('the Machine tab leads with CPU and memory, lists stale and unsure processe
   assert.match(screen[1], /Machine 2/);
   assert.ok(screen.some((line) => /Stop server 1 \(pid 1\)\?/.test(line)));
   assert.ok(screen.some((line) => /kills it only if it is still running 6s later/.test(line)));
+});
+
+test('the registry stamp changes when a task, PR, checkout or archive is added, rewritten or removed, and tolerates missing folders', () => {
+  const base = mkdtempSync(join(tmpdir(), 'rex-stamp-'));
+  const roots = ['tasks', 'pull-requests', 'registry', 'history'].map((name) => join(base, name));
+  const before = registryStamp(roots);
+  assert.equal(before, '0:0:0:0');
+  const seen = new Set([before]);
+  const changed = (step) => {
+    step();
+    const stamp = registryStamp(roots);
+    assert.ok(!seen.has(stamp), stamp);
+    seen.add(stamp);
+  };
+  for (const root of roots) changed(() => mkdirSync(root));
+  changed(() => writeFileSync(join(roots[0], 'a.json.tmp'), '{}'));
+  changed(() => renameSync(join(roots[0], 'a.json.tmp'), join(roots[0], 'a.json')));
+  changed(() => { writeFileSync(join(roots[2], 'b.json.tmp'), '{}'); renameSync(join(roots[2], 'b.json.tmp'), join(roots[2], 'b.json')); });
+  changed(() => mkdirSync(join(roots[3], 'c')));
+  changed(() => rmSync(join(roots[0], 'a.json')));
+  const settled = registryStamp(roots);
+  assert.equal(registryStamp(roots), settled);
 });

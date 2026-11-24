@@ -1,6 +1,6 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, statSync, watch, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { decodeKittyPrintable, Editor, Input, matchesKey, ProcessTerminal, truncateToWidth, TuiAltScreen, visibleWidth } from '@earendil-works/pi-tui';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -525,7 +525,15 @@ export class LinearApp {
     }
   }
 
+  refreshRegistry() {
+    if (registryStamp() === this.registryStamp) return;
+    this.data = this.snapshot();
+    this.nameTabs();
+    this.draw();
+  }
+
   snapshot() {
+    this.registryStamp = registryStamp();
     try {
       return {
         tasks: new TaskStore().list().filter((task) => task.originCwd === this.origin).map((task) => ({ ...task, goal: this.goalOf(task.sessionFile) })),
@@ -717,14 +725,7 @@ export class LinearApp {
       return { consume: true };
     });
     this.tui.start();
-    const refresh = () => { if (this.timer) return; this.timer = setTimeout(() => { this.timer = undefined; this.data = this.snapshot(); this.nameTabs(); this.draw(); }, 150); };
-    this.watchers = [new TaskStore().root, new PullRequestStore().root].map((root) => {
-      mkdirSync(root, { recursive: true, mode: 0o700 });
-      const watcher = watch(root, refresh);
-      watcher.on('error', () => watcher.close());
-      return watcher;
-    });
-    this.poll = setInterval(() => this.checkRequests(), 500);
+    this.poll = setInterval(() => { this.refreshRegistry(); this.checkRequests(); }, 500);
     this.statusTimer = setInterval(() => { this.refreshWork(); void this.pollStatus(); }, 3_000);
     this.frame = 0;
     this.spinTimer = setInterval(() => {
@@ -747,7 +748,6 @@ export class LinearApp {
   }
 
   stop() {
-    for (const watcher of this.watchers ?? []) watcher.close();
     clearInterval(this.poll);
     clearInterval(this.statusTimer);
     clearInterval(this.spinTimer);
@@ -755,7 +755,6 @@ export class LinearApp {
     clearInterval(this.ownMachineTimer);
     clearInterval(this.reload);
     clearTimeout(this.fade);
-    clearTimeout(this.timer);
     this.tui?.stop({ preserveScreen: true });
   }
 
@@ -1298,6 +1297,10 @@ export function opener(link, { platform = process.platform, config = { order: []
   if (!desk) return ['xdg-open', [link]];
   const [name, host] = desk;
   return ['ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', host.ssh, `open '${url.replaceAll("'", "'\\''")}'`], name];
+}
+
+export function registryStamp(roots = [new TaskStore().root, new PullRequestStore().root, new RexWorktrees(null).registry, new TaskHistory().root]) {
+  return roots.map((root) => (existsSync(root) ? statSync(root).mtimeMs : 0)).join(':');
 }
 
 export function readArchive(history = new TaskHistory()) {
