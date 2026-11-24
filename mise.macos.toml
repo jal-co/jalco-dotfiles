@@ -42,7 +42,7 @@
 "brew-cask:zed" = "latest"
 
 [tasks.bootstrap]
-run = "npm install -g agent-browser@0.43.0 corepack vercel && mise run hooks && mise run scrawl"
+run = "npm install -g agent-browser@0.44.0 corepack vercel && mise run hooks && mise run scrawl"
 
 [tasks.scrawl]
 description = "Put the Scrawl CLI from Scrawl.app on PATH"

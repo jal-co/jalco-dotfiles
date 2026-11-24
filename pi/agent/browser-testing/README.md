@@ -2,7 +2,7 @@
 
 <instructions>
 
-Run browser commands through `~/.pi/agent/browser-testing/task-browser`, never the raw CLI. The launcher keeps Chromium headless and worktree-scoped. `mise run bootstrap` installs global `agent-browser@0.43.0` under mise's Node. Load its current command guide with `agent-browser skills get core --full`.
+Run browser commands through `~/.pi/agent/browser-testing/task-browser`, never the raw CLI. The launcher keeps Chromium headless and worktree-scoped. `mise run bootstrap` installs global `agent-browser@0.44.0` under mise's Node. Load its current command guide with `agent-browser skills get core --full`.
 
 </instructions>
 

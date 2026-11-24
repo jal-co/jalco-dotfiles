@@ -39,3 +39,12 @@ test("a moved block yields a ghost PNG and a two-frame looping GIF", () => {
 test("different sizes are refused instead of resized", () => {
 	assert.throws(() => ghostDiff(page(100, 60, 20), page(100, 70, 20)), /Sizes differ/);
 });
+
+test("a huge image is refused before decoding", () => {
+	const header = Buffer.alloc(13);
+	header.writeUInt32BE(2880, 0);
+	header.writeUInt32BE(108172, 4);
+	header.set([8, 2, 0, 0, 0], 8);
+	const chunk = Buffer.concat([Buffer.from([0, 0, 0, 13]), Buffer.from("IHDR"), header, Buffer.alloc(4)]);
+	assert.throws(() => decodePng(Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10]), chunk])), /crop it/);
+});

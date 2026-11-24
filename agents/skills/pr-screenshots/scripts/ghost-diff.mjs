@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 
 const CHANGED = 48;
 const PAD = 120;
+const MAX_PIXELS = 64_000_000;
 
 export function decodePng(bytes) {
 	if (bytes.readUInt32BE(0) !== 0x89504e47) throw new Error("Not a PNG file");
@@ -24,6 +25,7 @@ export function decodePng(bytes) {
 		if (kind === "IDAT") data.push(body);
 		at += 12 + length;
 	}
+	if (width * height > MAX_PIXELS) throw new Error(`Image is ${width}x${height}; crop it to a section before diffing (limit ${MAX_PIXELS / 1e6} megapixels)`);
 	const channels = { 0: 1, 2: 3, 4: 2, 6: 4 }[type];
 	if (depth !== 8 || !channels || interlace) throw new Error("Only 8-bit, non-interlaced grey, RGB or RGBA PNGs are supported");
 	const raw = inflateSync(Buffer.concat(data));
