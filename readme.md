@@ -85,7 +85,7 @@ MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <s
 A fresh clone does not include everything. These are gitignored and installed separately:
 
 - Licensed skills: the `emil-*` skills and `interface-craft`.
-- Private skills: `write-like-justin`, `job-search`, `real-app`, `plan-to-linear`.
+- Private skills: `write-like-justin`, `b1-admin`, `jalco-drop`, `job-search`, `real-app`, `plan-to-linear`.
 - Work skills: all of `pi/agent/skills/work`, from `~/dotfiles-work`. Some of them link on to `~/dev/agent-contracts-justin`.
 - Mastra prompts that link to `~/dev/agent-contracts-justin`.
 
