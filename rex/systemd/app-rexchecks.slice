@@ -1,0 +1,7 @@
+[Unit]
+Description=Shared CPU budget for agent verification
+
+[Slice]
+CPUQuota=800%
+CPUQuotaPeriodSec=10ms
+CPUWeight=20

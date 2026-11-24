@@ -1,3 +1,7 @@
+[dotfiles]
+"~/.local/bin/rex-check" = "rex/bin/rex-check"
+"~/.config/systemd/user/app-rexchecks.slice" = "rex/systemd/app-rexchecks.slice"
+
 [bootstrap.packages]
 "apt:build-essential" = "latest"
 "apt:git" = "latest"

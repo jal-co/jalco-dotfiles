@@ -77,6 +77,7 @@ Load only the guidance relevant to the task, including the `emil-*` skill for ea
 | Task | Required guidance |
 | --- | --- |
 | Implement in a Git repository; create, reuse, or clean up a worktree | Read `~/.pi/agent/workflows/worktrees.md` before editing. Keep concurrent work isolated. |
+| Tests, builds, typechecks, or other CPU-heavy verification on b1 | MUST read `~/.pi/agent/workflows/b1-checks.md` and use `rex-check` to keep verification within the shared CPU budget. |
 | Terminal coordinator: dispatch tasks, follow up, status, worktree cleanup | Load `rex` and follow `~/rex-coord/AGENTS.md`. |
 | Git changes, commits, branches, or publication | `git`. |
 | Prepare, open, update, or finalize a PR | Read `~/.pi/agent/skills/core/preparing-pull-requests/SKILL.md` (or load `git`, which points to it). For UI intended for a PR, read it before implementation to capture the before state. |
