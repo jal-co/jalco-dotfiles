@@ -10,14 +10,6 @@
       "description": "Granola meeting notes, transcripts and action items",
       "enabled": false
     },
-    "exa": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "exa-mcp-server"
-      ],
-      "description": "Exa web search and page content retrieval"
-    },
     "linear": {
       "url": "https://mcp.linear.app/mcp",
       "description": "Linear issues, projects, cycles and comments"
