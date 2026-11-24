@@ -60,8 +60,8 @@ test('forward opens the ports on the other machine through this one, and refuses
   assert.deepEqual([target, list], ['mac', [3300, 3301]]);
   assert.equal(args.at(-2), 'me@mac.ts.net');
   const script = args.at(-1);
-  assert.match(script, /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; mkdir -p "\$dir"; for port in 3300 3301; do nc -z 127\.0\.0\.1 \$port \|\| \{ nohup ssh -N /);
-  assert.match(script, / -L 127\.0\.0\.1:\$port:127\.0\.0\.1:\$port b1 >\/dev\/null 2>&1 <\/dev\/null & echo \$! > "\$dir\/\$port\.pid"; \}/);
+  assert.match(script, /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; mkdir -p "\$dir"; for port in 3300 3301; do /);
+  assert.match(script, /nohup sh -c "while :; do ssh -N .* -L 127\.0\.0\.1:\$port:127\.0\.0\.1:\$port b1; sleep 2; done" >\/dev\/null 2>&1 <\/dev\/null & echo \$! > "\$file"; \}/);
   assert.doesNotMatch(script, /forward new/);
   assert.throws(() => forwardCommand(config, { ports: '99999', session: 's', self: 'b1' }), /needs --ports/);
   assert.throws(() => forwardCommand(config, { ports: '3300', session: 'x; rm -rf ~', self: 'b1' }), /needs --session/);
@@ -73,7 +73,7 @@ test('unforward stops only the ssh forwards its session started on the Mac', asy
   const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1' }, mac: { ssh: 'me@mac.ts.net' } } };
   const { target, args } = unforwardCommand(config, { session: 'session:abc-1', self: 'b1' });
   assert.deepEqual([target, args.at(-2)], ['mac', 'me@mac.ts.net']);
-  assert.match(args.at(-1), /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; for file in "\$dir"\/\*\.pid; do .*kill "\$\(cat "\$file"\)"/);
+  assert.match(args.at(-1), /^dir="\$HOME\/\.cache\/rex-remote\/forwards\/session:abc-1"; for file in "\$dir"\/\*\.pid; do .*pkill -P "\$pid"/);
   assert.throws(() => unforwardCommand(config, { session: 'x; rm -rf ~', self: 'b1' }), /unforward needs --session/);
   assert.throws(() => unforwardCommand(config, { session: undefined, self: 'b1' }), /unforward needs --session/);
 });
@@ -87,4 +87,37 @@ test('forward can name its first port on the Mac with portless, and unname remov
   assert.throws(() => forwardCommand(config, { ports: '4100', name: 'x;rm -rf ~', session: 's', self: 'b1' }), /--name takes/);
   assert.match(unnameCommand(config, { name: 'studio.pltfrm-3925', self: 'b1' }).args.at(-1), /alias --remove studio\.pltfrm-3925 /);
   assert.throws(() => unnameCommand(config, { name: '-rf', self: 'b1' }), /unname needs --name/);
+});
+
+test('a forward comes back after its ssh drops, is not doubled, and unforward stops it for good', async (t) => {
+  const { forwardCommand, unforwardCommand } = await import('../src/remote.mjs');
+  const { mkdtempSync, writeFileSync, chmodSync, readFileSync, existsSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const home = mkdtempSync(join(tmpdir(), 'forward-'));
+  const bin = join(home, 'bin');
+  execFileSync('mkdir', ['-p', bin]);
+  writeFileSync(join(bin, 'ssh'), `#!/bin/sh\necho start >> "$HOME/starts"\nexec sleep 0.3\n`);
+  writeFileSync(join(bin, 'nc'), `#!/bin/sh\n[ -f "$HOME/starts" ]\n`);
+  for (const file of ['ssh', 'nc']) chmodSync(join(bin, file), 0o755);
+  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}` };
+  const config = { order: ['b1', 'mac'], hosts: { b1: { ssh: 'b1' }, mac: { ssh: 'mac' } } };
+  const sh = (script) => execFileSync('sh', ['-c', script], { env, encoding: 'utf8' });
+  const pidFile = join(home, '.cache/rex-remote/forwards/s/4100.pid');
+  t.after(() => { try { sh(unforwardCommand(config, { session: 's', self: 'b1' }).args.at(-1)); } catch {} });
+
+  sh(forwardCommand(config, { ports: '4100', session: 's', self: 'b1' }).args.at(-1));
+  const loop = readFileSync(pidFile, 'utf8').trim();
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  assert.ok(readFileSync(join(home, 'starts'), 'utf8').split('\n').filter(Boolean).length >= 2, 'ssh is started again after it exits');
+  sh(forwardCommand(config, { ports: '4100', session: 's', self: 'b1' }).args.at(-1));
+  assert.equal(readFileSync(pidFile, 'utf8').trim(), loop, 'a running forward is not started twice');
+
+  sh(unforwardCommand(config, { session: 's', self: 'b1' }).args.at(-1));
+  assert.equal(existsSync(pidFile), false);
+  const after = readFileSync(join(home, 'starts'), 'utf8');
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  assert.equal(readFileSync(join(home, 'starts'), 'utf8'), after, 'nothing restarts after unforward');
+  assert.throws(() => execFileSync('kill', ['-0', loop]));
 });

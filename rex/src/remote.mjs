@@ -264,8 +264,8 @@ export function forwardCommand(config, { ports, session, desk, name, self = self
   const target = deskFor(config, desk, self);
   const mine = config.hosts[self]?.ssh;
   if (!mine) throw new Error('This machine has no ssh name in hosts.json');
-  const ssh = `ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:$port:127.0.0.1:$port ${mine}`;
-  const script = `dir=${forwardDir(session)}; mkdir -p "$dir"; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || { nohup ${ssh} >/dev/null 2>&1 </dev/null & echo $! > "$dir/$port.pid"; }; done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done${name ? `; ${PORTLESS} proxy start --unprivileged --https >/dev/null 2>&1; ${PORTLESS} alias ${name} ${list[0]} --force >/dev/null 2>&1 || exit 4` : ''}`;
+  const ssh = `ssh -N -o BatchMode=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:$port:127.0.0.1:$port ${mine}`;
+  const script = `dir=${forwardDir(session)}; mkdir -p "$dir"; for port in ${list.join(' ')}; do file="$dir/$port.pid"; { [ -f "$file" ] && kill -0 "$(cat "$file")" 2>/dev/null; } || nc -z 127.0.0.1 $port || { nohup sh -c "while :; do ${ssh}; sleep 2; done" >/dev/null 2>&1 </dev/null & echo $! > "$file"; }; done; sleep 3; for port in ${list.join(' ')}; do nc -z 127.0.0.1 $port || exit 3; done${name ? `; ${PORTLESS} proxy start --unprivileged --https >/dev/null 2>&1; ${PORTLESS} alias ${name} ${list[0]} --force >/dev/null 2>&1 || exit 4` : ''}`;
   return { target, list, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
 }
 
@@ -285,7 +285,7 @@ export async function forwardToDesk(config, options) {
 export function unforwardCommand(config, { session, desk, self = selfName(config) }) {
   if (!validSession(session)) throw new Error('unforward needs --session, or run it inside a Rex tab');
   const target = deskFor(config, desk, self);
-  const script = `dir=${forwardDir(session)}; for file in "$dir"/*.pid; do [ -f "$file" ] && kill "$(cat "$file")" 2>/dev/null; rm -f "$file"; done; rmdir "$dir" 2>/dev/null; true`;
+  const script = `dir=${forwardDir(session)}; for file in "$dir"/*.pid; do [ -f "$file" ] && { pid=$(cat "$file"); kill -STOP "$pid" 2>/dev/null; pkill -P "$pid" 2>/dev/null; kill -KILL "$pid" 2>/dev/null; }; rm -f "$file"; done; rmdir "$dir" 2>/dev/null; true`;
   return { target, args: ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', config.hosts[target].ssh, script] };
 }
 
