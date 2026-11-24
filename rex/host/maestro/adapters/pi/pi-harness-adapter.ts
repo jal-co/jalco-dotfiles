@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type {
@@ -51,7 +51,7 @@ import {
 	type PiRunningChild,
 } from "./launch.ts";
 import type { WorktreeOperations } from "../../core/worktree.ts";
-import { waitForCompletion } from "./completion.ts";
+import { crashLogPath, waitForCompletion } from "./completion.ts";
 import {
 	appendPersistentDeliveryLedger,
 	findObservedSessionRuntime,
@@ -554,7 +554,9 @@ export class PiHarnessAdapter implements HarnessAdapter {
 						this.options.onObservation?.(child, "tick");
 					},
 				})
-					.then((result) => {
+					.then(async (result) => {
+						if (child.persistent && result.exitCode !== 0)
+							await this.saveCrashLog(child.surface, child.sessionFile, result);
 						const final = existsSync(child.sessionFile)
 							? inspectFinalAssistantMessage(
 									getNewEntries(child.sessionFile, 0),
@@ -595,6 +597,25 @@ export class PiHarnessAdapter implements HarnessAdapter {
 			wait = next;
 		}
 		return this.joinWait(wait, signal);
+	}
+	private async saveCrashLog(
+		surface: string,
+		sessionFile: string,
+		result: { reason: string; exitCode: number; errorMessage?: string },
+	): Promise<void> {
+		let tail: string;
+		try {
+			tail = await this.options.surface.readScreen(surface, 40);
+		} catch (error) {
+			tail = `(terminal unreadable: ${error instanceof Error ? error.message : String(error)})`;
+		}
+		try {
+			writeFileSync(
+				crashLogPath(sessionFile),
+				`exit code: ${result.exitCode} (${result.reason})\n${result.errorMessage ? `error: ${result.errorMessage}\n` : ""}at: ${new Date().toISOString()}\n\n${tail}\n`,
+				{ mode: 0o600 },
+			);
+		} catch {}
 	}
 	private worktreeOperations(): WorktreeOperations {
 		const operations = this.operations.worktree;

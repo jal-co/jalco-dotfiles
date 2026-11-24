@@ -11,9 +11,10 @@ const agent = join(homedir(), '.pi/agent');
 const version = readFileSync(join(agent, 'install/current-version'), 'utf8').trim();
 const { loadExtensions } = await import(pathToFileURL(join(agent, 'install/releases', version, 'node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js')).href);
 const bridge = join(mkdtempSync(join(tmpdir(), 'rex-host-bridge-')), 'bridge.ts');
-writeFileSync(bridge, `import { __test__ } from ${JSON.stringify(join(root, 'host/pi-extension/subagents/index.ts'))};\nglobalThis.rexHostTest = __test__;\nexport default function () {}\n`);
+writeFileSync(bridge, `import { __test__ } from ${JSON.stringify(join(root, 'host/pi-extension/subagents/index.ts'))};\nimport { PiHarnessAdapter } from ${JSON.stringify(join(root, 'host/maestro/adapters/pi/pi-harness-adapter.ts'))};\nglobalThis.rexHostTest = __test__;\nglobalThis.rexPiAdapter = PiHarnessAdapter;\nexport default function () {}\n`);
 assert.deepEqual((await loadExtensions([bridge], root)).errors, []);
 const host = globalThis.rexHostTest;
+const PiHarnessAdapter = globalThis.rexPiAdapter;
 
 function specialist() {
   const running = { id: 'specialist-a', name: 'specialist', persistent: true, taskId: 'task-a', generationId: 'generation-a', logicalId: 'specialist-a', policyHash: 'hash', sessionFile: '/tmp/specialist.jsonl', startTime: Date.now(), tasksCompleted: 0 };
@@ -71,6 +72,31 @@ test('a crashed persistent specialist is reported as resumable with its tab and 
   assert.match(f.messages[0].content, /tab and worktree are retained.*subagent_resume and session \/tmp\/specialist\.jsonl/);
   assert.doesNotMatch(f.messages[0].content, /cannot be resumed/);
   host.runningSubagents.clear();
+});
+
+test('a crash notice names the exit code and the saved terminal lines', () => {
+  const f = specialist();
+  f.running.sessionFile = join(mkdtempSync(join(tmpdir(), 'rex-crash-')), 'specialist.jsonl');
+  writeFileSync(`${f.running.sessionFile}.crash.txt`, 'exit code: 137 (sentinel)\n');
+  f.io.readEvents = () => [];
+  host.notifyPersistentCrash(f.running, f.api, f.io, undefined, { exitCode: 137 });
+  assert.match(f.messages[0].content, /Exit code: 137\n/);
+  assert.match(f.messages[0].content, new RegExp(`Last terminal lines: ${f.running.sessionFile}\\.crash\\.txt`));
+  host.runningSubagents.clear();
+});
+
+test('a crashed child saves its exit code and terminal tail, and an unreadable terminal still leaves a log', async () => {
+  const sessionFile = join(mkdtempSync(join(tmpdir(), 'rex-crash-')), 'child.jsonl');
+  const reads = [];
+  const adapter = new PiHarnessAdapter({ surface: { readScreen: async (surface, lines) => { reads.push([surface, lines]); return 'FATAL heap out of memory\n__SUBAGENT_DONE_134__'; } }, operations: {} });
+  await adapter.saveCrashLog('session:a/block:b', sessionFile, { reason: 'sentinel', exitCode: 134 });
+  assert.deepEqual(reads, [['session:a/block:b', 40]]);
+  const log = readFileSync(`${sessionFile}.crash.txt`, 'utf8');
+  assert.match(log, /^exit code: 134 \(sentinel\)\n/);
+  assert.match(log, /FATAL heap out of memory\n__SUBAGENT_DONE_134__/);
+  const closed = new PiHarnessAdapter({ surface: { readScreen: async () => { throw new Error('tab closed'); } }, operations: {} });
+  await closed.saveCrashLog('session:a/block:b', sessionFile, { reason: 'error', exitCode: 1, errorMessage: 'pane disappeared' });
+  assert.match(readFileSync(`${sessionFile}.crash.txt`, 'utf8'), /error: pane disappeared\n[^]*\(terminal unreadable: tab closed\)/);
 });
 
 test('an open workspace without observable panes is still inspected for holders instead of refused', async () => {

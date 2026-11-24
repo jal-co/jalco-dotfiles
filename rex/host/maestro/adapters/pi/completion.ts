@@ -5,6 +5,8 @@ import { isNonEmptyString, isString } from "../../core/config/type-guards.ts";
 const ABORT_MESSAGE = "Aborted while waiting for subagent to finish";
 const TERMINAL_SENTINEL = /__SUBAGENT_DONE_(\d+)__/;
 
+export const crashLogPath = (sessionFile: string) => `${sessionFile}.crash.txt`;
+
 export interface CompletionResult {
 	reason: "done" | "ping" | "sentinel" | "error";
 	exitCode: number;

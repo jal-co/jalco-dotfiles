@@ -39,6 +39,7 @@ import {
 	type CancelReport,
 } from "../../maestro/runtime/index.ts";
 import { loadSupervisionConfig } from "../../maestro/core/config/supervision-config.ts";
+import { crashLogPath } from "../../maestro/adapters/pi/completion.ts";
 import { loadSidebarConfig } from "../../maestro/core/config/sidebar-config.ts";
 import {
 	discoverAgentCatalog as discoverCoreAgentCatalog,
@@ -2412,15 +2413,21 @@ function notifyPersistentCrash(
 	api: Pick<ExtensionAPI, "sendMessage">,
 	io: PiPersistentIO,
 	worktree?: WorktreeHandoff,
+	exit?: { exitCode: number; errorMessage?: string },
 ): void {
 	drainPersistentTaskEvents(running, api, io);
 	if (running.crashNotified) return;
 	running.crashNotified = true;
 	const facts = persistentSpecialistFacts(running, io, worktree);
+	const crashLog = running.sessionFile && crashLogPath(running.sessionFile);
+	const cause = [
+		exit && `Exit code: ${exit.exitCode}${exit.errorMessage ? ` (${exit.errorMessage})` : ""}`,
+		crashLog && existsSync(crashLog) && `Last terminal lines: ${crashLog}`,
+	].filter(Boolean);
 	api.sendMessage(
 		{
 			customType: "subagent_result",
-			content: `Persistent specialist crashed. Evidence, tab and worktree are retained and it was not restarted. Resume it with subagent_resume and session ${running.sessionFile}, or retire it with subagent_stop to free its capacity.${running.queuedFollowUp ? ` Queued follow-up ${running.queuedFollowUp.task} was not delivered.` : ""}\n\n${formatPersistentSpecialistFacts(facts)}`,
+			content: `Persistent specialist crashed. Evidence, tab and worktree are retained and it was not restarted. Resume it with subagent_resume and session ${running.sessionFile}, or retire it with subagent_stop to free its capacity.${running.queuedFollowUp ? ` Queued follow-up ${running.queuedFollowUp.task} was not delivered.` : ""}\n\n${[...cause, formatPersistentSpecialistFacts(facts)].join("\n")}`,
 			display: true,
 			details: { error: "persistent-crash", facts },
 		},
@@ -2461,7 +2468,7 @@ function deliverPiCompletion(
 				{ triggerTurn: true, deliverAs: "steer" },
 			);
 		} else if (running.stopState !== "failed")
-			notifyPersistentCrash(running, api, io, result.worktree);
+			notifyPersistentCrash(running, api, io, result.worktree, result);
 		runningSubagents.delete(running.id);
 		updateWidget();
 		return "delivered";
