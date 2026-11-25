@@ -68,15 +68,18 @@ export function makeRedactor(literals: string[] = [], patterns: RegExp[] = []): 
 const SECRET_COMMAND = /(^|[\s;&|(`$])(env|printenv|export\s+-p|set|declare\s+-x|op\s+(read|item|inject|run|document|signin|whoami|vault)|security\s+find-\S+|gh\s+auth\s+(token|status)|railway\s+variables|vercel\s+env|aws\s+(configure|sts)|gcloud\s+auth\s+print)(?=$|[\s;&|)`])/;
 const SECRET_PATH = /(^|\/)(\.env(\.[^/]*)?|[^/]*\.(pem|key|p12|pfx)|id_(rsa|ed25519|ecdsa)[^/]*|auth\.json|mcp-auth\.json|credentials(\.json)?|\.npmrc|\.netrc|\.pgpass|agents\.env|[^/]*\.vars)$/;
 
-export function secretBearingCall(name: string, args: unknown): boolean {
-	const a = (args ?? {}) as Record<string, unknown>;
+export type Json = string | number | boolean | null | undefined | Json[] | JsonObject;
+export type JsonObject = { [key: string]: Json };
+
+export function secretBearingCall(name: string, args: Json): boolean {
+	const a = args && typeof args === "object" && !Array.isArray(args) ? args : {};
 	if (typeof a.command === "string" && SECRET_COMMAND.test(a.command)) return true;
 	if (typeof a.command === "string" && /(^|\s)(cat|less|head|tail|bat|sed|awk|grep|rg)\s[^|;&]*(\.env\b|\.pem\b|id_rsa|auth\.json|agents\.env|\.npmrc|\.netrc)/.test(a.command)) return true;
 	const path = typeof a.path === "string" ? a.path : typeof a.file_path === "string" ? a.file_path : undefined;
 	return name !== "write" && name !== "edit" && path !== undefined && SECRET_PATH.test(path);
 }
 
-export function redactValue(value: unknown, redact: Redactor): unknown {
+export function redactValue(value: Json, redact: Redactor): Json {
 	if (typeof value === "string") return redact(value);
 	if (Array.isArray(value)) return value.map((item) => redactValue(item, redact));
 	if (value && typeof value === "object") {
@@ -87,7 +90,7 @@ export function redactValue(value: unknown, redact: Redactor): unknown {
 	return value;
 }
 
-type Block = { type: string; text?: string; id?: string; name?: string; arguments?: unknown };
+type Block = { type: string; text?: string; id?: string; name?: string; arguments?: Json };
 type Message = {
 	role: string;
 	content?: string | Block[];
@@ -114,11 +117,11 @@ export type Span = {
 	startedAt: string;
 	endedAt: string;
 	isEvent: boolean;
-	attributes?: Record<string, unknown>;
-	metadata: Record<string, unknown>;
+	attributes?: JsonObject;
+	metadata: JsonObject;
 	tags?: string[];
-	input?: unknown;
-	output?: unknown;
+	input?: Json;
+	output?: Json;
 	error?: { message: string; name?: string } | null;
 };
 
@@ -154,13 +157,13 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 	const assistants = rest.filter((e) => e.message?.role === "assistant");
 	const end = Date.parse(run.at(-1)!.timestamp);
 	const tags = [...new Set(["pi", ctx.agent, `host:${ctx.host}`])];
-	const metadata = { host: ctx.host, cwd: ctx.cwd, sessionId: ctx.sessionId, ...(ctx.sessionName ? { sessionName: ctx.sessionName } : {}), source: "pi-traces" };
+	const metadata: JsonObject = { host: ctx.host, cwd: ctx.cwd, sessionId: ctx.sessionId, source: "pi-traces" };
+	if (ctx.sessionName) metadata.sessionName = ctx.sessionName;
 	const lastText = [...assistants].reverse().map((e) => textOf(e.message!.content)).find((text) => text.trim());
 	const failed = assistants.find((e) => e.message!.stopReason === "error");
 
-	const spans: Span[] = [
-		{
-			traceId,
+	const root: Span = {
+		traceId,
 			spanId: rootId,
 			parentSpanId: null,
 			name: ctx.agent,
@@ -174,10 +177,10 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 			metadata,
 			tags,
 			input: redact(textOf(prompt.message!.content)),
-			...(lastText ? { output: redact(lastText) } : {}),
 			error: failed ? { message: redact(failed.message!.errorMessage ?? "model error"), name: "ModelError" } : null,
-		},
-	];
+	};
+	if (lastText) root.output = redact(lastText);
+	const spans: Span[] = [root];
 
 	for (const entry of assistants) {
 		const m = entry.message!;
@@ -186,7 +189,15 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 		const u = m.usage ?? {};
 		const text = textOf(m.content);
 		const provider = m.provider === "claude-bridge" ? "anthropic" : m.provider;
-		spans.push({
+		const usage: JsonObject = {
+			inputTokens: (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0),
+			outputTokens: u.output ?? 0,
+			inputDetails: { text: u.input ?? 0, cacheRead: u.cacheRead ?? 0, cacheWrite: u.cacheWrite ?? 0 },
+		};
+		if (u.reasoning) usage.outputDetails = { reasoning: u.reasoning };
+		const attributes: JsonObject = { model: m.model, provider, finishReason: m.stopReason, usage };
+		if (u.cost?.total !== undefined && provider === m.provider) attributes.costContext = { provider, model: m.model, estimatedCost: u.cost.total, costUnit: "USD" };
+		const generation: Span = {
 			traceId,
 			spanId: genId,
 			parentSpanId: rootId,
@@ -195,22 +206,12 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 			startedAt: iso(Math.max(Date.parse(prompt.timestamp), ended - (m.durationMs ?? 0))),
 			endedAt: entry.timestamp,
 			isEvent: false,
-			attributes: {
-				model: m.model,
-				provider,
-				finishReason: m.stopReason,
-				usage: {
-					inputTokens: (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0),
-					outputTokens: u.output ?? 0,
-					inputDetails: { text: u.input ?? 0, cacheRead: u.cacheRead ?? 0, cacheWrite: u.cacheWrite ?? 0 },
-					...(u.reasoning ? { outputDetails: { reasoning: u.reasoning } } : {}),
-				},
-				...(u.cost?.total !== undefined && provider === m.provider ? { costContext: { provider, model: m.model, estimatedCost: u.cost.total, costUnit: "USD" } } : {}),
-			},
+			attributes,
 			metadata: provider === m.provider ? metadata : { ...metadata, piProvider: m.provider },
-			...(text ? { output: redact(text) } : {}),
 			error: m.stopReason === "error" ? { message: redact(m.errorMessage ?? "model error"), name: "ModelError" } : null,
-		});
+		};
+		if (text) generation.output = redact(text);
+		spans.push(generation);
 
 		for (const call of Array.isArray(m.content) ? m.content.filter((block) => block.type === "toolCall") : []) {
 			const result = results.get(call.id);
@@ -218,7 +219,7 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 			const resultEnd = result ? Date.parse(result.timestamp) : ended;
 			const hidden = secretBearingCall(call.name ?? "", call.arguments);
 			const output = r ? (hidden ? "[REDACTED: output of a secret-bearing command or file]" : redact(textOf(r.content))) : undefined;
-			spans.push({
+			const tool: Span = {
 				traceId,
 				spanId: hex(16, ctx.sessionId, call.id ?? entry.id, "tool"),
 				parentSpanId: genId,
@@ -232,9 +233,10 @@ export function buildTrace(run: Entry[], ctx: RunContext, redact: Redactor): Spa
 				attributes: { toolCallId: call.id, success: r ? !r.isError : undefined },
 				metadata,
 				input: redactValue(call.arguments, redact),
-				...(output !== undefined ? { output } : {}),
 				error: r?.isError ? { message: output ?? "tool error", name: "ToolError" } : null,
-			});
+			};
+			if (output !== undefined) tool.output = output;
+			spans.push(tool);
 		}
 	}
 	return spans;
@@ -245,11 +247,13 @@ const CLIPPED = "[truncated to fit the Mastra collector batch limit]";
 
 export function fit(span: Span): Span {
 	if (Buffer.byteLength(JSON.stringify(span)) <= MAX_SPAN_BYTES) return span;
-	const clip = (value: unknown) => {
+	const clip = (value: Json) => {
 		const text = typeof value === "string" ? value : JSON.stringify(value);
 		return text === undefined ? undefined : `${text.slice(0, MAX_SPAN_BYTES / 8)} ${CLIPPED}`;
 	};
-	return { ...span, input: clip(span.input), output: clip(span.output), ...(span.error ? { error: { ...span.error, message: clip(span.error.message)! } } : {}) };
+	const clipped: Span = { ...span, input: clip(span.input), output: clip(span.output) };
+	if (span.error) clipped.error = { ...span.error, message: clip(span.error.message)! };
+	return clipped;
 }
 
 export type Detect = (text: string) => Promise<string>;
@@ -315,7 +319,9 @@ let target: Promise<Target> | undefined;
 const loadTarget = () =>
 	(target ??= Promise.all([opRead(`${OP_ITEM}/credential`), opRead(`${OP_ITEM}/notesPlain`), opRead(OP_GATEWAY_KEY).catch(() => "")]).then(([token, notes, gatewayKey]) => {
 		if (!token) throw new Error("the 1Password credential is empty");
-		return { token, ...parseNotes(notes), ...(gatewayKey ? { gatewayKey } : {}) };
+		const t: Target = { token, ...parseNotes(notes) };
+		if (gatewayKey) t.gatewayKey = gatewayKey;
+		return t;
 	})).catch((error) => {
 		target = undefined;
 		throw error;
@@ -367,39 +373,45 @@ export async function piiDetect(model: string, apiKey: string): Promise<Detect> 
 	};
 }
 
+type SdkOptions = { [key: string]: Json | Date | Error | { tags?: string[] } };
 type SdkSpan = {
-	createChildSpan(options: Record<string, unknown>): SdkSpan;
-	error(options: Record<string, unknown>): void;
-	end(options: Record<string, unknown>): void;
+	createChildSpan(options: SdkOptions): SdkSpan;
+	error(options: SdkOptions): void;
+	end(options: SdkOptions): void;
 };
-type SdkInstance = { startSpan(options: Record<string, unknown>): SdkSpan; flush(): Promise<void>; shutdown(): Promise<void> };
+type SdkInstance = { startSpan(options: SdkOptions): SdkSpan; flush(): Promise<void>; shutdown(): Promise<void> };
 
 export function emit(spans: Span[], instance: SdkInstance): void {
 	const live = new Map<string, SdkSpan>();
 	const children = new Map<string | null, Span[]>();
 	for (const span of spans) children.set(span.parentSpanId, [...(children.get(span.parentSpanId) ?? []), span]);
 	const open = (span: Span) => {
-		const options = {
+		const options: SdkOptions = {
 			type: span.spanType,
 			name: span.name,
 			startTime: new Date(span.startedAt),
 			attributes: span.attributes,
 			metadata: span.metadata,
-			...(span.input !== undefined ? { input: span.input } : {}),
-			...(span.entityType ? { entityType: span.entityType, entityName: span.entityName } : {}),
 		};
+		if (span.input !== undefined) options.input = span.input;
+		if (span.entityType) {
+			options.entityType = span.entityType;
+			options.entityName = span.entityName;
+		}
 		const sdk = span.parentSpanId
 			? live.get(span.parentSpanId)!.createChildSpan(options)
 			: instance.startSpan({ ...options, traceId: span.traceId, tracingOptions: { tags: span.tags } });
 		live.set(span.spanId, sdk);
 		for (const child of children.get(span.spanId) ?? []) open(child);
 		if (span.error) sdk.error({ error: Object.assign(new Error(span.error.message), { name: span.error.name ?? "Error", stack: undefined }), endSpan: false });
-		sdk.end({ endTime: new Date(span.endedAt), ...(span.output !== undefined ? { output: span.output } : {}) });
+		const end: SdkOptions = { endTime: new Date(span.endedAt) };
+		if (span.output !== undefined) end.output = span.output;
+		sdk.end(end);
 	};
 	for (const root of children.get(null) ?? []) open(root);
 }
 
-export async function sdkInstance(t: Target, redact: Redactor, exporter?: unknown): Promise<SdkInstance> {
+export async function sdkInstance(t: Target, redact: Redactor): Promise<SdkInstance> {
 	const obs = await import("@mastra/observability");
 	const final = {
 		name: "pi-traces-redactor",
@@ -413,10 +425,7 @@ export async function sdkInstance(t: Target, redact: Redactor, exporter?: unknow
 		serviceName: "pi",
 		name: "pi-traces",
 		sampling: { type: "always" },
-		exporters: [
-			exporter ??
-				new obs.MastraPlatformExporter({ accessToken: t.token, projectId: t.projectId, endpoint: t.endpoint, resolveFromEnv: false, byteBatching: { maxBatchBytes: 4 * 1024 * 1024 } }),
-		],
+		exporters: [new obs.MastraPlatformExporter({ accessToken: t.token, projectId: t.projectId, endpoint: t.endpoint, resolveFromEnv: false, byteBatching: { maxBatchBytes: 4 * 1024 * 1024 } })],
 		spanOutputProcessors: [new obs.SensitiveDataFilter(), final],
 	} as never) as unknown as SdkInstance;
 }
