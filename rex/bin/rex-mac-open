@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+usage() {
+  echo "usage: rex-mac-open [--focus] <http(s)-url>" >&2
+  echo "opens the URL in the background on Justin's Mac; --focus brings the browser forward" >&2
+  exit 2
+}
+
+focus=""
+if [ "${1:-}" = "--focus" ]; then
+  focus=1
+  shift
+fi
+[ $# -eq 1 ] || usage
+url=$1
+
+case "$url" in
+  http://*|https://*) ;;
+  *) echo "rex-mac-open: only http:// and https:// URLs open on the Mac" >&2; exit 2 ;;
+esac
+if ! printf '%s' "$url" | grep -Eq '^https?://[A-Za-z0-9._~:/?#&=%+,;!*()-]+$'; then
+  echo "rex-mac-open: URL has characters or a form it refuses (spaces, quotes, credentials)" >&2
+  exit 2
+fi
+if printf '%s' "$url" | grep -Eq '^https?://[^/]*@'; then
+  echo "rex-mac-open: URLs with credentials are refused" >&2
+  exit 2
+fi
+
+mac=$(node -e 'process.stdout.write(require(process.argv[1]).hosts.mac.ssh)' "$(dirname "$0")/../config/hosts.json")
+if [ -n "$focus" ]; then
+  flags=""
+else
+  flags="-g"
+fi
+exec ssh -o BatchMode=yes -o ConnectTimeout=5 "$mac" "/usr/bin/open $flags '$url'"
