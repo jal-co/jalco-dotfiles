@@ -62,7 +62,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `task-runtime/` | Agent-independent task CLI, MCP server and optional Pi adapter. See its [README](task-runtime/README.md) |
 | `test/`, `test/live/` | Unit tests and live Rex proofs |
 
-`mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex Beta must already be installed at `/Applications/Rex Beta.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
+`mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex must already be installed at `/Applications/Rex.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
 
 The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings load the local `pi-rex-agents` package and disable the stock Herdr host extension only for this coordinator. The runtime lives in this package, so upstream package updates no longer replace or patch it. Model preferences, including task routing, live in `pi/agent/rex-agents/config.json` (linked to `~/.pi/agent/rex-agents`). The old `pi/agent/herdr-agents/config.json` path is a symlink to it, only because the separately installed pstack package still reads that name; there is one file, so nothing needs synchronizing.
 

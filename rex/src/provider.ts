@@ -7,7 +7,7 @@ import { homedir } from 'node:os';
 export function rexBinary() {
   const binary = process.env.REX_BIN ?? (process.env.REX_BIN_DIR
     ? join(process.env.REX_BIN_DIR, 'rex')
-    : '/Applications/Rex Beta.app/Contents/Helpers/Rex Server.rex/Contents/MacOS/rex');
+    : '/Applications/Rex.app/Contents/Helpers/Rex Server.rex/Contents/MacOS/rex');
   if (!existsSync(binary)) throw new Error(`Rex CLI not found at ${binary}. Set REX_BIN to its path.`);
   return binary;
 }
