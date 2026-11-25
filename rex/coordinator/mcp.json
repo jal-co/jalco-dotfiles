@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paper-remote": {
+      "url": "https://mcp.paper.design",
+      "description": "Paper design canvas, remote. Coordinator on b1 only"
+    }
+  }
+}
