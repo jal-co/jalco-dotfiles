@@ -45,6 +45,20 @@ test('launch settings cannot inherit a visible browser or personal attachment', 
   assert.equal(JSON.parse(readFileSync(env.AGENT_BROWSER_CONFIG)).headed, false)
 })
 
+test('isolated browsers always have a bounded idle timeout', () => {
+  for (const value of [undefined, '', '0', '-1', 'invalid', 'Infinity', '900001']) {
+    const env = browserEnvironment({ AGENT_BROWSER_IDLE_TIMEOUT_MS: value })
+    assert.equal(env.AGENT_BROWSER_IDLE_TIMEOUT_MS, '900000')
+  }
+  for (const value of ['1500', '900000']) {
+    assert.equal(browserEnvironment({ AGENT_BROWSER_IDLE_TIMEOUT_MS: value }).AGENT_BROWSER_IDLE_TIMEOUT_MS, value)
+  }
+  for (const args of [['open', 'about:blank', '--idle-timeout', '0'], ['open', 'about:blank', '--idle-timeout=0']]) {
+    assert.throws(() => validateBrowserArgs(args), /--idle-timeout/)
+    assert.throws(() => validateBatch(JSON.stringify([args])), /--idle-timeout/)
+  }
+})
+
 test('rejects attachment, visible launch, configuration escapes and nested batches', () => {
   for (const flag of ['--headed', '--cdp', '--auto-connect', '--profile', '--args', '--provider', '-p', '--engine', '--config', '--namespace', '--executable-path', '--extension', '--all']) {
     assert.throws(() => validateBrowserArgs(['open', 'about:blank', flag, 'value']))
@@ -102,6 +116,7 @@ else if (process.env.TEST_FAIL) process.exit(7);
     let calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse)
     assert.deepEqual(calls.map(call => call.args), [['open', 'about:blank'], ['set', 'viewport', '1440', '1000', '2'], ['set', 'media', 'dark']])
     for (const call of calls) {
+      assert.equal(call.env.AGENT_BROWSER_IDLE_TIMEOUT_MS, '900000')
       assert.equal(call.env.AGENT_BROWSER_HEADED, 'false')
       assert.equal(call.env.AGENT_BROWSER_CDP, undefined)
       assert.equal(call.env.AGENT_BROWSER_NAMESPACE, 'pi-headless')

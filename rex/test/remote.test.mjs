@@ -36,8 +36,16 @@ test('chooseHost honors the requested host, then prefers the first idle host in 
   assert.equal(chooseHost({ order, statuses: { b1: idle, mac: idle } }), 'b1');
   assert.equal(chooseHost({ requested: 'auto', order, statuses: { b1: loaded, mac: idle } }), 'mac');
   assert.equal(chooseHost({ order, statuses: { b1: idle, mac: { reachable: false, error: 'asleep' } } }), 'b1');
-  assert.equal(chooseHost({ order, statuses: { b1: loaded, mac: { ...loaded, load: 9 } } }), 'b1');
+  assert.throws(() => chooseHost({ order, statuses: { b1: loaded, mac: { ...loaded, load: 9 } } }), /No host has capacity/);
   assert.throws(() => chooseHost({ order, statuses: { b1: { reachable: false, error: 'x' }, mac: { reachable: false, error: 'y' } } }), /No host is reachable/);
+});
+
+test('memory pressure blocks new dispatch even when the host is explicitly requested', () => {
+  const full = { ...idle, memAvailable: idle.memTotal * 0.03 };
+  assert.throws(() => chooseHost({ requested: 'b1', order, statuses: { b1: full, mac: idle } }), /b1.*memory/);
+  assert.throws(() => chooseHost({ order, statuses: { b1: full, mac: { reachable: false, error: 'asleep' } } }), /No host has capacity/);
+  assert.equal(chooseHost({ order, statuses: { b1: full, mac: idle } }), 'mac');
+  assert.equal(chooseHost({ requested: 'b1', order, statuses: { b1: loaded, mac: idle } }), 'b1');
 });
 
 test('matchRepository finds a checkout by GitHub remote, then by a unique folder name', () => {

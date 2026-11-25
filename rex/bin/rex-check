@@ -6,4 +6,5 @@ if [ "$(systemctl --user show app-rexchecks.slice --property=CPUQuotaPerSecUSec 
   printf 'rex-check requires the installed app-rexchecks.slice with CPUQuota=800%%.\n' >&2
   exit 1
 fi
+export TURBO_CACHE_DIR="${TURBO_CACHE_DIR:-$HOME/.cache/turbo}"
 exec systemd-run --user --scope --quiet --slice=app-rexchecks.slice --expand-environment=no nice -n 10 "$@"

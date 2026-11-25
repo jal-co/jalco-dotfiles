@@ -48,11 +48,14 @@ export function chooseHost({ requested, order, statuses }) {
     const status = statuses[requested];
     if (!status) throw new Error(`Unknown host ${requested}. Known hosts: ${order.join(', ')}`);
     if (!status.reachable) throw new Error(`${requested} is not reachable: ${status.error}`);
+    if (status.memAvailable / status.memTotal < 0.15) throw new Error(`${requested} is low on memory; wait for capacity before launching another task`);
     return requested;
   }
   const up = order.filter((name) => statuses[name]?.reachable);
   if (!up.length) throw new Error(`No host is reachable: ${order.map((name) => `${name} (${statuses[name]?.error})`).join(', ')}`);
-  return up.find((name) => !busy(statuses[name])) ?? [...up].sort((a, b) => pressure(statuses[a]) - pressure(statuses[b]))[0];
+  const host = up.find((name) => !busy(statuses[name]));
+  if (!host) throw new Error(`No host has capacity; wait for an active task to finish before launching another (${up.join(', ')})`);
+  return host;
 }
 
 export function matchRepository(candidates, wanted) {

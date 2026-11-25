@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmdirSync, symlinkSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,22 @@ test('missing resource controls fail closed instead of running an unbounded job'
   assert.equal(result.status, 1);
   assert.match(result.stderr, /requires the installed app-rexchecks.slice/);
   assert.equal(result.stdout, '');
+});
+
+test('verification uses the shared disk-backed Turbo cache unless explicitly overridden', (t) => {
+  const bin = mkdtempSync(join(tmpdir(), 'rex-check-cache-'));
+  writeFileSync(join(bin, 'systemctl'), "printf '8s\\n'\n", { mode: 0o700 });
+  writeFileSync(join(bin, 'systemd-run'), 'printf \'%s\\n\' "$TURBO_CACHE_DIR"\n', { mode: 0o700 });
+  t.after(() => {
+    unlinkSync(join(bin, 'systemctl'));
+    unlinkSync(join(bin, 'systemd-run'));
+    rmdirSync(bin);
+  });
+  for (const cache of ['', '/custom/cache with spaces']) {
+    const result = spawnSync('/bin/sh', [script, 'echo', 'unused'], { encoding: 'utf8', env: { ...process.env, PATH: bin, HOME: '/home/cache user', TURBO_CACHE_DIR: cache } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), cache || '/home/cache user/.cache/turbo');
+  }
 });
 
 test('real Linux scopes preserve arguments, streams, environment, cwd and exit status', { skip: process.env.REX_CHECK_LIVE !== '1' }, () => {

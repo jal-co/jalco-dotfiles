@@ -27,6 +27,20 @@ test('a browser under a living agent is owned; one reparented to systemd is not'
   assert.equal(owned(ps, ps.find((entry) => entry.pid === 2000)), false);
 });
 
+test('native agent-browser daemons own their browsers despite Linux truncating comm', () => {
+  for (const binary of ['agent-browser-linux-x64', 'agent-browser-linux-arm64', 'agent-browser-darwin-arm64']) {
+    const native = parsePs(`
+      900 1 9000 systemd /usr/lib/systemd/systemd --user
+      1200 900 4000 agent-browser-l /opt/agent-browser/bin/${binary}
+      1300 1200 4000 chrome /opt/chrome --headless
+      1301 1300 4000 chrome /opt/chrome --type=renderer
+    `);
+    assert.equal(owned(native, native[2]), true);
+    assert.deepEqual(orphans(native), []);
+    assert.deepEqual(orphans(native.filter((entry) => entry.pid !== 1200)).map((entry) => entry.pid), [1300]);
+  }
+});
+
 test('only old orphaned browsers and dev servers in deleted directories are reaped', () => {
   const cwd = { 3000: '/home/justin/.rex/worktrees/x (deleted)', 3100: '/home/justin/dev/platform' };
   const found = orphans(ps, { cwdOf: (pid) => cwd[pid] });

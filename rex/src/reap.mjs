@@ -6,6 +6,7 @@ const BROWSER = /(^|\/)(chrome|chromium|chromium-browser|headless_shell|chrome-h
 const DEV = new Set(['node', 'python3', 'python', 'bun', 'deno', 'vite', 'next-server', 'MainThread']);
 const OWNERS = new Set(['pi', 'claude', 'codex', 'agent-browser', 'node', 'npm', 'npx', 'pnpm', 'bun', 'playwright', 'MainThread']);
 const BROWSER_AGE = 30 * 60;
+const BROWSER_DAEMON = /(^|\/)agent-browser-(linux|darwin)-(x64|arm64)( |$)/;
 
 export function parsePs(output) {
   return output.split('\n').map((row) => /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(row)).filter(Boolean)
@@ -15,7 +16,7 @@ export function parsePs(output) {
 export function owned(processes, process) {
   const byPid = new Map(processes.map((entry) => [entry.pid, entry]));
   for (let parent = byPid.get(process.ppid), hops = 0; parent && parent.pid > 1 && hops < 64; parent = byPid.get(parent.ppid), hops += 1) {
-    if (OWNERS.has(parent.comm) || BROWSER.test(parent.args)) return true;
+    if (OWNERS.has(parent.comm) || BROWSER_DAEMON.test(parent.args) || BROWSER.test(parent.args)) return true;
   }
   return false;
 }

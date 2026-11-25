@@ -9,6 +9,7 @@ const preserved = new Set([
 ])
 
 export function browserEnvironment(source = process.env) {
+  const idleTimeout = Number(source.AGENT_BROWSER_IDLE_TIMEOUT_MS)
   const env = Object.fromEntries(Object.entries(source).filter(([key]) =>
     !key.startsWith('AGENT_BROWSER_') || preserved.has(key)))
   return {
@@ -19,13 +20,14 @@ export function browserEnvironment(source = process.env) {
     AGENT_BROWSER_AUTO_CONNECT: 'false',
     AGENT_BROWSER_ENGINE: 'chrome',
     AGENT_BROWSER_SCREENSHOT_FORMAT: 'png',
+    AGENT_BROWSER_IDLE_TIMEOUT_MS: String(Number.isInteger(idleTimeout) && idleTimeout > 0 && idleTimeout <= 900000 ? idleTimeout : 900000),
   }
 }
 
 const forbidden = new Set([
   '--headed', '--cdp', '--auto-connect', '--profile', '--executable-path',
   '--extension', '--extensions', '--args', '--provider', '-p', '--engine',
-  '--config', '--namespace', '--session-name', '--all', '--allow-write',
+  '--config', '--namespace', '--session-name', '--all', '--allow-write', '--idle-timeout',
 ])
 const commands = new Set([
   'open', 'goto', 'navigate', 'back', 'forward', 'reload', 'pushstate',
