@@ -1,0 +1,12 @@
+[Unit]
+Description=Rex Grokbot connector: lets Grokbot dispatch Rex tasks for Justin through the b1 coordinator
+After=network-online.target tailscaled.service
+
+[Service]
+EnvironmentFile=%h/.config/b1/env
+ExecStart=%h/.local/share/mise/shims/node %h/dotfiles/rex/src/grokbot.mjs serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

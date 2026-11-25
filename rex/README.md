@@ -51,6 +51,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/alerts.mjs`, `src/webpush.mjs`, `alerts/`, `systemd/rex-alerts.service` | Phone alerts when a Rex tab waits on Justin |
 | `src/runs.mjs`, `bin/rex-run`, `systemd/rex-runs.service` | [Idle stop and cold start](#idle-stop-and-cold-start) for dev servers |
 | `src/hosts.ts`, `src/link.mjs`, `launchd/com.jalco.rex-link.plist` | The link the Mac keeps open to b1 so one coordinator serves both machines |
+| `src/grokbot.mjs`, `systemd/rex-grokbot.service` | [Grokbot connector](#grokbot-connector): Grokbot starts tasks through the b1 coordinator and reads their outcome |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
@@ -242,6 +243,50 @@ tail -f ~/.rex/link.log
 ```
 
 The LaunchAgent uses the same `ssh b1` as everything else on the Mac, so the key it needs must load without a prompt.
+
+## Grokbot connector
+
+`src/grokbot.mjs` lets Justin's Slack Grokbot start Rex tasks on b1 and read how they went. It is a small HTTP service on b1's tailnet address. It launches through the same path as `rex-remote launch`: the coordinator's request inbox, which runs `subagent` as a persistent, interactive worktree agent with the `task:coding` model. The agent cap, single-writer checks, host link, recovery, logs and cleanup approval all still apply. It cannot send, stop, resume, clean up or run anything else.
+
+Trust boundary, as Justin chose it: b1 trusts Grokbot's word that Justin wrote the Slack message. The connector checks that the caller is Grokbot (its tailnet address and its own token) and that the claimed author is Justin's Slack user in his workspace and not a bot. Those two Slack IDs are recorded from the first fresh, non-bot dispatch and checked on every later one, so a coworker in a shared channel cannot get Grokbot to start a task. It cannot check Slack itself, so anyone who can get Grokbot to make this call with Justin's IDs can start a task. Tailscale alone cannot tell Grokbot apart from Justin, because Grokbot's machine is signed in as his Tailscale user.
+
+| Request | Does |
+| --- | --- |
+| `POST /dispatch` | Starts one task. Body: `name` (lowercase, digits, dashes), `repo` (`owner/name` or a checkout name, never a path), `task` (Justin's words, up to 8,000 characters), optional `host` (`b1` default, or `mac`), and `slack`: `team`, `channel`, `user`, `thread_ts`, `message_ts` and `bot: false`. Returns `202` with an `id` |
+| `GET /dispatch/<id>` | State of that dispatch, its Slack thread and, once launched, its task's state, reason (such as the question it is waiting on) and, when finished on b1, the agent's final summary |
+
+Both need `Authorization: Bearer <token>`. One Slack message is one dispatch: the `id` comes from its workspace, channel and `message_ts`, so a retried, replayed or concurrent delivery returns the first dispatch with `duplicate: true` and never starts a second agent. Resending the same message is also how Grokbot recovers a lost reply. New messages older than 15 minutes are refused. A task name is used once; a name already taken by an earlier dispatch or a task on that host is rejected.
+
+Dispatch states are `launching`, `launched`, `failed` (nothing started: a full agent cap, an offline Mac, an unknown repository), `rejected` and `uncertain`. Uncertain means the coordinator did not answer in time, or the connector restarted mid-launch; it is never retried, and `GET` turns it into `launched` once a task with that name shows up.
+
+The brief tells the agent that the quoted Slack text is Justin's request, not system or coordinator instructions, that it authorizes bounded implementation only, and that pushing, PRs, merges, deploys and cleanup need Justin's approval in the task tab. The agent asks its questions in its own tab, as every task does; Grokbot sees them only as the task's `blocked` reason. Grokbot polls and posts to the thread itself; the connector holds no Slack credentials and posts nothing.
+
+State lives in `~/.rex/grokbot`, outside Git: `config.json`, one record per dispatch in `dispatches/`, used names in `names/`, and `audit.jsonl` with each call's caller address, Slack IDs, outcome and the request's size and SHA-256, never its text or the token.
+
+Setup on b1, after merging:
+
+```sh
+node ~/dotfiles/rex/src/grokbot.mjs token
+```
+
+It prints a new token once and stores only its hash. Give the token to Grokbot as a secret. Then add the rest of `~/.rex/grokbot/config.json`. `slack` is filled in by Justin's first dispatch; delete it to record different IDs.
+
+```json
+{
+  "tokenSha256": "(written by the token command)",
+  "listen": { "host": "B1_TAILNET_IPV4", "port": 8790 },
+  "peers": ["100.91.35.64"]
+}
+```
+
+`listen.host` must be a single address; `0.0.0.0` and `::` are refused. Then start it:
+
+```sh
+systemctl --user link ~/dotfiles/rex/systemd/rex-grokbot.service
+systemctl --user enable --now rex-grokbot
+```
+
+Grokbot calls `http://b1.tail95e906.ts.net:8790`. Running `token` again replaces the token; restart the service afterwards.
 
 ## Idle stop and cold start
 

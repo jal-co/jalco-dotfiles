@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { findCoordinator } from './coordinator-session.mjs';
 import { callRex, RexSurfaceProvider, repositoryFor, surfaceTarget } from './provider.ts';
+import { directCheckout } from './linear.mjs';
 import { githubRepository, knownRepositories, workspaceRepositories } from './repositories.mjs';
 import { requestState, submitRequest } from './requests.ts';
 import { brainName, linkStatus, loadHosts, remoteSnapshot, selfName, sendCommand } from './hosts.ts';
@@ -186,7 +187,7 @@ export const agent = {
     const origin = remoteUrl(cwd);
     if (origin) git(cwd, ['fetch', '--quiet', 'origin']);
     await ensureCoordinator({ cwd });
-    const worktree = branch ? { branch, base: base ?? (origin ? 'origin/HEAD' : 'HEAD') } : null;
+    const worktree = branch && !directCheckout(cwd) ? { branch, base: base ?? (origin ? 'origin/HEAD' : 'HEAD') } : null;
     return { host: hostname(), cwd, ...(await submitAndWait('launch', { name, task, cwd, worktree }, 15 * 60_000)) };
   },
   send: async ({ id, message }) => forTask(id, () => submitAndWait('send', { id, message }, 5 * 60_000)),
