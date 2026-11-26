@@ -3,7 +3,8 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callRex } from './provider.ts';
-import { findCoordinator } from './coordinator-session.mjs';
+import { findCoordinator, latestCoordinatorSession } from './coordinator-session.mjs';
+import { TaskStore } from './tasks.ts';
 import { brainName, loadHosts, selfName, workerConnected } from './hosts.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -11,8 +12,9 @@ const configDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'age
 const cwd = join(homedir(), 'rex-coord');
 const label = 'Command';
 
-if (process.argv.length > 2) {
-  console.log('Usage: pinned');
+const fresh = process.argv[2] === '--new';
+if (process.argv.length > (fresh ? 3 : 2)) {
+  console.log('Usage: pinned [--new]');
   process.exit(process.argv.includes('--help') ? 0 : 2);
 }
 const hosts = loadHosts();
@@ -40,7 +42,9 @@ const piCommand = () => {
   if (!model) throw new Error('No default agent model configured. Shared model preferences were not changed.');
   const pi = join(homedir(), '.pi/agent/bin/pi');
   if (!existsSync(pi)) throw new Error(`Pi executable not found: ${pi}`);
-  return [pi, '--approve', '--model', model];
+  const saved = fresh ? undefined : latestCoordinatorSession(cwd, configDir, new TaskStore().list().map((task) => task.sessionFile));
+  if (saved) console.log(`Reopening the saved coordinator conversation ${saved}.`);
+  return [pi, '--approve', '--model', model, ...(saved ? ['--session', saved] : [])];
 };
 const idle = (info) => !info.last_exit && (!info.foreground || /^-|(^|\/)(zsh|bash|fish|sh)$/.test(info.foreground.argv0 ?? ''));
 const idleWindows = (id, label) => {

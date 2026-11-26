@@ -10,7 +10,7 @@ const CENTER = '\u{f0ae} tasks';
 const OLD_CENTER = '\u{f0516} linear';
 const terminal = (block_id, label) => ({ block_id, label, creator_name: 'com.superlogical.terminal' });
 
-function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, centerLabel = CENTER, centerRunning = true, exited = false, oldPane = false, legacy = false, windowLabel = 'coordinator' } = {}) {
+function runPinned({ label = 'inbox', running = true, coordinator = true, centerTab = false, centerLabel = CENTER, centerRunning = true, exited = false, oldPane = false, legacy = false, windowLabel = 'coordinator', saved = false, args = [] } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'rex-pinned-test-'));
   const binary = join(directory, 'rex');
   const cwd = join(directory, 'rex-coord');
@@ -61,8 +61,18 @@ console.log(JSON.stringify(result));
   mkdirSync(join(directory, '.pi/agent/bin'), { recursive: true });
   writeFileSync(join(directory, '.pi/agent/rex-agents/config.json'), JSON.stringify({ models: { default: 'provider/model' } }));
   writeFileSync(join(directory, '.pi/agent/bin/pi'), '');
+  const sessionDir = join(directory, '.pi/agent/sessions', `--${cwd.slice(1).replace(/\//g, '-')}--`);
+  if (saved) {
+    mkdirSync(sessionDir, { recursive: true });
+    const header = (dir) => `${JSON.stringify({ type: 'session', version: 3, id: 'x', cwd: dir })}\n`;
+    writeFileSync(join(sessionDir, '2026-11-01T00-00-00-000Z_11111111-1111-4111-8111-111111111111.jsonl'), header(cwd));
+    writeFileSync(join(sessionDir, '2026-11-02T00-00-00-000Z_22222222-2222-4222-8222-222222222222.jsonl'), header('/elsewhere'));
+    const task = join(sessionDir, '2026-11-03T00-00-00-000Z_33333333-3333-4333-8333-333333333333.jsonl');
+    writeFileSync(task, header(cwd));
+    writeFileSync(`${task}.pi-herdr-subagent-policy.json`, '{}');
+  }
   try {
-    const result = spawnSync(process.execPath, [new URL('../src/pinned.mjs', import.meta.url).pathname], {
+    const result = spawnSync(process.execPath, [new URL('../src/pinned.mjs', import.meta.url).pathname, ...args], {
       env: { ...process.env, HOME: directory, REX_BIN: binary, PI_CODING_AGENT_DIR: join(directory, '.pi/agent') },
       encoding: 'utf8',
     });
@@ -129,4 +139,12 @@ test('pinned names a coordinator tab that still has its default name', () => {
   const { calls } = runPinned({ centerTab: true, windowLabel: 'Window 80210310' });
   assert.deepEqual(calls, ['window rename -s session:coordinator window:coordinator coordinator', 'do -s session:coordinator pin_session']);
   assert.deepEqual(runPinned({ centerTab: true, windowLabel: 'my inbox' }).calls, ['do -s session:coordinator pin_session']);
+});
+
+test('pinned reopens the latest saved coordinator conversation and never a task log, unless asked for a new one', () => {
+  const reopened = runPinned({ coordinator: false, saved: true });
+  assert.match(reopened.calls[0], /--shell=none -- .*\/bin\/pi --approve --model provider\/model --session .*rex-coord--\/2026-11-01T00-00-00-000Z_11111111-1111-4111-8111-111111111111\.jsonl$/);
+  assert.match(reopened.output, /Reopening the saved coordinator conversation/);
+  assert.match(runPinned({ coordinator: false, saved: true, args: ['--new'] }).calls[0], /--approve --model provider\/model$/);
+  assert.match(runPinned({ coordinator: false }).calls[0], /--approve --model provider\/model$/);
 });

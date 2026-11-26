@@ -56,6 +56,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `../pi/agent/extensions/program-resume.ts`, `config/init.lua` | [Program resume](#program-resume) for ordinary Pi sessions and the coordinator after a Rex server restart |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
+| `src/recover.mjs`, `bin/rex-recover` | [Recovery after a restart](#recovery-after-a-restart): reopens the coordinator conversation and lists gone tasks for a decision |
 | `config/modules.json` | Independent recovery and overview switches |
 | `config/init.lua` | Native Rex command-palette actions |
 | `plugins/session-pins/` | Persistent pins, event-driven order enforcement and the Lua actions |
@@ -358,6 +359,19 @@ On first installation, reload the coordinator and any already-running task agent
 An ordinary interactive Pi, and the coordinator, report `pi --session <saved file>` through OSC 7577 once their conversation is saved, so a Rex server restart reopens the same conversation in the same pane and directory. It reopens saved state; an interrupted tool call does not continue. `init.lua` trusts exactly two commands: `pi --session <file under ~/.pi/agent/sessions>`, and the same command with `--approve` only in `~/rex-coord`. They are written out in full, without a `flags` section, because Pi renames its process to `pi` and Rex cannot read its launch flags. `--model` is left out because the saved session restores its model.
 
 Pi does not report for `--no-session`, print, JSON or RPC modes, any launch flag outside `--approve`, `--model`, `--name` and the session pickers, a Pi outside the managed install, or a managed task (`PI_REX_AGENT=1` or `PI_SUBAGENT_ID`). Managed tasks keep coordinator recovery as their only restart path, so their leases, attestation and ownership checks are unchanged. Every Pi removes `OSC7577_TOKEN` from the environment its tools and MCP servers inherit. `/new` clears the record until the new session is saved. Pi never sends `clear` on exit, because it reports Ctrl+C, SIGHUP and SIGTERM as the same quit; Rex drops the record about 2 seconds after the process exits on its own. Check a pane with `rex block call -b "$REX_BLOCK" program_resume_records`. It needs Rex preview.25 or later.
+
+### Recovery after a restart
+
+`pinned` reopens the latest saved coordinator conversation in `~/rex-coord` with `--session`, so a boot or `pinned` run brings back the inbox instead of a blank one. It picks the newest plain session file there whose header names that directory, and never one with a task policy or process sidecar or one a task record owns. `pinned --new` starts a fresh conversation.
+
+After a power loss or a Rex server restart, run `rex-recover` on the machine that lost its tasks. It runs `pinned`, waits up to 90 seconds for the coordinator to publish its start time and checks it runs in `~/rex-coord`, then sorts every retained task:
+
+- running, by its recorded PID start time and command line
+- unverifiable, stashed, finished, stopped, or owned by another live coordinator: left alone
+- agent gone but its tab or checkout already runs a program other than a shell, such as a `pi` started by hand: left alone until you quit it
+- agent gone: sent to the coordinator in one message
+
+The coordinator reads the end of each conversation, tells you whether it had finished, was waiting on you, or was mid-work, and resumes only the tasks you name with `subagent_resume`, which runs its usual ownership, generation, policy and checkout checks. Nothing is resumed, relaunched, published or cleaned up on its own. Running it again does not start a second coordinator and does not resend the same list to the same coordinator. `rex-recover --dry-run` prints the plan and changes nothing.
 
 ### Taking over a task from another coordinator
 
