@@ -2,7 +2,7 @@
 
 A Rex-native fork of [pi-herdr-agents](https://github.com/giuseppecrj/pi-herdr-agents), based on version **3.3.1**, with Justin's existing Rex session, recovery and worktree integration. This is a fork, not a clean-room implementation. The upstream MIT license and source attribution are retained in [`host/LICENSE`](host/LICENSE) and [`host/PROVENANCE.md`](host/PROVENANCE.md).
 
-The local Pi package owns its host source under `host/`; it does not import or patch the installed `pi-herdr-agents` package. That package stays installed, with its extensions and skills disabled in `pi/agent/settings.json`, because `pi-herdr-pstack` depends on it.
+The local Pi package owns its host source under `host/`; it does not import or patch the installed `pi-herdr-agents` package, and no settings file registers that package. Its files stay in `~/.pi/agent/npm` because `pi-herdr-pstack` lists it as a peer dependency, but Pi loads none of its extensions or skills. `pi-herdr-pstack` stays registered for its pstack skills.
 
 `pinned` starts or finds the coordinator in Rex. New sessions are named **Command**, with the coordinator in one tab and the command center in another. The launcher finds a running coordinator by its process and directory, even after a label change. It renames only a session still called `pinned`, the old default, to `Command`. It never steals focus or starts a second writer when inspection is uncertain.
 
@@ -34,7 +34,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | --- | --- |
 | `coordinator/AGENTS.md` | Dispatch, follow-up, ownership and cleanup rules |
 | `package.json` | Local `pi-rex-agents` package manifest |
-| `coordinator/settings.json` | Loads this package and disables only the upstream Herdr host in the coordinator |
+| `coordinator/settings.json` | Loads this package in the coordinator |
 | `host/` | Package-owned agent host |
 | `src/pull-request-watcher.ts`, `src/pull-requests.ts` | Durable PR discovery, merge notifications and cleanup status |
 | `src/index.ts` | Pi extension entry for the package |
@@ -67,7 +67,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 
 `mise dot apply` installs the launcher, bundled Rex CLI and coordinator configuration links. Rex must already be installed at `/Applications/Rex.app`; set `REX_BIN` when using another location. The launcher does not install Rex or restart its server.
 
-The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings load the local `pi-rex-agents` package and disable the stock Herdr host extension only for this coordinator. The runtime lives in this package, so upstream package updates no longer replace or patch it. Model preferences, including task routing, live in `pi/agent/rex-agents/config.json` (linked to `~/.pi/agent/rex-agents`). The old `pi/agent/herdr-agents/config.json` path is a symlink to it, only because the separately installed pstack package still reads that name; there is one file, so nothing needs synchronizing.
+The coordinator loads normal Pi extensions, tools, MCP configuration, skills, model preferences and the Pi theme. Project settings load the local `pi-rex-agents` package for this coordinator. The runtime lives in this package, so upstream package updates no longer replace or patch it. Model preferences, including task routing, live in `pi/agent/rex-agents/config.json` (linked to `~/.pi/agent/rex-agents`). The old `pi/agent/herdr-agents/config.json` path is a symlink to it, only because the separately installed pstack package still reads that name; there is one file, so nothing needs synchronizing.
 
 Run `/reload` in the coordinator to load package changes. Pi re-reads TypeScript modules on reload, but Node keeps `.mjs` modules cached for the life of the process, so every module the coordinator imports is `.ts`; a package test enforces this. Standalone entry points such as `linear-tui.mjs` and `pinned.mjs` are not loaded by the coordinator and stay `.mjs`. This does not restart task agents. New children load the fork's child protocol and `task.ts`; existing children keep their original protocol until they exit. Compatible sidecar names and policy hashes are retained so recovery can verify existing processes without changing their identity.
 

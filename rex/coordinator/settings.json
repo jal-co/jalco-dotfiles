@@ -1,10 +1,6 @@
 {
   "packages": [
     {
-      "source": "npm:pi-herdr-agents",
-      "extensions": []
-    },
-    {
       "source": "~/dotfiles/rex"
     }
   ]

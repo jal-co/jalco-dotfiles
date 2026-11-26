@@ -11,7 +11,7 @@ import { processBirth, TaskStore } from '../../src/tasks.ts';
 const source = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const root = join(homedir(), '.local/state/rex-recovery-proof', String(Date.now()));
 mkdirSync(join(root, '.pi'), { recursive: true });
-writeFileSync(join(root, '.pi/settings.json'), JSON.stringify({ packages: [{ source: 'npm:pi-herdr-agents', extensions: [] }], extensions: [join(source, 'test/live/recovery-live-extension.ts')] }));
+writeFileSync(join(root, '.pi/settings.json'), JSON.stringify({ extensions: [join(source, 'test/live/recovery-live-extension.ts')] }));
 const config = join(root, 'modules.json');
 writeFileSync(config, '{"recovery":true,"overview":true}');
 const environment = { ...process.env, REX_RECOVERY_PROOF: root, REX_TASK_ROOT: join(root, 'tasks'), REX_MODULES_CONFIG: config };
