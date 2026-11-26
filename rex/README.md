@@ -53,6 +53,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/hosts.ts`, `src/link.mjs`, `launchd/com.jalco.rex-link.plist` | The link the Mac keeps open to b1 so one coordinator serves both machines |
 | `src/grokbot.mjs`, `systemd/rex-grokbot.service` | [Grokbot connector](#grokbot-connector): Grokbot starts tasks through the b1 coordinator and reads their outcome |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
+| `../pi/agent/extensions/program-resume.ts`, `config/init.lua` | [Program resume](#program-resume) for ordinary Pi sessions and the coordinator after a Rex server restart |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
 | `config/modules.json` | Independent recovery and overview switches |
@@ -352,6 +353,12 @@ On first installation, reload the coordinator and any already-running task agent
 
 `rex_task_probe` reports whether a task's recorded PID still has the recorded start time and command line. Absence or a mismatch is a crash. `subagent_stop` retires a confirmed-crashed task, attached or not, clearing its lease and capacity and closing its tab. `subagent_resume` with the task's session file restarts the same session, generation and identity in its retained tab and worktree instead. A closed tab is reopened in the repository session. Neither runs automatically, and both refuse while the process is alive or unverifiable. Confirmed stops close the task tab, resolving its window from the terminal at close time. Managed tasks cannot rename the shared repository session.
 
+### Program resume
+
+An ordinary interactive Pi, and the coordinator, report `pi --session <saved file>` through OSC 7577 once their conversation is saved, so a Rex server restart reopens the same conversation in the same pane and directory. It reopens saved state; an interrupted tool call does not continue. `init.lua` trusts exactly two commands: `pi --session <file under ~/.pi/agent/sessions>`, and the same command with `--approve` only in `~/rex-coord`. They are written out in full, without a `flags` section, because Pi renames its process to `pi` and Rex cannot read its launch flags. `--model` is left out because the saved session restores its model.
+
+Pi does not report for `--no-session`, print, JSON or RPC modes, any launch flag outside `--approve`, `--model`, `--name` and the session pickers, a Pi outside the managed install, or a managed task (`PI_REX_AGENT=1` or `PI_SUBAGENT_ID`). Managed tasks keep coordinator recovery as their only restart path, so their leases, attestation and ownership checks are unchanged. Every Pi removes `OSC7577_TOKEN` from the environment its tools and MCP servers inherit. `/new` clears the record until the new session is saved. Pi never sends `clear` on exit, because it reports Ctrl+C, SIGHUP and SIGTERM as the same quit; Rex drops the record about 2 seconds after the process exits on its own. Check a pane with `rex block call -b "$REX_BLOCK" program_resume_records`. It needs Rex preview.25 or later.
+
 ### Taking over a task from another coordinator
 
 A task owned by another live coordinator is refused everywhere: "Another live coordinator owns this task". When that coordinator keeps running but its task agent has died, `/rex-takeover <name or ID>`, or `rex_task_takeover` when you ask the coordinator to take a task over, moves the task to this coordinator after a confirmation dialog. It refuses unless the recorded agent PID's start time or command line proves the agent gone. A live, unattested or unreadable agent is never taken over, and neither is a task whose stop or dispatch is still pending, an ordinary agent, or a retired one.
@@ -387,6 +394,7 @@ The launcher does not restart a running coordinator or adopt its tasks behind it
 ```sh
 cd ~/dotfiles/rex && npm test
 node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/git-interceptor.test.ts
+node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/program-resume.test.ts
 ```
 
 Run `node ~/dotfiles/rex/test/live/package-live-test.mjs` for a model-free check that the coordinator's package configuration loads exactly one set of agent, PR and memory tools before and after `/reload`. It creates and closes only a disposable Rex session and retains its evidence under `~/.local/state/pi-rex-package-proof-*`.
