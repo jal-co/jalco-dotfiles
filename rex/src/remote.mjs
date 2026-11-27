@@ -97,7 +97,7 @@ function workerCommand() {
   const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'agent');
   const model = JSON.parse(readFileSync(join(agentDir, 'rex-agents/config.json'), 'utf8')).models?.default;
   if (!model) throw new Error('No default agent model configured for the worker coordinator');
-  return ['/usr/bin/env', 'REX_WORKER=1', join(homedir(), '.pi/agent/bin/pi'), '--approve', '--model', model];
+  return [join(homedir(), '.pi/agent/bin/pi'), '--approve', '--model', model];
 }
 
 function repositorySession(cwd) {
@@ -113,11 +113,19 @@ function repositorySession(cwd) {
 
 export function startWorker({ cwd, session }) {
   const target = session ?? repositorySession(cwd);
-  callRex(['api', 'call', '-s', target, 'session.new_block', JSON.stringify({
-    flavor: 'com.superlogical.terminal.shell', label: 'coordinator',
-    options: { command: workerCommand(), cwd: coordinatorCwd(), interactive: true },
-  })]);
-  return target;
+  const created = JSON.parse(callRex(['window', 'new', '-s', target, 'coordinator', '-c', coordinatorCwd(), '--focus=false', '--keep-open', '--json', '--',
+    '/usr/bin/env', 'REX_WORKER=1', `REX_SESSION=${target}`, ...workerCommand()]));
+  return { session: target, block: created.block_ids?.[0] };
+}
+
+export function workerExit({ session, block }) {
+  if (!block) return undefined;
+  const info = JSON.parse(callRex(['block', 'call', '-s', session, '-b', block, 'process']));
+  if (!info.last_exit) return undefined;
+  let output = '';
+  try { output = callRex(['capture', '-s', session, '-b', block]).split('\n').map((line) => line.trimEnd()).filter(Boolean).slice(-8).join('\n'); } catch {}
+  try { callRex(['block', 'close', '-s', session, block]); } catch {}
+  return `The worker coordinator on ${hostname()} exited right after starting (${JSON.stringify(info.last_exit)}); nothing was submitted.${output ? `\n${output}` : ''}`;
 }
 
 function coordinatorRunning() {
@@ -127,10 +135,12 @@ function coordinatorRunning() {
 
 async function ensureCoordinator(place = {}) {
   if (coordinatorRunning()) return;
-  if (isWorker()) startWorker(place);
-  else execFileSync(process.execPath, [join(root, 'src/pinned.mjs')], { encoding: 'utf8', timeout: 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const worker = isWorker() ? startWorker(place) : undefined;
+  if (!worker) execFileSync(process.execPath, [join(root, 'src/pinned.mjs')], { encoding: 'utf8', timeout: 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
   for (let attempt = 0; attempt < 45; attempt += 1) {
     if (coordinatorRunning()) return sleep(5_000);
+    const failed = worker && workerExit(worker);
+    if (failed) throw new Error(failed);
     await sleep(1_000);
   }
   throw new Error(`The coordinator on ${hostname()} did not start within 45s; nothing was submitted`);
