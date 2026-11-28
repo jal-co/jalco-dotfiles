@@ -71,7 +71,7 @@
       ]
     },
     "./packages/pi-claude-pool",
-    "git:github.com/dmmulroy/rex-sdk@55f8b98c28f2a8b525b24bc1a42bdf69511e4e0e"
+    "git:github.com/dmmulroy/rex-sdk@43fe9ba3028ce687b66e451a9549f8262abf92b9"
   ],
   "quietStartup": "header",
   "showCacheMissNotices": true,

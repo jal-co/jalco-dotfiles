@@ -8,6 +8,14 @@ if rex.match then
     command = { "pi", "--session", rex.match.under("~/.pi/agent/sessions"), "--approve" },
     dir = "~/rex-coord",
   })
+  -- Pi 1.7 reports `--session <id>` instead of the session file path.
+  rex.set("resume.trust.pi-id", {
+    command = { "pi", "--session", rex.match.uuid },
+  })
+  rex.set("resume.trust.pi-id-coordinator", {
+    command = { "pi", "--session", rex.match.uuid, "--approve" },
+    dir = "~/rex-coord",
+  })
 end
 
 -- >>> leaf >>>
