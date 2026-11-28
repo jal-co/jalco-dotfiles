@@ -19,21 +19,21 @@ A skill is a markdown file with optional bundled resources (scripts, references,
 
 **Runtime Flow** (using grep_app as example):
 
-1. Agent starts, scans `~/.pi/agent/skills/`, sees `grep_app/SKILL.md` frontmatter
+1. Agent starts, scans `~/.agents/skills/`, sees `grep_app/SKILL.md` frontmatter
 2. User says "search GitHub for useState examples"
 3. Agent sees description, decides grep_app is relevant
 4. Agent reads full SKILL.md to learn the CLI commands
-5. Agent runs: `bun ~/.pi/agent/skills/grep_app/grep_app.js searchGitHub --query "useState("`
+5. Agent runs: `bun ~/.agents/skills/grep_app/grep_app.js searchGitHub --query "useState("`
 6. CLI executes, prints results to stdout
 7. Agent reads results, responds to user
 
 ## Skill Location & Structure
 
-**Path**: `~/.pi/agent/skills/<skill-name>/`
+**Path**: `~/.agents/skills/<skill-name>/`
 
 **Directory Structure**:
 ```
-~/.pi/agent/skills/my-skill/
+~/.agents/skills/my-skill/
 ├── SKILL.md           # REQUIRED - Main skill definition
 ├── package.json       # Optional - npm dependencies for scripts
 ├── scripts/           # Optional - Executable scripts
@@ -153,7 +153,7 @@ Run `npm install` or `bun install` in the skill directory to install dependencie
 ## Usage
 
 ```bash
-bun ~/.pi/agent/skills/my-skill/scripts/search.js "query"
+bun ~/.agents/skills/my-skill/scripts/search.js "query"
 ```
 ```
 
@@ -313,8 +313,8 @@ Analyze examples to identify reusable resources:
 #### Option A: Create from Scratch
 
 ```bash
-mkdir -p ~/.pi/agent/skills/my-skill
-touch ~/.pi/agent/skills/my-skill/SKILL.md
+mkdir -p ~/.agents/skills/my-skill
+touch ~/.agents/skills/my-skill/SKILL.md
 ```
 
 Add frontmatter and body following the format above.
@@ -374,7 +374,7 @@ Use the skill on real tasks and refine:
 ### Simple Bash Script Skill
 
 ```
-~/.pi/agent/skills/transcribe/
+~/.agents/skills/transcribe/
 ├── SKILL.md
 └── transcribe.sh
 ```
@@ -402,14 +402,14 @@ source ~/.zshrc.local
 ## Usage
 
 ```bash
-bash ~/.pi/agent/skills/transcribe/transcribe.sh <audio-file>
+bash ~/.agents/skills/transcribe/transcribe.sh <audio-file>
 ```
 ```
 
 ### Complex Platform Skill
 
 ```
-~/.pi/agent/skills/cloudflare/
+~/.agents/skills/cloudflare/
 ├── SKILL.md
 ├── references/
 │   ├── kv/

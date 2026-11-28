@@ -63,31 +63,31 @@ pi/agent/jars/
 # Node modules (reinstall via npm/bun install)
 pi/agent/extensions/node_modules/
 pi/agent/extensions/*/node_modules/
-pi/agent/skills/*/node_modules/
+agents/skills/*/node_modules/
 pi/agent/packages/*/node_modules/
 
 # Build artifacts
 pi/agent/extensions/*/dist/
 
 # MCPorter compiled binaries
-pi/agent/skills/exa/exa
+agents/skills/exa/exa
 
 # Personal/private skills (PII, voice samples, account-specific data)
-pi/agent/skills/core/write-like-justin
-pi/agent/skills/core/b1-admin
-pi/agent/skills/core/jalco-drop
-pi/agent/skills/work
-pi/agent/skills/job-search/
-pi/agent/skills/real-app/
-pi/agent/skills/plan-to-linear/
-pi/agent/skills/platform-settings-sections/
-pi/agent/skills/grid-based-components/
+agents/skills/write-like-justin
+agents/skills/b1-admin
+agents/skills/jalco-drop
+agents/skills/work
+agents/skills/job-search/
+agents/skills/real-app/
+agents/skills/plan-to-linear/
+agents/skills/platform-settings-sections/
+agents/skills/grid-based-components/
 pi/agent/mastra-design.md
 
 # Licensed skill content (installer-gated, not redistributable)
 agents/skills/interface-craft
-pi/agent/skills/design/brand-film
-pi/agent/skills/design/pen-dev
+agents/skills/brand-film
+agents/skills/pen-dev
 
 # Personal prompts (resume details, contact info)
 pi/agent/prompts/jobs.md
@@ -128,11 +128,11 @@ pi/agent/keysend
 
 
 # Browser-tools scratch scripts
-pi/agent/skills/browser-tools/_*.mjs
-pi/agent/skills/browser-tools/capture-badges.mjs
+agents/skills/browser-tools/_*.mjs
+agents/skills/browser-tools/capture-badges.mjs
 
 # Licensed aiforui skills (installed by npx @aiforui/install, not redistributable)
-pi/agent/skills/design/emil-*
+agents/skills/emil-*
 
 # Multi-pass runtime state (cooldowns, ephemeral)
 pi/agent/chatgpt-pool.json

@@ -64,8 +64,12 @@
     },
     "npm:@narumitw/pi-btw",
     "npm:pi-title-renamer",
-    "npm:pi-herdr-pstack",
-    "git:github.com/loops-so/skills@f7257b90cf348a089a59d4cbdaaf91cb926f24ed",
+    {
+      "source": "git:github.com/loops-so/skills@f7257b90cf348a089a59d4cbdaaf91cb926f24ed",
+      "skills": [
+        "-skills/loops-lmx/SKILL.md"
+      ]
+    },
     "./packages/pi-claude-pool",
     "git:github.com/dmmulroy/rex-sdk@55f8b98c28f2a8b525b24bc1a42bdf69511e4e0e"
   ],

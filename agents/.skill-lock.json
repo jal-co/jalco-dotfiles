@@ -28,15 +28,6 @@
       "installedAt": "2026-08-31T16:26:11.897Z",
       "updatedAt": "2026-08-31T16:26:11.897Z"
     },
-    "show-me": {
-      "source": "humanlayer/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/humanlayer/skills.git",
-      "skillPath": "plugins/show-me/skills/show-me/SKILL.md",
-      "skillFolderHash": "362200ac2fb3c17b765049444e88de73767e6d08",
-      "installedAt": "2026-09-01T15:37:27.901Z",
-      "updatedAt": "2026-10-11T20:45:28.228Z"
-    },
     "shadcn": {
       "source": "shadcn-ui/ui",
       "sourceType": "github",
@@ -63,15 +54,6 @@
       "skillFolderHash": "9714e4e95df9cd76f6235abbe801a277dcbac16a",
       "installedAt": "2026-10-11T20:28:03.832Z",
       "updatedAt": "2026-10-11T20:28:03.832Z"
-    },
-    "build-design": {
-      "source": "jakubkrehel/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/jakubkrehel/skills.git",
-      "skillPath": "skills/build-design/SKILL.md",
-      "skillFolderHash": "efab576ec92cc8d2117c12983de445ef07f1f276",
-      "installedAt": "2026-10-11T20:44:27.974Z",
-      "updatedAt": "2026-10-11T20:44:27.974Z"
     },
     "create-canvas": {
       "source": "ibelick/ui-skills",

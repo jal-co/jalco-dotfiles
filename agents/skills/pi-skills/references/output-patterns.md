@@ -60,7 +60,7 @@ The template includes:
 
 Copy and customize:
 ```bash
-cp ~/.pi/agent/skills/my-skill/assets/api-template.ts src/api.ts
+cp ~/.agents/skills/my-skill/assets/api-template.ts src/api.ts
 ```
 
 Then modify the placeholders:
@@ -92,7 +92,7 @@ my-app/
 
 Copy all templates:
 ```bash
-cp -r ~/.pi/agent/skills/my-skill/assets/templates/* ./my-app/
+cp -r ~/.agents/skills/my-skill/assets/templates/* ./my-app/
 ```
 ```
 
@@ -512,7 +512,7 @@ Reference a validation script:
 After generating output, validate with:
 
 ```bash
-bash ~/.pi/agent/skills/my-skill/scripts/validate.sh output.json
+bash ~/.agents/skills/my-skill/scripts/validate.sh output.json
 ```
 
 The script checks:

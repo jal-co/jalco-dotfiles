@@ -13,7 +13,6 @@ Personal defaults across projects. Repository instructions take precedence, near
 - MUST NOT delegate or launch agents without explicit permission for this task. Work in the current session. When permission omits a count, use at most one agent at a time. Creating a workspace does not authorize delegation. Exception: the pinned coordinator that `pinned` starts in its own terminal session exists to dispatch. It MAY launch one subagent per approved task, each with its own worktree, branch, and task tab in the repository's shared Rex session, without asking again for dispatch permission or a checkout when the repository is known. This applies to resumed tasks too: use the existing idle task owner instead of starting another writer. Follow `~/rex-coord/AGENTS.md` for placement and verification. It MUST NOT write to a repository itself. Every other session asks before delegating.
 - When Justin says to queue work ("queue this", "queue a fix"), a session other than the pinned coordinator MUST hand it to the coordinator as a work item with `caller_ping`, naming the repository, the change, the done-when check, and any blocker. It MUST NOT start the work, launch an agent, or create a Linear issue for it, because queued work belongs in the coordinator's dispatch list, where Justin tracks it. A Linear issue is created only when he asks for a ticket or an issue. Send the ping as the last step, after the rest of the request is done, because `caller_ping` ends the session.
 - Rex is the terminal for agent sessions: one session per repository, one tab and Pi conversation per task, and a separate pinned inbox. Task agents MUST preserve the repository session label and name only their own tab, so task names do not replace the shared repository name. For an authorized launch, load `rex` and use the Rex host's `subagent` tool, or the Rex CLI where that tool is not loaded.
-- The pstack workflow MUST start only when Justin says pstack or p3, or answers yes to the gate. The pinned coordinator asks "use pstack, or just do it" before any run bigger than a read or a one-file change, and names the playbook it would pick. A yes covers that playbook for that task only. The skills ship in the `pi-herdr-pstack` package: read the hub at `~/.pi/agent/npm/node_modules/pi-herdr-pstack/skills/poteto-mode/SKILL.md`, then the routed playbook under `skills/poteto-mode/playbooks/`, and read a principle leaf before citing it. Any other session asks "Use pstack?" in one line before a feature across several layers, auth, billing, data model or migrations, security-sensitive paths, or a multi-PR effort, then waits. Smaller work runs without it, because its review lanes and fix rounds cost more than a small change can hide. A brief that opens with "Using pstack" is already in it and MUST NOT ask.
 - Worktrees follow `workflows/worktrees.md`, including companion worktrees for cross-repository tasks. A session already inside a task worktree MUST work there and MUST NOT create another worktree of the same repository, even when its branch has no commits yet. Before creating a worktree, MUST reuse an unclaimed one, because an extra worktree is left behind for Justin to clean up.
 - Two repositories skip worktrees and MUST be changed directly in their default-branch checkout: the dotfiles repository, and a repository with no Git remote when no other agent works in it. Nothing is published from either, so a worktree adds a checkout without protecting anything.
 
@@ -36,9 +35,14 @@ Personal defaults across projects. Repository instructions take precedence, near
 
 ### Comments
 
-- MUST NOT add comments to code files, including source, tests, scripts, configuration, generated files, fixtures, and migrations. This includes docstrings, documentation comments, lint/type directives, TODOs, banners, and commented-out code.
-- Express intent through names, types, structure, tests, and change descriptions. Preserve existing comments unless the user requests their cleanup.
-- If a required directive has no code-based alternative, stop and explain the blocker.
+- Express intent through names, types, structure, tests, and change descriptions first. A comment carries only what code cannot, because comments that restate code go stale and bury the few that matter.
+- Before adding a comment, MUST try a clearer name, type, extracted function, or test. Add one only when that fails and the comment records one of:
+  - a non-obvious reason or invariant, such as why this order, value, or approach is required when the code alone invites someone to "fix" it;
+  - an external constraint: a compatibility workaround, platform or library quirk, or security requirement, with a link when one exists;
+  - a directive a tool requires (lint, type, or formatter), with its reason when the tool accepts one.
+- Write the reason in one or two lines. MUST NOT narrate what the code does, add docstrings that restate a signature, add banners or section dividers, leave speculative TODOs, or keep commented-out code.
+- Add comments only to code the task already changes. Preserve existing comments unless the user requests their cleanup.
+- A repository rule that restricts comments further wins over this one.
 
 </rules>
 
@@ -81,15 +85,15 @@ Load only the guidance relevant to the task, including the `emil-*` skill for ea
 | Tests, builds, typechecks, or other CPU-heavy verification on b1 | MUST read `~/.pi/agent/workflows/b1-checks.md` and use `rex-check` to keep verification within the shared CPU budget. |
 | Terminal coordinator: dispatch tasks, follow up, status, worktree cleanup | Load `rex` and follow `~/rex-coord/AGENTS.md`. |
 | Git changes, commits, branches, or publication | `git`. |
-| Prepare, open, update, or finalize a PR | Read `~/.pi/agent/skills/core/preparing-pull-requests/SKILL.md` (or load `git`, which points to it). For UI intended for a PR, read it before implementation to capture the before state. |
+| Prepare, open, update, or finalize a PR | Read `~/.agents/skills/preparing-pull-requests/SKILL.md` (or load `git`, which points to it). For UI intended for a PR, read it before implementation to capture the before state. |
 | Attach media to issues, comments, or PRs | Read `~/.agents/skills/pr-screenshots/SKILL.md`, including final URL verification and native GitHub uploads. |
 | Frontend implementation, verification, or localhost handoff | Read `~/.pi/agent/workflows/frontend.md` before editing. Agent Browser verifies journeys; Playwright assertions apply when behavior can be automated. |
-| Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. The skills under `~/.pi/agent/skills/work` and the `mdev` command come from the private `~/dotfiles-work` checkout. If either is missing, stop and tell Justin to clone and link it; MUST NOT continue from memory of the Mastra rules, because they change there. |
+| Any work in a `mastra-ai` repository, or on Mastra Linear tickets | MUST load `mastra-work` before acting and follow it. It owns the Mastra UI, design, ticket, and review rules. The skills under `~/.agents/skills/work` and the `mdev` command come from the private `~/dotfiles-work` checkout. If either is missing, stop and tell Justin to clone and link it; MUST NOT continue from memory of the Mastra rules, because they change there. |
 | Explore alternatives for a UI piece, stress test a component, or render every state of a component | `variant`, `break-it`, or `state-machine`. Run `variant` and `state-machine` only when Justin invokes them. `break-it` also runs at the UI preflight in section 3. |
 | DialKit or storyboard tooling | `interface-craft`. Transfer approved values into production and remove temporary controls before final verification. |
 | Showing Justin numbers that form a trend, distribution, or comparison of more than about six values | Render a chart with `tools.chart` from a `codemode` script and show it with `image()`, alongside the one-sentence finding. Use it instead of a long table, an ASCII chart, or installing a plotting library. Keep a table when exact values matter more than shape. |
 | Prose as the deliverable | `emil-unslop-writing`. For text sent as Justin, use `write-like-justin`, then `emil-unslop-writing`. Do not load Justin's voice for ordinary replies to him. |
-| Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and read `~/.pi/agent/skills/core/rfc-xml-style/SKILL.md`. |
+| Pi skill packaging or discovery | `pi-skills`. For instruction authoring use `emil-writing-skills` and read `~/.agents/skills/rfc-xml-style/SKILL.md`. |
 
 Other specialized tasks use their matching skill when needed, including security and releases. A skill's command examples do not grant permission to execute them.
 
@@ -105,7 +109,7 @@ When review notes arrive from a pull request or diff view, begin the requested w
 
 MUST NOT use em dashes or AI attribution in prose, commits, PRs, or tags. MUST NOT use the interpunct (`·`, U+00B7) anywhere: prose, messages, interface copy, separators, or markup. Separate inline items with spacing, line breaks, or layout instead. Avoid preambles, generic offers, and recap endings. Do not end by asking permission for a safe next step you can execute. Safety and real ambiguity take precedence over brevity.
 
-Justin has ADHD. This applies in every session, including pstack runs and every message addressed to him. Replies end with the one thing he must do, in one or two plain sentences, after the explanation. When you need a decision, ask open questions last, one or two at most, in everyday words. Never bury the ask mid-reply, and never end with a menu of options or a long list of questions. Long endings hide the action, and a hidden action does not get done.
+Justin has ADHD. This applies in every session and every message addressed to him. Replies end with the one thing he must do, in one or two plain sentences, after the explanation. When you need a decision, ask open questions last, one or two at most, in everyday words. Never bury the ask mid-reply, and never end with a menu of options or a long list of questions. Long endings hide the action, and a hidden action does not get done.
 
 </guidelines>
 
@@ -114,6 +118,6 @@ Justin has ADHD. This applies in every session, including pstack runs and every 
 <rules>
 
 - Higher-priority runtime instructions take precedence. A project's `project-override` block replaces its named section; other repository instructions are additive, nearest first.
-- Changes to this file require `~/.pi/agent/skills/core/rfc-xml-style/SKILL.md` and `emil-writing-skills`. Change behavior, preserve permission boundaries, and keep task procedures out of the global file.
+- Changes to this file require `~/.agents/skills/rfc-xml-style/SKILL.md` and `emil-writing-skills`. Change behavior, preserve permission boundaries, and keep task procedures out of the global file.
 
 </rules>

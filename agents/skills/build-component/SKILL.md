@@ -9,9 +9,9 @@ This skill sequences the skills that already own each slice of component work. I
 
 <constraints>
 
-- In a `mastra-ai` repository, `mastra-work` governs. Read `~/.pi/agent/skills/work/mastra-work/SKILL.md` first. For a component under `playground-ui/src/ds/`, follow `~/.pi/agent/skills/work/mastra-design/workflows/build-component.md` instead of the steps below.
+- In a `mastra-ai` repository, `mastra-work` governs. Read `~/.agents/skills/work/mastra-work/SKILL.md` first. For a component under `playground-ui/src/ds/`, follow `~/.agents/skills/work/mastra-design/workflows/build-component.md` instead of the steps below.
 - MUST search the repository for an existing component, token, or primitive before writing a new one. Extend it when it fits.
-- MUST NOT add comments to code, per the global instructions.
+- Comments follow the global Comments rules: only a reason or constraint the code cannot carry.
 
 </constraints>
 

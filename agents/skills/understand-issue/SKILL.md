@@ -88,7 +88,7 @@ Once the thread is open, `mastra_expert` may help orient you on Mastra-specific 
 
 ## Mastra Platform and Sazabi operational evidence
 
-For Sazabi issues or Mastra Platform bugs whose diagnosis depends on deployed state, load `~/.pi/agent/skills/work/admin-cli/SKILL.md` and its command-selection reference. Use the repository-local admin CLI to inspect the affected project, environment, deployment, logs or runtime instead of guessing from source alone. Pure local UI bugs do not require production access.
+For Sazabi issues or Mastra Platform bugs whose diagnosis depends on deployed state, load `~/.agents/skills/work/admin-cli/SKILL.md` and its command-selection reference. Use the repository-local admin CLI to inspect the affected project, environment, deployment, logs or runtime instead of guessing from source alone. Pure local UI bugs do not require production access.
 
 Start with `auth whoami` against the intended environment and verify the account and organization before querying customer state. A production login for Justin was verified previously, but recheck it rather than treating saved credentials as valid. Normal admin API commands use that login; do not request a Railway token by default. Only direct Railway operations require `SERVER_PROVIDER_TOKEN`; load it through an approved secret reference if actually needed, never print or store its value in task artifacts.
 
@@ -134,7 +134,7 @@ Read the existing record first. The own model already exists; do not recreate it
 
 ## Tone and issue comments
 
-Apply this to the local briefing and to any drafted or posted GitHub comment. **Before drafting or posting anything to GitHub, read `~/.pi/agent/skills/core/gh-review/SKILL.md`** and follow it: the diagnosis is stated as a claim, the fix is a required change, and nothing is hedged or deferred.
+Apply this to the local briefing and to any drafted or posted GitHub comment. **Before drafting or posting anything to GitHub, read `~/.agents/skills/gh-review/SKILL.md`** and follow it: the diagnosis is stated as a claim, the fix is a required change, and nothing is hedged or deferred.
 
 - Discuss code and evidence, not the reporter or commenters.
 - State the diagnosis plainly. "This is a bug in X because Y" beats "could this be related to X?"

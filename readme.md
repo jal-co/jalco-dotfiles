@@ -40,7 +40,7 @@ To manage a new file, move it into a folder here, add a line to `[dotfiles]`, an
 
 Private skills and Zed prompts live in the private repo `jal-co/dotfiles-private`. Clone it to `~/dotfiles-private` and run its `link.sh`.
 
-Mastra work setup lives in the private repo `jal-co/dotfiles-work`: the Pi skills in `pi/agent/skills/work` and `mdev`, which runs Mastra apps per worktree. Clone it to `~/dotfiles-work` and run `mise trust && mise dot apply` there. Until then `pi/agent/skills/work` is missing, and the Mastra rows in `pi/agent/AGENTS.md` and `mdev` in `pi/agent/workflows/frontend.md` point at nothing.
+Mastra work setup lives in the private repo `jal-co/dotfiles-work`: the Pi skills in `agents/skills/work` and `mdev`, which runs Mastra apps per worktree. Clone it to `~/dotfiles-work` and run `mise trust && mise dot apply` there. Until then `agents/skills/work` is missing, and the Mastra rows in `pi/agent/AGENTS.md` and `mdev` in `pi/agent/workflows/frontend.md` point at nothing.
 
 Credentials live in 1Password, not in any of these repos. [`docs/agent-secrets.md`](docs/agent-secrets.md) covers agent access.
 
@@ -68,15 +68,12 @@ Machine-specific shell settings and secrets go in `~/.zshrc.local`, which is not
 | `models.json`, `mcp.json`, `keybindings.json` | Models, MCP servers, keys |
 | `extensions/` | Local extensions. `chart/` gives codemode scripts a `tools.chart` that renders PNG charts with [mpljs](https://github.com/ivarvong/mpl), pinned to a commit in `extensions/package.json` |
 | `packages/` | Local forks of `rpiv-ask-user-question` and `rpiv-todo` |
-| `skills/` | Pi-only skills |
 | `prompts/` | Prompt templates |
 | `workflows/` | Task workflows referenced by `AGENTS.md` |
 | `themes/` | `pierre-dark`, `verminal`, `geist-dark` |
 | `browser-testing/` | Headless browser wrapper used by `AGENTS.md` |
 
-Pi also loads shared skills from `~/.agents/skills`. Keep each skill in one of the two roots, not both.
-
-In `pi/agent/skills`, `core/` holds the everyday skills, `work/` the Mastra skills and the ones `mastra-work` routes to (a link into `~/dotfiles-work`), and `design/` the licensed Emil skills. Pi finds skills in subfolders. A skill with `disable-model-invocation: true` is hidden from automatic selection and read by path. Skills installed with `npx skills` stay flat in `agents/skills`, because `skills update` writes them there.
+Every skill lives in `agents/skills`, linked as `~/.agents/skills`, which Pi, Claude Code and Codex all read. Each skill is a flat folder there, including the ones `npx skills` installs and updates. Private and licensed skills are links that `~/dotfiles-private/link.sh` adds, and `work/` is a link into `~/dotfiles-work`, which holds the Mastra skills and the ones `mastra-work` routes to. Pi finds skills in subfolders. A skill with `disable-model-invocation: true` is hidden from automatic selection and read by path.
 
 MCP servers live in `mcp.json`. Manage them with `pi mcp list`, `pi mcp login <server>`, and `/mcp`. API keys go in `~/.zshrc.local`.
 
@@ -86,7 +83,7 @@ A fresh clone does not include everything. These are gitignored and installed se
 
 - Licensed skills: the `emil-*` skills and `interface-craft`.
 - Private skills: `write-like-justin`, `b1-admin`, `jalco-drop`, `job-search`, `real-app`, `plan-to-linear`.
-- Work skills: all of `pi/agent/skills/work`, from `~/dotfiles-work`. Some of them link on to `~/dev/agent-contracts-justin`.
+- Work skills: all of `agents/skills/work`, from `~/dotfiles-work`. Some of them link on to `~/dev/agent-contracts-justin`.
 - Mastra prompts that link to `~/dev/agent-contracts-justin`.
 
 Sessions, auth, caches, and retired skills stay in `~/.pi/agent`, outside this repository.
