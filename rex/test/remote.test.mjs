@@ -10,7 +10,8 @@ test('selfName maps the machine hostname to its host label', () => {
   const config = loadHosts();
   assert.equal(selfName(config, 'b1'), 'b1');
   assert.equal(selfName(config, 'Justins-MacBook-Pro-2.local'), 'mac');
-  assert.equal(selfName(config, 'elsewhere'), undefined);
+  assert.equal(selfName(config, 'elsewhere', () => undefined), undefined);
+  assert.equal(selfName(config, 'Justins-MBP-2.home.local', () => 'Justins-MacBook-Pro-2'), 'mac');
 });
 
 test('pmset and vm_stat output parse into battery and available memory', () => {

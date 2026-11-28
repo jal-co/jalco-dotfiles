@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, hostname } from 'node:os';
@@ -17,9 +18,23 @@ const fileId = /^[\w-]{1,80}$/;
 
 export const loadHosts = (file = process.env.REX_HOSTS_CONFIG ?? join(packageRoot, 'config/hosts.json')) => JSON.parse(readFileSync(file, 'utf8'));
 
-export function selfName(config, name = process.env.REX_HOST_NAME ?? shortHost()) {
-  const short = name.toLowerCase().split('.')[0];
-  return Object.keys(config.hosts).find((key) => key === short || config.hosts[key].hostname === short);
+// macOS hostname() follows the network (Justins-MBP-2.home.local on one Wi-Fi), so it can miss the
+// configured name; LocalHostName is the one System Settings shows and stays put.
+const macLocalHostName = () => {
+  if (process.platform !== 'darwin') return undefined;
+  try {
+    return execFileSync('/usr/sbin/scutil', ['--get', 'LocalHostName'], { encoding: 'utf8', timeout: 2000 }).trim();
+  } catch {
+    return undefined;
+  }
+};
+
+export function selfName(config, name = process.env.REX_HOST_NAME ?? shortHost(), fallback = macLocalHostName) {
+  const find = (value) => {
+    const short = value?.toLowerCase().split('.')[0];
+    return short && Object.keys(config.hosts).find((key) => key === short || config.hosts[key].hostname === short);
+  };
+  return find(name) ?? (process.env.REX_HOST_NAME ? undefined : find(fallback()));
 }
 
 export const brainName = (config) => config.order[0];

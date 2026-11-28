@@ -44,7 +44,9 @@ const piCommand = () => {
   if (!existsSync(pi)) throw new Error(`Pi executable not found: ${pi}`);
   const saved = fresh ? undefined : latestCoordinatorSession(cwd, configDir, new TaskStore().list().map((task) => task.sessionFile));
   if (saved) console.log(`Reopening the saved coordinator conversation ${saved}.`);
-  return [pi, '--approve', '--model', model, ...(saved ? ['--session', saved] : [])];
+  // --shell=none tabs get the server's environment, which on the Mac app is PATH=/usr/bin:/bin, and pi's
+  // launcher needs node from PATH. Pass on the PATH pinned was run with.
+  return ['/usr/bin/env', `PATH=${process.env.PATH}`, pi, '--approve', '--model', model, ...(saved ? ['--session', saved] : [])];
 };
 const idle = (info) => !info.last_exit && (!info.foreground || /^-|(^|\/)(zsh|bash|fish|sh)$/.test(info.foreground.argv0 ?? ''));
 const idleWindows = (id, label) => {
