@@ -53,7 +53,7 @@ A corrupt pin file is reported rather than overwritten. An interrupted pin edit 
 | `src/hosts.ts`, `src/link.mjs`, `launchd/com.jalco.rex-link.plist` | The link the Mac keeps open to b1 so one coordinator serves both machines |
 | `src/grokbot.mjs`, `systemd/rex-grokbot.service` | [Grokbot connector](#grokbot-connector): Grokbot starts tasks through the b1 coordinator and reads their outcome |
 | `../pi/agent/extensions/rex-task.ts` | Native status entry for ordinary Pi sessions and older task agents |
-| `../pi/agent/extensions/program-resume.ts`, `config/init.lua` | [Program resume](#program-resume) for ordinary Pi sessions and the coordinator after a Rex server restart |
+| `config/init.lua` | [Program resume](#program-resume) for ordinary Pi sessions (Pi 1.7 reports the resume command itself) and the coordinator after a Rex server restart |
 | `src/worktrees.ts` | Durable checkout ownership, leases, reuse and explicit cleanup |
 | `src/pinned.mjs`, `bin/pinned` | The `pinned` launcher |
 | `src/recover.mjs`, `bin/rex-recover` | [Recovery after a restart](#recovery-after-a-restart): reopens the coordinator conversation and lists gone tasks for a decision |
@@ -408,7 +408,6 @@ The launcher does not restart a running coordinator or adopt its tasks behind it
 ```sh
 cd ~/dotfiles/rex && npm test
 node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/git-interceptor.test.ts
-node --experimental-strip-types --test ~/dotfiles/pi/agent/extensions/tests/program-resume.test.ts
 ```
 
 Run `node ~/dotfiles/rex/test/live/package-live-test.mjs` for a model-free check that the coordinator's package configuration loads exactly one set of agent, PR and memory tools before and after `/reload`. It creates and closes only a disposable Rex session and retains its evidence under `~/.local/state/pi-rex-package-proof-*`.
