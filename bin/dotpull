@@ -1,0 +1,15 @@
+#!/bin/sh
+# Fast-forward every dotfiles repo, then relink what changed.
+status=0
+for repo in "$HOME/dotfiles" "$HOME/dotfiles-private" "$HOME/dotfiles-work"; do
+  [ -d "$repo/.git" ] || continue
+  before=$(git -C "$repo" rev-parse HEAD)
+  echo "== ${repo##*/}"
+  git -C "$repo" pull --ff-only || { status=1; continue; }
+  [ "$repo" = "$HOME/dotfiles-private" ] && [ "$before" != "$(git -C "$repo" rev-parse HEAD)" ] &&
+    git -C "$repo" diff --name-only "$before" HEAD | grep -qx links.txt && (cd "$repo" && ./link.sh)
+done
+for repo in "$HOME/dotfiles" "$HOME/dotfiles-work"; do
+  [ -d "$repo/.git" ] && (cd "$repo" && mise dot apply >/dev/null)
+done
+exit $status

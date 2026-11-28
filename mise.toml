@@ -13,6 +13,7 @@ dotfiles.relative_symlinks = true
 "~/.config/ponytail" = "ponytail"
 "~/.config/starship.toml" = "starship/starship.toml"
 "~/.agents" = "agents"
+"~/.local/bin/dotpull" = "bin/dotpull"
 "~/.local/bin/pinned" = "rex/bin/pinned"
 "~/.local/bin/rex-linear" = "rex/bin/rex-linear"
 "~/.local/bin/rex-remote" = "rex/bin/rex-remote"
